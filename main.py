@@ -1,137 +1,168 @@
 from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from datetime import datetime
-from dotenv import load_dotenv
+from dataclasses import dataclass
+import jwt
+import os
+from datetime import datetime, timedelta
+from database import engine, SessionLocal, Base
+from models import User, HOA, Resident, Violation
+import utils
 
-from database import engine, get_db, Base
-from models import User, HOA, Resident, Violation, ViolationStatus
-from schemas import (
-    UserRegister, UserLogin, Token, HOACreate, HOAResponse,
-    ResidentCreate, ResidentResponse, ViolationCreate, ViolationUpdate, ViolationResponse
-)
-from utils import hash_password, verify_password, create_access_token, verify_token, generate_violation_letter, generate_pdf
-
-load_dotenv()
-
+# Create tables
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="HOA Violation Tracker API", version="1.0.0")
+app = FastAPI()
+security = HTTPBearer()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Data classes (replacing Pydantic)
+@dataclass
+class UserRegister:
+    email: str
+    password: str
 
-@app.post("/auth/register", response_model=Token)
-def register(user: UserRegister, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user.email).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    hashed = hash_password(user.password)
-    db_user = User(email=user.email, hashed_password=hashed)
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    access_token = create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+@dataclass
+class HOACreate:
+    name: str
+    address: str
 
-@app.post("/auth/login", response_model=Token)
-def login(user: UserLogin, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user.email).first()
-    if not db_user or not verify_password(user.password, db_user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    access_token = create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+@dataclass
+class ResidentCreate:
+    name: str
+    unit: str
+    email: str = None
+    phone: str = None
 
-@app.post("/hoas", response_model=HOAResponse)
-def create_hoa(hoa: HOACreate, email: str = Depends(verify_token), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == email).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    db_hoa = HOA(name=hoa.name, address=hoa.address, user_id=user.id)
-    db.add(db_hoa)
-    db.commit()
-    db.refresh(db_hoa)
-    return db_hoa
+@dataclass
+class ViolationCreate:
+    resident_id: int
+    violation_type: str
+    description: str
 
-@app.get("/hoas", response_model=list[HOAResponse])
-def get_hoas(email: str = Depends(verify_token), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == email).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user.hoas
+@dataclass
+class ViolationUpdate:
+    status: str
 
-@app.post("/residents/{hoa_id}", response_model=ResidentResponse)
-def create_resident(hoa_id: int, resident: ResidentCreate, email: str = Depends(verify_token), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == email).first()
-    hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == user.id).first()
-    if not hoa:
-        raise HTTPException(status_code=404, detail="HOA not found")
-    db_resident = Resident(name=resident.name, unit=resident.unit, email=resident.email, phone=resident.phone, hoa_id=hoa_id)
-    db.add(db_resident)
-    db.commit()
-    db.refresh(db_resident)
-    return db_resident
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-@app.get("/residents/{hoa_id}", response_model=list[ResidentResponse])
-def get_residents(hoa_id: int, email: str = Depends(verify_token), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == email).first()
-    hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == user.id).first()
-    if not hoa:
-        raise HTTPException(status_code=404, detail="HOA not found")
-    return hoa.residents
-
-@app.post("/violations/{hoa_id}", response_model=ViolationResponse)
-def create_violation(hoa_id: int, violation: ViolationCreate, email: str = Depends(verify_token), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == email).first()
-    hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == user.id).first()
-    if not hoa:
-        raise HTTPException(status_code=404, detail="HOA not found")
-    resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
-    if not resident:
-        raise HTTPException(status_code=404, detail="Resident not found")
-    letter_text = generate_violation_letter(resident.name, violation.violation_type, violation.description, datetime.utcnow().strftime("%Y-%m-%d"))
-    db_violation = Violation(
-        resident_id=violation.resident_id,
-        hoa_id=hoa_id,
-        violation_type=violation.violation_type,
-        description=violation.description,
-        generated_letter=letter_text
-    )
-    db.add(db_violation)
-    db.commit()
-    db.refresh(db_violation)
-    return db_violation
-
-@app.get("/violations/{hoa_id}", response_model=list[ViolationResponse])
-def get_violations(hoa_id: int, email: str = Depends(verify_token), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == email).first()
-    hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == user.id).first()
-    if not hoa:
-        raise HTTPException(status_code=404, detail="HOA not found")
-    return db.query(Violation).filter(Violation.hoa_id == hoa_id).all()
-
-@app.get("/violations/{violation_id}/letter")
-def get_violation_letter(violation_id: int, email: str = Depends(verify_token), db: Session = Depends(get_db)):
-    violation = db.query(Violation).filter(Violation.id == violation_id).first()
-    if not violation:
-        raise HTTPException(status_code=404, detail="Violation not found")
-    return {"letter": violation.generated_letter}
-
-@app.patch("/violations/{violation_id}", response_model=ViolationResponse)
-def update_violation(violation_id: int, update: ViolationUpdate, email: str = Depends(verify_token), db: Session = Depends(get_db)):
-    violation = db.query(Violation).filter(Violation.id == violation_id).first()
-    if not violation:
-        raise HTTPException(status_code=404, detail="Violation not found")
-    violation.status = update.status
-    db.commit()
-    db.refresh(violation)
-    return violation
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, os.getenv("SECRET_KEY", "your-secret-key"), algorithms=["HS256"])
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 @app.get("/")
-def root():
+def health_check():
     return {"message": "HOA Violation Tracker API", "status": "running"}
+
+@app.post("/auth/register")
+def register(user_data: UserRegister, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.email == user_data.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    hashed = utils.hash_password(user_data.password)
+    user = User(email=user_data.email, hashed_password=hashed)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    token = utils.create_access_token({"sub": str(user.id)})
+    return {"access_token": token, "token_type": "bearer"}
+
+@app.post("/auth/login")
+def login(user_data: UserRegister, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == user_data.email).first()
+    if not user or not utils.verify_password(user_data.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    token = utils.create_access_token({"sub": str(user.id)})
+    return {"access_token": token, "token_type": "bearer"}
+
+@app.post("/hoas")
+def create_hoa(hoa_data: HOACreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    hoa = HOA(name=hoa_data.name, address=hoa_data.address, user_id=current_user.id)
+    db.add(hoa)
+    db.commit()
+    db.refresh(hoa)
+    return {"id": hoa.id, "name": hoa.name, "address": hoa.address}
+
+@app.get("/hoas")
+def get_hoas(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    hoas = db.query(HOA).filter(HOA.user_id == current_user.id).all()
+    return [{"id": h.id, "name": h.name, "address": h.address} for h in hoas]
+
+@app.post("/residents/{hoa_id}")
+def add_resident(hoa_id: int, resident_data: ResidentCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == current_user.id).first()
+    if not hoa:
+        raise HTTPException(status_code=404, detail="HOA not found")
+    
+    resident = Resident(hoa_id=hoa_id, name=resident_data.name, unit=resident_data.unit, email=resident_data.email, phone=resident_data.phone)
+    db.add(resident)
+    db.commit()
+    db.refresh(resident)
+    return {"id": resident.id, "name": resident.name, "unit": resident.unit, "email": resident.email}
+
+@app.get("/residents/{hoa_id}")
+def get_residents(hoa_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == current_user.id).first()
+    if not hoa:
+        raise HTTPException(status_code=404, detail="HOA not found")
+    
+    residents = db.query(Resident).filter(Resident.hoa_id == hoa_id).all()
+    return [{"id": r.id, "name": r.name, "unit": r.unit, "email": r.email} for r in residents]
+
+@app.post("/violations/{hoa_id}")
+def add_violation(hoa_id: int, violation_data: ViolationCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == current_user.id).first()
+    if not hoa:
+        raise HTTPException(status_code=404, detail="HOA not found")
+    
+    violation = Violation(hoa_id=hoa_id, resident_id=violation_data.resident_id, violation_type=violation_data.violation_type, description=violation_data.description, status="open")
+    db.add(violation)
+    db.commit()
+    db.refresh(violation)
+    return {"id": violation.id, "violation_type": violation.violation_type, "status": violation.status}
+
+@app.get("/violations/{hoa_id}")
+def get_violations(hoa_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == current_user.id).first()
+    if not hoa:
+        raise HTTPException(status_code=404, detail="HOA not found")
+    
+    violations = db.query(Violation).filter(Violation.hoa_id == hoa_id).all()
+    return [{"id": v.id, "violation_type": v.violation_type, "description": v.description, "status": v.status} for v in violations]
+
+@app.get("/violations/{violation_id}/letter")
+def get_violation_letter(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    violation = db.query(Violation).filter(Violation.id == violation_id).first()
+    if not violation:
+        raise HTTPException(status_code=404, detail="Violation not found")
+    
+    resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
+    letter = utils.generate_violation_letter(resident.name, violation.violation_type, violation.description)
+    return {"letter": letter}
+
+@app.patch("/violations/{violation_id}")
+def update_violation(violation_id: int, violation_data: ViolationUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    violation = db.query(Violation).filter(Violation.id == violation_id).first()
+    if not violation:
+        raise HTTPException(status_code=404, detail="Violation not found")
+    
+    violation.status = violation_data.status
+    db.commit()
+    return {"id": violation.id, "status": violation.status}

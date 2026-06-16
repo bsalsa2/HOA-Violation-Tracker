@@ -3,7 +3,6 @@ uvicorn==0.24.0
 sqlalchemy==2.0.51
 psycopg2-binary==2.9.9
 python-dotenv==1.0.0
-pydantic==2.6.3
 pyjwt==2.13.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
