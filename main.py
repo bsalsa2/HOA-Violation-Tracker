@@ -12,10 +12,6 @@ import utils
 
 app = FastAPI()
 
-@app.on_event("startup")
-def startup():
-    Base.metadata.create_all(bind=engine)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,6 +19,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+def startup():
+    Base.metadata.create_all(bind=engine)
 
 security = HTTPBearer()
 
@@ -80,24 +80,35 @@ def health_check():
 
 @app.post("/auth/register")
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.email == user_data.email).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    hashed = utils.hash_password(user_data.password)
-    user = User(email=user_data.email, hashed_password=hashed)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    token = utils.create_access_token({"sub": str(user.id)})
-    return {"access_token": token, "token_type": "bearer"}
+    try:
+        existing = db.query(User).filter(User.email == user_data.email).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        hashed = utils.hash_password(user_data.password)
+        user = User(email=user_data.email, hashed_password=hashed)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        token = utils.create_access_token({"sub": str(user.id)})
+        return {"access_token": token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/auth/login")
 def login(user_data: UserRegister, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == user_data.email).first()
-    if not user or not utils.verify_password(user_data.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    token = utils.create_access_token({"sub": str(user.id)})
-    return {"access_token": token, "token_type": "bearer"}
+    try:
+        user = db.query(User).filter(User.email == user_data.email).first()
+        if not user or not utils.verify_password(user_data.password, user.hashed_password):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        token = utils.create_access_token({"sub": str(user.id)})
+        return {"access_token": token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/hoas")
 def create_hoa(hoa_data: HOACreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
