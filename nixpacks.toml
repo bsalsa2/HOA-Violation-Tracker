@@ -1,8 +1,5 @@
 [phases.setup]
-nixPkgs = ["python311", "libpq"]
+nixpkgs = ["python311"]
 
-[phases.install]
-cmds = ["pip install -r requirements.txt"]
-
-[start]
-cmd = "uvicorn main:app --host 0.0.0.0 --port 8080"
+[build]
+cmd = "pip install -r requirements.txt"
