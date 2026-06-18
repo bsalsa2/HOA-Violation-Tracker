@@ -19,7 +19,9 @@ function Login({ setToken }) {
       localStorage.setItem('access_token', response.data.access_token)
       setToken(response.data.access_token)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error occurred')
+      const errorMsg = err.response?.data?.detail || err.message || 'Error occurred'
+      console.error('Auth error:', err)
+      setError(errorMsg)
     } finally {
       setLoading(false)
     }
