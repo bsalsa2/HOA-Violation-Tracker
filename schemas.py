@@ -30,7 +30,7 @@ class HOAResponse(BaseModel):
     created_at: datetime
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 
 class ResidentCreate(BaseModel):
@@ -50,7 +50,7 @@ class ResidentResponse(BaseModel):
     created_at: datetime
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 
 class ViolationCreate(BaseModel):
@@ -75,4 +75,4 @@ class ViolationResponse(BaseModel):
     created_at: datetime
 
     class Config:
-        from_attributes = True
+        orm_mode = True
