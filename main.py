@@ -154,7 +154,7 @@ def get_violation_letter(violation_id: int, current_user: User = Depends(get_cur
     if not violation:
         raise HTTPException(status_code=404, detail="Violation not found")
     resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
-    letter = utils.generate_violation_letter(resident.name, violation.violation_type, violation.description)
+    letter = utils.generate_violation_letter(resident.name, violation.violation_type, violation.description, violation.created_at.strftime("%Y-%m-%d"))
     return {"letter": letter}
 
 @app.patch("/violations/{violation_id}")
