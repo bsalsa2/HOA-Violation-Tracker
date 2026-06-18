@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE = 'https://hoa-violation-tracker.onrender.com'
+const API_BASE = 'https://hoa-violation-tracker-production.up.railway.app'
 
 const api = axios.create({
   baseURL: API_BASE,
