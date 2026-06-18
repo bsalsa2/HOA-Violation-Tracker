@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from dataclasses import dataclass
@@ -9,11 +10,9 @@ from database import engine, SessionLocal, Base
 from models import User, HOA, Resident, Violation
 import utils
 
-# Create tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,9 +21,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 security = HTTPBearer()
 
-# Data classes (replacing Pydantic)
 @dataclass
 class UserRegister:
     email: str
@@ -82,13 +81,11 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == user_data.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    
     hashed = utils.hash_password(user_data.password)
     user = User(email=user_data.email, hashed_password=hashed)
     db.add(user)
     db.commit()
     db.refresh(user)
-    
     token = utils.create_access_token({"sub": str(user.id)})
     return {"access_token": token, "token_type": "bearer"}
 
@@ -97,7 +94,6 @@ def login(user_data: UserRegister, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_data.email).first()
     if not user or not utils.verify_password(user_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
     token = utils.create_access_token({"sub": str(user.id)})
     return {"access_token": token, "token_type": "bearer"}
 
@@ -119,7 +115,6 @@ def add_resident(hoa_id: int, resident_data: ResidentCreate, current_user: User 
     hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == current_user.id).first()
     if not hoa:
         raise HTTPException(status_code=404, detail="HOA not found")
-    
     resident = Resident(hoa_id=hoa_id, name=resident_data.name, unit=resident_data.unit, email=resident_data.email, phone=resident_data.phone)
     db.add(resident)
     db.commit()
@@ -131,7 +126,6 @@ def get_residents(hoa_id: int, current_user: User = Depends(get_current_user), d
     hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == current_user.id).first()
     if not hoa:
         raise HTTPException(status_code=404, detail="HOA not found")
-    
     residents = db.query(Resident).filter(Resident.hoa_id == hoa_id).all()
     return [{"id": r.id, "name": r.name, "unit": r.unit, "email": r.email} for r in residents]
 
@@ -140,7 +134,6 @@ def add_violation(hoa_id: int, violation_data: ViolationCreate, current_user: Us
     hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == current_user.id).first()
     if not hoa:
         raise HTTPException(status_code=404, detail="HOA not found")
-    
     violation = Violation(hoa_id=hoa_id, resident_id=violation_data.resident_id, violation_type=violation_data.violation_type, description=violation_data.description, status="open")
     db.add(violation)
     db.commit()
@@ -152,7 +145,6 @@ def get_violations(hoa_id: int, current_user: User = Depends(get_current_user), 
     hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == current_user.id).first()
     if not hoa:
         raise HTTPException(status_code=404, detail="HOA not found")
-    
     violations = db.query(Violation).filter(Violation.hoa_id == hoa_id).all()
     return [{"id": v.id, "violation_type": v.violation_type, "description": v.description, "status": v.status} for v in violations]
 
@@ -161,7 +153,6 @@ def get_violation_letter(violation_id: int, current_user: User = Depends(get_cur
     violation = db.query(Violation).filter(Violation.id == violation_id).first()
     if not violation:
         raise HTTPException(status_code=404, detail="Violation not found")
-    
     resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
     letter = utils.generate_violation_letter(resident.name, violation.violation_type, violation.description)
     return {"letter": letter}
@@ -171,7 +162,6 @@ def update_violation(violation_id: int, violation_data: ViolationUpdate, current
     violation = db.query(Violation).filter(Violation.id == violation_id).first()
     if not violation:
         raise HTTPException(status_code=404, detail="Violation not found")
-    
     violation.status = violation_data.status
     db.commit()
     return {"id": violation.id, "status": violation.status}
