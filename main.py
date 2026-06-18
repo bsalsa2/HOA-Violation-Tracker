@@ -10,9 +10,11 @@ from database import engine, SessionLocal, Base
 from models import User, HOA, Resident, Violation
 import utils
 
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI()
+
+@app.on_event("startup")
+def startup():
+    Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
