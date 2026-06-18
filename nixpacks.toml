@@ -1,5 +1,0 @@
-[phases.setup]
-nixpkgs = ["python312"]
-
-[build]
-cmd = "pip install -r requirements.txt"
