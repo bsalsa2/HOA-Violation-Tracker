@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 import jwt
 import os
 from datetime import datetime, timedelta
@@ -34,6 +34,13 @@ security = HTTPBearer()
 class UserRegister(BaseModel):
     email: str
     password: str
+
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v):
+        if len(v.encode('utf-8')) > 72:
+            v = v.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+        return v
 
 class HOACreate(BaseModel):
     name: str
