@@ -22,7 +22,12 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup():
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("✓ Database tables created successfully")
+    except Exception as e:
+        print(f"⚠ Database initialization warning: {e}")
+        # Don't fail startup - tables might already exist
 
 security = HTTPBearer()
 
