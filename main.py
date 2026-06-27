@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, validator
 import jwt
 import os
 from datetime import datetime, timedelta
@@ -35,8 +35,7 @@ class UserRegister(BaseModel):
     email: str
     password: str
 
-    @field_validator('password')
-    @classmethod
+    @validator('password')
     def validate_password(cls, v):
         if len(v.encode('utf-8')) > 72:
             v = v.encode('utf-8')[:72].decode('utf-8', errors='ignore')
