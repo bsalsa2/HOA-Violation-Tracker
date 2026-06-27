@@ -114,60 +114,115 @@ def login(user_data: UserRegister, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/hoas")
-def create_hoa(hoa_data: HOACreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    hoa = HOA(name=hoa_data.name, address=hoa_data.address, user_id=current_user.id)
+@app.post("/hoas/setup")
+def setup_hoa(hoa_data: HOACreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.hoa_id:
+        raise HTTPException(status_code=400, detail="HOA already set up")
+    hoa = HOA(name=hoa_data.name, address=hoa_data.address)
     db.add(hoa)
+    db.flush()
+    current_user.hoa_id = hoa.id
     db.commit()
     db.refresh(hoa)
     return {"id": hoa.id, "name": hoa.name, "address": hoa.address}
 
-@app.get("/hoas")
-def get_hoas(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    hoas = db.query(HOA).filter(HOA.user_id == current_user.id).all()
-    return [{"id": h.id, "name": h.name, "address": h.address} for h in hoas]
+@app.get("/hoas/me")
+def get_my_hoa(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.hoa_id:
+        raise HTTPException(status_code=404, detail="HOA not set up yet")
+    hoa = db.query(HOA).filter(HOA.id == current_user.hoa_id).first()
+    return {"id": hoa.id, "name": hoa.name, "address": hoa.address}
 
-@app.post("/residents/{hoa_id}")
-def add_resident(hoa_id: int, resident_data: ResidentCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == current_user.id).first()
-    if not hoa:
-        raise HTTPException(status_code=404, detail="HOA not found")
-    resident = Resident(hoa_id=hoa_id, name=resident_data.name, unit=resident_data.unit, email=resident_data.email, phone=resident_data.phone)
+@app.patch("/hoas/me")
+def update_my_hoa(hoa_data: HOACreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.hoa_id:
+        raise HTTPException(status_code=404, detail="HOA not set up yet")
+    hoa = db.query(HOA).filter(HOA.id == current_user.hoa_id).first()
+    hoa.name = hoa_data.name
+    hoa.address = hoa_data.address
+    db.commit()
+    db.refresh(hoa)
+    return {"id": hoa.id, "name": hoa.name, "address": hoa.address}
+
+@app.get("/hoas/me/stats")
+def get_hoa_stats(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.hoa_id:
+        raise HTTPException(status_code=404, detail="HOA not set up yet")
+    total_residents = db.query(Resident).filter(Resident.hoa_id == current_user.hoa_id).count()
+    total_violations = db.query(Violation).filter(Violation.hoa_id == current_user.hoa_id).count()
+    open_violations = db.query(Violation).filter(Violation.hoa_id == current_user.hoa_id, Violation.status == "open").count()
+    noticed_violations = db.query(Violation).filter(Violation.hoa_id == current_user.hoa_id, Violation.status == "noticed").count()
+    resolved_violations = db.query(Violation).filter(Violation.hoa_id == current_user.hoa_id, Violation.status == "resolved").count()
+    return {
+        "total_residents": total_residents,
+        "total_violations": total_violations,
+        "open_violations": open_violations,
+        "noticed_violations": noticed_violations,
+        "resolved_violations": resolved_violations
+    }
+
+@app.post("/residents")
+def add_resident(resident_data: ResidentCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.hoa_id:
+        raise HTTPException(status_code=404, detail="HOA not set up yet")
+    resident = Resident(hoa_id=current_user.hoa_id, name=resident_data.name, unit=resident_data.unit, email=resident_data.email, phone=resident_data.phone)
     db.add(resident)
     db.commit()
     db.refresh(resident)
-    return {"id": resident.id, "name": resident.name, "unit": resident.unit, "email": resident.email}
+    return {"id": resident.id, "name": resident.name, "unit": resident.unit, "email": resident.email, "phone": resident.phone}
 
-@app.get("/residents/{hoa_id}")
-def get_residents(hoa_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == current_user.id).first()
-    if not hoa:
-        raise HTTPException(status_code=404, detail="HOA not found")
-    residents = db.query(Resident).filter(Resident.hoa_id == hoa_id).all()
-    return [{"id": r.id, "name": r.name, "unit": r.unit, "email": r.email} for r in residents]
+@app.get("/residents")
+def get_residents(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.hoa_id:
+        raise HTTPException(status_code=404, detail="HOA not set up yet")
+    residents = db.query(Resident).filter(Resident.hoa_id == current_user.hoa_id).all()
+    return [{"id": r.id, "name": r.name, "unit": r.unit, "email": r.email, "phone": r.phone} for r in residents]
 
-@app.post("/violations/{hoa_id}")
-def add_violation(hoa_id: int, violation_data: ViolationCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == current_user.id).first()
-    if not hoa:
-        raise HTTPException(status_code=404, detail="HOA not found")
-    violation = Violation(hoa_id=hoa_id, resident_id=violation_data.resident_id, violation_type=violation_data.violation_type, description=violation_data.description, status="open")
+@app.delete("/residents/{resident_id}")
+def delete_resident(resident_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    resident = db.query(Resident).filter(Resident.id == resident_id, Resident.hoa_id == current_user.hoa_id).first()
+    if not resident:
+        raise HTTPException(status_code=404, detail="Resident not found")
+    db.delete(resident)
+    db.commit()
+    return {"message": "Resident deleted"}
+
+@app.patch("/residents/{resident_id}")
+def update_resident(resident_id: int, resident_data: ResidentCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    resident = db.query(Resident).filter(Resident.id == resident_id, Resident.hoa_id == current_user.hoa_id).first()
+    if not resident:
+        raise HTTPException(status_code=404, detail="Resident not found")
+    resident.name = resident_data.name
+    resident.unit = resident_data.unit
+    resident.email = resident_data.email
+    resident.phone = resident_data.phone
+    db.commit()
+    db.refresh(resident)
+    return {"id": resident.id, "name": resident.name, "unit": resident.unit, "email": resident.email, "phone": resident.phone}
+
+@app.post("/violations")
+def add_violation(violation_data: ViolationCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.hoa_id:
+        raise HTTPException(status_code=404, detail="HOA not set up yet")
+    violation = Violation(hoa_id=current_user.hoa_id, resident_id=violation_data.resident_id, violation_type=violation_data.violation_type, description=violation_data.description, status="open")
     db.add(violation)
     db.commit()
     db.refresh(violation)
     return {"id": violation.id, "violation_type": violation.violation_type, "status": violation.status}
 
-@app.get("/violations/{hoa_id}")
-def get_violations(hoa_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == current_user.id).first()
-    if not hoa:
-        raise HTTPException(status_code=404, detail="HOA not found")
-    violations = db.query(Violation).filter(Violation.hoa_id == hoa_id).all()
-    return [{"id": v.id, "violation_type": v.violation_type, "description": v.description, "status": v.status} for v in violations]
+@app.get("/violations")
+def get_violations(status: str = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.hoa_id:
+        raise HTTPException(status_code=404, detail="HOA not set up yet")
+    query = db.query(Violation).filter(Violation.hoa_id == current_user.hoa_id)
+    if status:
+        query = query.filter(Violation.status == status)
+    violations = query.all()
+    return [{"id": v.id, "resident_id": v.resident_id, "violation_type": v.violation_type, "description": v.description, "status": v.status, "created_at": v.created_at.isoformat()} for v in violations]
 
 @app.get("/violations/{violation_id}/letter")
 def get_violation_letter(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    violation = db.query(Violation).filter(Violation.id == violation_id).first()
+    violation = db.query(Violation).filter(Violation.id == violation_id, Violation.hoa_id == current_user.hoa_id).first()
     if not violation:
         raise HTTPException(status_code=404, detail="Violation not found")
     resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
@@ -176,9 +231,18 @@ def get_violation_letter(violation_id: int, current_user: User = Depends(get_cur
 
 @app.patch("/violations/{violation_id}")
 def update_violation(violation_id: int, violation_data: ViolationUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    violation = db.query(Violation).filter(Violation.id == violation_id).first()
+    violation = db.query(Violation).filter(Violation.id == violation_id, Violation.hoa_id == current_user.hoa_id).first()
     if not violation:
         raise HTTPException(status_code=404, detail="Violation not found")
     violation.status = violation_data.status
     db.commit()
     return {"id": violation.id, "status": violation.status}
+
+@app.delete("/violations/{violation_id}")
+def delete_violation(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    violation = db.query(Violation).filter(Violation.id == violation_id, Violation.hoa_id == current_user.hoa_id).first()
+    if not violation:
+        raise HTTPException(status_code=404, detail="Violation not found")
+    db.delete(violation)
+    db.commit()
+    return {"message": "Violation deleted"}

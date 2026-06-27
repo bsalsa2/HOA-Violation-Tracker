@@ -19,9 +19,10 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+    hoa_id = Column(Integer, ForeignKey("hoas.id"), unique=True, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    hoas = relationship("HOA", back_populates="user")
+    hoa = relationship("HOA", back_populates="user", uselist=False)
 
 
 class HOA(Base):
@@ -30,10 +31,9 @@ class HOA(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     address = Column(String)
-    user_id = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    user = relationship("User", back_populates="hoas")
+    user = relationship("User", back_populates="hoa", uselist=False)
     residents = relationship("Resident", back_populates="hoa", cascade="all, delete-orphan")
     violations = relationship("Violation", back_populates="hoa", cascade="all, delete-orphan")
 
