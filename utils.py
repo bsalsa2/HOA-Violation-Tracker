@@ -95,7 +95,7 @@ def send_violation_letter_email(recipient_email: str, resident_name: str, letter
         client = Resend(api_key=api_key)
 
         response = client.emails.send({
-            "from": "noreply@hoa-tracker.com",
+            "from": "onboarding@resend.dev",
             "to": recipient_email,
             "subject": f"HOA Violation Notice - {hoa_name}",
             "html": f"""
