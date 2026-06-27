@@ -30,13 +30,26 @@ def startup():
         db = SessionLocal()
         try:
             from sqlalchemy import text
-            db.execute(text("ALTER TABLE users ADD COLUMN hoa_id INTEGER UNIQUE REFERENCES hoas(id)"))
-            db.commit()
-            print("✓ Added hoa_id column to users table")
-        except Exception as migration_err:
-            db.rollback()
-            if "already exists" not in str(migration_err):
-                print(f"⚠ Migration warning: {migration_err}")
+
+            # Add hoa_id to users if missing
+            try:
+                db.execute(text("ALTER TABLE users ADD COLUMN hoa_id INTEGER UNIQUE REFERENCES hoas(id)"))
+                db.commit()
+                print("✓ Added hoa_id column to users table")
+            except Exception as e:
+                if "already exists" not in str(e):
+                    db.rollback()
+                    print(f"⚠ Migration warning: {e}")
+
+            # Add email_sent_at to violations if missing
+            try:
+                db.execute(text("ALTER TABLE violations ADD COLUMN email_sent_at TIMESTAMP"))
+                db.commit()
+                print("✓ Added email_sent_at column to violations table")
+            except Exception as e:
+                if "already exists" not in str(e):
+                    db.rollback()
+                    print(f"⚠ Migration warning: {e}")
         finally:
             db.close()
     except Exception as e:
