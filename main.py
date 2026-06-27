@@ -25,9 +25,22 @@ def startup():
     try:
         Base.metadata.create_all(bind=engine)
         print("✓ Database tables created successfully")
+
+        # Migrate existing users: add hoa_id column if it doesn't exist
+        db = SessionLocal()
+        try:
+            from sqlalchemy import text
+            db.execute(text("ALTER TABLE users ADD COLUMN hoa_id INTEGER UNIQUE REFERENCES hoas(id)"))
+            db.commit()
+            print("✓ Added hoa_id column to users table")
+        except Exception as migration_err:
+            db.rollback()
+            if "already exists" not in str(migration_err):
+                print(f"⚠ Migration warning: {migration_err}")
+        finally:
+            db.close()
     except Exception as e:
         print(f"⚠ Database initialization warning: {e}")
-        # Don't fail startup - tables might already exist
 
 security = HTTPBearer()
 
