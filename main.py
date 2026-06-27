@@ -26,30 +26,31 @@ def startup():
         Base.metadata.create_all(bind=engine)
         print("✓ Database tables created successfully")
 
-        # Migrate existing users: add hoa_id column if it doesn't exist
+        from sqlalchemy import text
+
+        # Add hoa_id to users if missing
         db = SessionLocal()
         try:
-            from sqlalchemy import text
+            db.execute(text("ALTER TABLE users ADD COLUMN hoa_id INTEGER UNIQUE REFERENCES hoas(id)"))
+            db.commit()
+            print("✓ Added hoa_id column to users table")
+        except Exception as e:
+            db.rollback()
+            if "already exists" not in str(e):
+                print(f"⚠ Migration warning: {e}")
+        finally:
+            db.close()
 
-            # Add hoa_id to users if missing
-            try:
-                db.execute(text("ALTER TABLE users ADD COLUMN hoa_id INTEGER UNIQUE REFERENCES hoas(id)"))
-                db.commit()
-                print("✓ Added hoa_id column to users table")
-            except Exception as e:
-                if "already exists" not in str(e):
-                    db.rollback()
-                    print(f"⚠ Migration warning: {e}")
-
-            # Add email_sent_at to violations if missing
-            try:
-                db.execute(text("ALTER TABLE violations ADD COLUMN email_sent_at TIMESTAMP"))
-                db.commit()
-                print("✓ Added email_sent_at column to violations table")
-            except Exception as e:
-                if "already exists" not in str(e):
-                    db.rollback()
-                    print(f"⚠ Migration warning: {e}")
+        # Add email_sent_at to violations if missing
+        db = SessionLocal()
+        try:
+            db.execute(text("ALTER TABLE violations ADD COLUMN email_sent_at TIMESTAMP"))
+            db.commit()
+            print("✓ Added email_sent_at column to violations table")
+        except Exception as e:
+            db.rollback()
+            if "already exists" not in str(e):
+                print(f"⚠ Migration warning: {e}")
         finally:
             db.close()
     except Exception as e:
