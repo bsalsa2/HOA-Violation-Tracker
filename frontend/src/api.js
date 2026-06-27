@@ -23,22 +23,28 @@ export const authAPI = {
 }
 
 export const hoaAPI = {
-  create: (name, address) => api.post('/hoas', { name, address }),
-  getAll: () => api.get('/hoas'),
+  setup: (name, address) => api.post('/hoas/setup', { name, address }),
+  getMe: () => api.get('/hoas/me'),
+  update: (name, address) => api.patch('/hoas/me', { name, address }),
+  getStats: () => api.get('/hoas/me/stats'),
 }
 
 export const residentAPI = {
-  create: (hoaId, name, unit, email, phone) =>
-    api.post(`/residents/${hoaId}`, { name, unit, email, phone }),
-  getByHOA: (hoaId) => api.get(`/residents/${hoaId}`),
+  create: (name, unit, email, phone) =>
+    api.post('/residents', { name, unit, email, phone }),
+  getAll: () => api.get('/residents'),
+  update: (residentId, name, unit, email, phone) =>
+    api.patch(`/residents/${residentId}`, { name, unit, email, phone }),
+  delete: (residentId) => api.delete(`/residents/${residentId}`),
 }
 
 export const violationAPI = {
-  create: (hoaId, residentId, violationType, description) =>
-    api.post(`/violations/${hoaId}`, { resident_id: residentId, violation_type: violationType, description }),
-  getByHOA: (hoaId) => api.get(`/violations/${hoaId}`),
+  create: (residentId, violationType, description) =>
+    api.post('/violations', { resident_id: residentId, violation_type: violationType, description }),
+  getAll: (status) => status ? api.get(`/violations?status=${status}`) : api.get('/violations'),
   getLetter: (violationId) => api.get(`/violations/${violationId}/letter`),
   updateStatus: (violationId, status) => api.patch(`/violations/${violationId}`, { status }),
+  delete: (violationId) => api.delete(`/violations/${violationId}`),
 }
 
 export default api
