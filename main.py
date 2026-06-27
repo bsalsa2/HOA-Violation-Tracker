@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -212,6 +212,56 @@ def update_resident(resident_id: int, resident_data: ResidentCreate, current_use
     db.commit()
     db.refresh(resident)
     return {"id": resident.id, "name": resident.name, "unit": resident.unit, "email": resident.email, "phone": resident.phone}
+
+@app.post("/residents/import/csv")
+async def import_residents_csv(file: UploadFile = File(...), current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.hoa_id:
+        raise HTTPException(status_code=404, detail="HOA not set up yet")
+
+    try:
+        import csv
+        contents = await file.read()
+        csv_data = contents.decode('utf-8').split('\n')
+        reader = csv.DictReader(csv_data)
+
+        added = 0
+        errors = []
+
+        for idx, row in enumerate(reader, 1):
+            try:
+                if not row or not row.get('name') or not row.get('unit'):
+                    continue
+
+                existing = db.query(Resident).filter(
+                    Resident.hoa_id == current_user.hoa_id,
+                    Resident.unit == row['unit']
+                ).first()
+
+                if existing:
+                    errors.append(f"Row {idx}: Unit {row['unit']} already exists")
+                    continue
+
+                resident = Resident(
+                    hoa_id=current_user.hoa_id,
+                    name=row['name'],
+                    unit=row['unit'],
+                    email=row.get('email', ''),
+                    phone=row.get('phone', '')
+                )
+                db.add(resident)
+                added += 1
+            except Exception as e:
+                errors.append(f"Row {idx}: {str(e)}")
+
+        db.commit()
+        return {
+            "added": added,
+            "errors": errors,
+            "message": f"Successfully imported {added} residents"
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Failed to import CSV: {str(e)}")
 
 @app.post("/violations")
 def add_violation(violation_data: ViolationCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

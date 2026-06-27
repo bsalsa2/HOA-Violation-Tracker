@@ -11,8 +11,10 @@ function Dashboard({ token, onLogout }) {
   const [error, setError] = useState('')
 
   const [showAddResident, setShowAddResident] = useState(false)
+  const [showImportCSV, setShowImportCSV] = useState(false)
   const [showAddViolation, setShowAddViolation] = useState(false)
   const [showViolationLetter, setShowViolationLetter] = useState(null)
+  const [csvFile, setCsvFile] = useState(null)
 
   const [residentForm, setResidentForm] = useState({ name: '', unit: '', email: '', phone: '' })
   const [violationForm, setViolationForm] = useState({ resident_id: '', violation_type: '', description: '' })
@@ -62,6 +64,25 @@ function Dashboard({ token, onLogout }) {
       } catch (err) {
         setError(err.response?.data?.detail || 'Failed to delete resident')
       }
+    }
+  }
+
+  const handleImportCSV = async (e) => {
+    e.preventDefault()
+    if (!csvFile) {
+      setError('Please select a file')
+      return
+    }
+
+    try {
+      const result = await residentAPI.importCSV(csvFile)
+      setError('')
+      alert(`Imported ${result.data.added} residents${result.data.errors.length > 0 ? `. Errors: ${result.data.errors.join('; ')}` : ''}`)
+      setCsvFile(null)
+      setShowImportCSV(false)
+      loadData()
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to import CSV')
     }
   }
 
@@ -157,12 +178,20 @@ function Dashboard({ token, onLogout }) {
         <div className="bg-gray-800 p-6 rounded-lg">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold">Residents ({residents.length})</h2>
-            <button
-              onClick={() => setShowAddResident(true)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-semibold"
-            >
-              Add Resident
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowImportCSV(true)}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-semibold text-sm"
+              >
+                Import CSV
+              </button>
+              <button
+                onClick={() => setShowAddResident(true)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-semibold"
+              >
+                Add Resident
+              </button>
+            </div>
           </div>
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {residents.map((r) => (
@@ -382,6 +411,51 @@ function Dashboard({ token, onLogout }) {
             <div className="bg-white text-gray-900 p-4 rounded whitespace-pre-wrap text-sm">
               {showViolationLetter.letter}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import CSV Modal */}
+      {showImportCSV && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-gray-800 p-6 rounded-lg w-96">
+            <h3 className="text-2xl font-bold mb-4">Import Residents from CSV</h3>
+            <p className="text-gray-400 text-sm mb-4">
+              CSV format: name, unit, email (optional), phone (optional)
+            </p>
+            <form onSubmit={handleImportCSV} className="space-y-4">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-blue-500"
+                required
+              />
+              <div className="bg-gray-700 p-3 rounded text-sm text-gray-300">
+                <p className="font-semibold mb-2">Example CSV format:</p>
+                <pre className="text-xs overflow-x-auto">name,unit,email,phone
+John Doe,101,john@example.com,555-1234
+Jane Smith,102,jane@example.com,555-5678</pre>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="flex-1 py-2 bg-green-600 hover:bg-green-700 rounded font-semibold"
+                >
+                  Import
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowImportCSV(false)
+                    setCsvFile(null)
+                  }}
+                  className="flex-1 py-2 bg-gray-600 hover:bg-gray-700 rounded font-semibold"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

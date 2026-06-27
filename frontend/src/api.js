@@ -36,6 +36,13 @@ export const residentAPI = {
   update: (residentId, name, unit, email, phone) =>
     api.patch(`/residents/${residentId}`, { name, unit, email, phone }),
   delete: (residentId) => api.delete(`/residents/${residentId}`),
+  importCSV: (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/residents/import/csv', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
 }
 
 export const violationAPI = {
