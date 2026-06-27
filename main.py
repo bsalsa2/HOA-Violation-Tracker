@@ -85,6 +85,7 @@ def health():
 @app.post("/auth/register")
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
     try:
+        print(f"DEBUG: Register attempt - email={user_data.email}, password_len={len(user_data.password)}")
         existing = db.query(User).filter(User.email == user_data.email).first()
         if existing:
             raise HTTPException(status_code=400, detail="Email already registered")
@@ -99,6 +100,7 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         db.rollback()
+        print(f"ERROR: {type(e).__name__}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/auth/login")
