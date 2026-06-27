@@ -309,3 +309,25 @@ def delete_violation(violation_id: int, current_user: User = Depends(get_current
     db.delete(violation)
     db.commit()
     return {"message": "Violation deleted"}
+
+@app.post("/violations/{violation_id}/send-letter")
+def send_violation_letter(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    violation = db.query(Violation).filter(Violation.id == violation_id, Violation.hoa_id == current_user.hoa_id).first()
+    if not violation:
+        raise HTTPException(status_code=404, detail="Violation not found")
+
+    resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
+    if not resident or not resident.email:
+        raise HTTPException(status_code=400, detail="Resident email not found")
+
+    hoa = db.query(HOA).filter(HOA.id == current_user.hoa_id).first()
+    letter = utils.generate_violation_letter(resident.name, violation.violation_type, violation.description, violation.created_at.strftime("%Y-%m-%d"))
+
+    success = utils.send_violation_letter_email(resident.email, resident.name, letter, hoa.name)
+    if success:
+        violation.email_sent_at = datetime.utcnow()
+        violation.status = "noticed"
+        db.commit()
+        return {"message": "Letter sent successfully", "email_sent_at": violation.email_sent_at.isoformat()}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to send email. Check RESEND_API_KEY configuration.")

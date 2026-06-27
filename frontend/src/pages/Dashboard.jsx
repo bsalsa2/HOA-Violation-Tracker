@@ -127,6 +127,16 @@ function Dashboard({ token, onLogout }) {
     }
   }
 
+  const handleSendLetter = async (violationId) => {
+    try {
+      await violationAPI.sendLetter(violationId)
+      alert('Letter sent successfully to resident!')
+      loadData()
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to send letter. Make sure resident has an email address.')
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -269,7 +279,14 @@ function Dashboard({ token, onLogout }) {
                     <div key={v.id} className="px-6 py-4 hover:bg-gray-50 group">
                       <div className="flex justify-between items-start gap-3 mb-2">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900">{resident?.name}</p>
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium text-gray-900">{resident?.name}</p>
+                            {v.email_sent_at && (
+                              <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200">
+                                Email sent
+                              </span>
+                            )}
+                          </div>
                           <p className="text-sm text-gray-600">{v.violation_type}</p>
                           <p className="text-sm text-gray-700 mt-1">{v.description}</p>
                         </div>
@@ -285,6 +302,14 @@ function Dashboard({ token, onLogout }) {
                         </select>
                       </div>
                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                        {!v.email_sent_at && (
+                          <button
+                            onClick={() => handleSendLetter(v.id)}
+                            className="text-xs px-2 py-1 bg-green-50 hover:bg-green-100 text-green-700 rounded transition font-medium"
+                          >
+                            Send Email
+                          </button>
+                        )}
                         <button
                           onClick={() => handleViewLetter(v.id)}
                           className="text-xs px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded transition"

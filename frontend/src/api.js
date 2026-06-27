@@ -50,6 +50,7 @@ export const violationAPI = {
     api.post('/violations', { resident_id: residentId, violation_type: violationType, description }),
   getAll: (status) => status ? api.get(`/violations?status=${status}`) : api.get('/violations'),
   getLetter: (violationId) => api.get(`/violations/${violationId}/letter`),
+  sendLetter: (violationId) => api.post(`/violations/${violationId}/send-letter`),
   updateStatus: (violationId, status) => api.patch(`/violations/${violationId}`, { status }),
   delete: (violationId) => api.delete(`/violations/${violationId}`),
 }

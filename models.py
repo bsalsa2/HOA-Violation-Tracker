@@ -64,6 +64,7 @@ class Violation(Base):
     date = Column(DateTime, default=datetime.utcnow)
     status = Column(SAEnum(ViolationStatus), default=ViolationStatus.open)
     generated_letter = Column(Text, nullable=True)
+    email_sent_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     resident = relationship("Resident", back_populates="violations")

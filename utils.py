@@ -6,6 +6,7 @@ import google.generativeai as genai
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from resend import Resend
 
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")
 ALGORITHM = "HS256"
@@ -83,3 +84,39 @@ def generate_pdf(letter_text: str, resident_name: str) -> BytesIO:
     c.save()
     pdf_buffer.seek(0)
     return pdf_buffer
+
+def send_violation_letter_email(recipient_email: str, resident_name: str, letter_text: str, hoa_name: str) -> bool:
+    try:
+        api_key = os.getenv("RESEND_API_KEY")
+        if not api_key:
+            print("⚠ RESEND_API_KEY not configured. Email not sent.")
+            return False
+
+        client = Resend(api_key=api_key)
+
+        response = client.emails.send({
+            "from": "noreply@hoa-tracker.com",
+            "to": recipient_email,
+            "subject": f"HOA Violation Notice - {hoa_name}",
+            "html": f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                    <h2 style="color: #d32f2f; margin-top: 0;">HOA Violation Notice</h2>
+                    <p>Dear {resident_name},</p>
+                    <p>Please see the violation notice details below:</p>
+                    <div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #d32f2f; margin: 20px 0;">
+                        <pre style="white-space: pre-wrap; word-wrap: break-word;">{letter_text}</pre>
+                    </div>
+                    <p style="color: #666; font-size: 12px; margin-top: 30px;">
+                        This is an automated message from {hoa_name} violation tracking system.
+                    </p>
+                </div>
+            </body>
+            </html>
+            """
+        })
+        return True
+    except Exception as e:
+        print(f"Failed to send email: {str(e)}")
+        return False
