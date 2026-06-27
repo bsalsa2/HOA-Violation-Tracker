@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from dataclasses import dataclass
+from pydantic import BaseModel
 import jwt
 import os
 from datetime import datetime, timedelta
@@ -31,31 +31,26 @@ def startup():
 
 security = HTTPBearer()
 
-@dataclass
-class UserRegister:
+class UserRegister(BaseModel):
     email: str
     password: str
 
-@dataclass
-class HOACreate:
+class HOACreate(BaseModel):
     name: str
     address: str
 
-@dataclass
-class ResidentCreate:
+class ResidentCreate(BaseModel):
     name: str
     unit: str
     email: str = None
     phone: str = None
 
-@dataclass
-class ViolationCreate:
+class ViolationCreate(BaseModel):
     resident_id: int
     violation_type: str
     description: str
 
-@dataclass
-class ViolationUpdate:
+class ViolationUpdate(BaseModel):
     status: str
 
 def get_db():
