@@ -78,6 +78,10 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 def health_check():
     return {"message": "HOA Violation Tracker API", "status": "running"}
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 @app.post("/auth/register")
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
     try:
