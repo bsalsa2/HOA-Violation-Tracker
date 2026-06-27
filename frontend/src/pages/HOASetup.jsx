@@ -23,38 +23,54 @@ function HOASetup({ onSetupComplete }) {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-900">
-      <div className="w-full max-w-md bg-gray-800 p-8 rounded-lg shadow-lg">
-        <h1 className="text-3xl font-bold text-white mb-6 text-center">Set Up Your HOA</h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-lg shadow-lg border border-gray-200">
+        <div className="px-6 py-8">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Set Up Your HOA</h1>
+            <p className="text-sm text-gray-600 mt-2">Complete this information once</p>
+          </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            placeholder="HOA Name (e.g., Sunset Heights)"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-blue-500"
-            required
-          />
-          <input
-            type="text"
-            placeholder="Address (e.g., 123 Main St, City, State)"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-blue-500"
-            required
-          />
+          {error && (
+            <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded">
+              {error}
+            </div>
+          )}
 
-          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">HOA Name *</label>
+              <input
+                type="text"
+                placeholder="e.g., Sunset Heights"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading ? 'Setting Up...' : 'Set Up HOA'}
-          </button>
-        </form>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
+              <input
+                type="text"
+                placeholder="e.g., 123 Main St, City, State 12345"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full mt-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition"
+            >
+              {loading ? 'Setting Up...' : 'Continue'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )
