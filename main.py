@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import jwt
 import os
 from datetime import datetime, timedelta
@@ -33,7 +33,7 @@ security = HTTPBearer()
 
 class UserRegister(BaseModel):
     email: str
-    password: str
+    password: str = Field(...)
 
 class HOACreate(BaseModel):
     name: str
