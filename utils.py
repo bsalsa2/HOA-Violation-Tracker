@@ -89,11 +89,13 @@ def send_violation_letter_email(recipient_email: str, resident_name: str, letter
     try:
         api_key = os.getenv("RESEND_API_KEY")
         if not api_key:
-            print("⚠ RESEND_API_KEY not configured. Email not sent.")
+            print("⚠ RESEND_API_KEY not configured")
             return False
 
+        print(f"DEBUG: RESEND_API_KEY found: {api_key[:10]}...")
         client = Resend(api_key=api_key)
 
+        print(f"DEBUG: Sending email to {recipient_email}")
         response = client.emails.send({
             "from": "onboarding@resend.dev",
             "to": recipient_email,
@@ -116,7 +118,8 @@ def send_violation_letter_email(recipient_email: str, resident_name: str, letter
             </html>
             """
         })
+        print(f"DEBUG: Email sent successfully: {response}")
         return True
     except Exception as e:
-        print(f"Failed to send email: {str(e)}")
+        print(f"ERROR: Failed to send email: {type(e).__name__}: {str(e)}")
         return False
