@@ -1,0 +1,282 @@
+import React, { useState, useEffect, useCallback } from 'react'
+import { violationAPI } from '../api'
+import { Badge, Spinner } from './primitives'
+import { STATUS_CONFIG, PRIORITY_CONFIG, NOTICE_LEVELS } from '../lib/constants'
+import { formatDate, formatDateTime, relativeTime, currency, dueLabel, isOverdue } from '../lib/format'
+
+const inputCls = 'px-2.5 py-1.5 bg-slate-800 text-white text-sm rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500'
+
+export default function ViolationDrawer({ violation, onClose, onUpdate, onEscalate, onSendEmail, onViewLetter, onDelete, sending }) {
+  const [notes, setNotes] = useState([])
+  const [notesLoading, setNotesLoading] = useState(true)
+  const [newNote, setNewNote] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
+  const [fineInput, setFineInput] = useState(String(violation.fine_amount || ''))
+  const [editingFine, setEditingFine] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const loadNotes = useCallback(async () => {
+    setNotesLoading(true)
+    try {
+      const res = await violationAPI.getNotes(violation.id)
+      setNotes(res.data)
+    } catch {
+      /* ignore */
+    } finally {
+      setNotesLoading(false)
+    }
+  }, [violation.id])
+
+  useEffect(() => {
+    loadNotes()
+  }, [loadNotes])
+
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const runUpdate = async (fields) => {
+    setBusy(true)
+    try {
+      await onUpdate(violation.id, fields)
+      await loadNotes()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleAddNote = async (e) => {
+    e.preventDefault()
+    if (!newNote.trim()) return
+    setSavingNote(true)
+    try {
+      await violationAPI.addNote(violation.id, newNote.trim())
+      setNewNote('')
+      await loadNotes()
+    } finally {
+      setSavingNote(false)
+    }
+  }
+
+  const handleSaveFine = async () => {
+    const amount = parseFloat(fineInput) || 0
+    setEditingFine(false)
+    await runUpdate({ fine_amount: amount })
+  }
+
+  const handleEscalate = async () => {
+    setBusy(true)
+    try {
+      await onEscalate(violation.id)
+      await loadNotes()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const overdue = isOverdue(violation)
+  const due = dueLabel(violation)
+  const dueDateValue = violation.due_date ? new Date(violation.due_date).toISOString().split('T')[0] : ''
+  const atMaxNotice = (violation.notice_level || 0) >= NOTICE_LEVELS.length - 1
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" onMouseDown={onClose}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div
+        className="relative w-full max-w-md bg-slate-900 border-l border-slate-800 h-full overflow-y-auto shadow-2xl"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-5 py-4 z-10">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-white font-semibold truncate">{violation.violation_type}</h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {violation.resident_name} · Unit {violation.resident_unit}
+              </p>
+            </div>
+            <button onClick={onClose} className="text-slate-400 hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-800 shrink-0">×</button>
+          </div>
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            <Badge config={STATUS_CONFIG[violation.status]} />
+            <Badge config={PRIORITY_CONFIG[violation.priority]}>{PRIORITY_CONFIG[violation.priority]?.label} priority</Badge>
+            {violation.notice_level > 0 && (
+              <Badge className="bg-purple-500/10 text-purple-300 border-purple-500/20">{violation.notice_label}</Badge>
+            )}
+            {overdue && <Badge className="bg-red-500/10 text-red-400 border-red-500/20">Overdue</Badge>}
+          </div>
+        </div>
+
+        <div className="p-5 space-y-6">
+          {/* Description */}
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-500 mb-1.5">Description</p>
+            <p className="text-sm text-slate-300 leading-relaxed">{violation.description}</p>
+            <p className="text-xs text-slate-600 mt-2">Opened {formatDate(violation.created_at)}</p>
+          </div>
+
+          {/* Quick controls */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs uppercase tracking-wide text-slate-500 mb-1.5 block">Status</label>
+              <select className={`${inputCls} w-full`} value={violation.status} disabled={busy} onChange={(e) => runUpdate({ status: e.target.value })}>
+                <option value="open">Open</option>
+                <option value="noticed">Noticed</option>
+                <option value="resolved">Resolved</option>
+                <option value="escalated">Escalated</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs uppercase tracking-wide text-slate-500 mb-1.5 block">Priority</label>
+              <select className={`${inputCls} w-full`} value={violation.priority} disabled={busy} onChange={(e) => runUpdate({ priority: e.target.value })}>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Cure deadline */}
+          <div>
+            <label className="text-xs uppercase tracking-wide text-slate-500 mb-1.5 block">Cure Deadline</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                className={`${inputCls} flex-1`}
+                value={dueDateValue}
+                disabled={busy}
+                onChange={(e) => e.target.value && runUpdate({ due_date: e.target.value })}
+              />
+              {due && (
+                <span className={`text-xs font-medium ${due.tone === 'overdue' ? 'text-red-400' : due.tone === 'soon' ? 'text-amber-400' : 'text-slate-400'}`}>
+                  {due.text}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Fine ledger */}
+          <div className="bg-slate-800/50 border border-slate-800 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Fine</p>
+              {violation.fine_amount > 0 && (
+                <button
+                  onClick={() => runUpdate({ fine_paid: !violation.fine_paid })}
+                  disabled={busy}
+                  className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                    violation.fine_paid
+                      ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                      : 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
+                  }`}
+                >
+                  {violation.fine_paid ? '✓ Paid' : 'Mark paid'}
+                </button>
+              )}
+            </div>
+            {editingFine ? (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-slate-400">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  autoFocus
+                  className={`${inputCls} flex-1`}
+                  value={fineInput}
+                  onChange={(e) => setFineInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveFine()}
+                />
+                <button onClick={handleSaveFine} className="text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg">Save</button>
+                <button onClick={() => { setEditingFine(false); setFineInput(String(violation.fine_amount || '')) }} className="text-xs px-2 py-1.5 text-slate-400 hover:text-white">Cancel</button>
+              </div>
+            ) : (
+              <button onClick={() => setEditingFine(true)} className="flex items-baseline gap-2 mt-1 group">
+                <span className="text-2xl font-bold text-white">{currency(violation.fine_amount)}</span>
+                <span className="text-xs text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">edit</span>
+              </button>
+            )}
+          </div>
+
+          {/* Enforcement actions */}
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Enforcement</p>
+            <div className="grid grid-cols-2 gap-2">
+              {violation.resident_email ? (
+                <button
+                  onClick={() => onSendEmail(violation.id)}
+                  disabled={sending}
+                  className="flex items-center justify-center gap-1.5 py-2 text-sm bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-60 text-white rounded-lg transition-colors"
+                >
+                  {sending ? <Spinner className="w-3.5 h-3.5" /> : null}
+                  {violation.email_sent_at ? 'Resend Letter' : 'Email Letter'}
+                </button>
+              ) : (
+                <button disabled className="py-2 text-sm bg-slate-800 text-slate-600 rounded-lg cursor-not-allowed" title="Resident has no email">No email on file</button>
+              )}
+              <button onClick={() => onViewLetter(violation)} className="py-2 text-sm border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">
+                View Letter
+              </button>
+              <button
+                onClick={handleEscalate}
+                disabled={busy || atMaxNotice}
+                className="col-span-2 py-2 text-sm bg-purple-600/90 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                title={atMaxNotice ? 'Already at highest level' : ''}
+              >
+                {atMaxNotice ? 'Max escalation reached' : `Escalate → ${NOTICE_LEVELS[(violation.notice_level || 0) + 1]}`}
+              </button>
+            </div>
+            {violation.email_sent_at && (
+              <p className="text-xs text-blue-400/70 mt-2">Last letter emailed {formatDate(violation.email_sent_at)}</p>
+            )}
+          </div>
+
+          {/* Activity timeline */}
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-500 mb-3">Activity Log</p>
+            <form onSubmit={handleAddNote} className="flex items-center gap-2 mb-4">
+              <input
+                className={`${inputCls} flex-1`}
+                placeholder="Add a note (e.g. spoke with resident)…"
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+              />
+              <button type="submit" disabled={savingNote || !newNote.trim()} className="text-sm px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg shrink-0">
+                {savingNote ? <Spinner className="w-3.5 h-3.5" /> : 'Add'}
+              </button>
+            </form>
+
+            {notesLoading ? (
+              <div className="flex items-center gap-2 text-slate-500 text-sm py-2"><Spinner className="w-4 h-4" /> Loading…</div>
+            ) : notes.length === 0 ? (
+              <p className="text-xs text-slate-600">No activity yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {[...notes].reverse().map((n) => (
+                  <div key={n.id} className="flex gap-3">
+                    <div className="flex flex-col items-center pt-1">
+                      <span className={`w-2 h-2 rounded-full ${n.kind === 'system' ? 'bg-slate-500' : 'bg-blue-500'}`} />
+                      <span className="w-px flex-1 bg-slate-800 mt-1" />
+                    </div>
+                    <div className="pb-1 min-w-0">
+                      <p className={`text-sm ${n.kind === 'system' ? 'text-slate-400 italic' : 'text-slate-200'}`}>{n.body}</p>
+                      <p className="text-[11px] text-slate-600 mt-0.5" title={formatDateTime(n.created_at)}>{relativeTime(n.created_at)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Danger zone */}
+          <div className="pt-2 border-t border-slate-800">
+            <button onClick={() => onDelete(violation.id)} className="text-xs text-slate-500 hover:text-red-400 transition-colors">
+              Delete this violation
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

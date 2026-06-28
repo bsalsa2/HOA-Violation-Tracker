@@ -34,6 +34,7 @@ export const hoaAPI = {
   getMe: () => api.get('/hoas/me'),
   update: (name, address) => api.patch('/hoas/me', { name, address }),
   getStats: () => api.get('/hoas/me/stats'),
+  getAnalytics: () => api.get('/hoas/me/analytics'),
 }
 
 export const residentAPI = {
@@ -52,12 +53,22 @@ export const residentAPI = {
 }
 
 export const violationAPI = {
-  create: (residentId, violationType, description) =>
-    api.post('/violations', { resident_id: residentId, violation_type: violationType, description }),
+  create: (residentId, violationType, description, priority = 'medium', dueInDays = 14) =>
+    api.post('/violations', {
+      resident_id: residentId,
+      violation_type: violationType,
+      description,
+      priority,
+      due_in_days: dueInDays,
+    }),
   getAll: (status) => (status ? api.get(`/violations?status=${status}`) : api.get('/violations')),
   getLetter: (violationId) => api.get(`/violations/${violationId}/letter`),
   markSent: (violationId) => api.post(`/violations/${violationId}/mark-sent`),
+  update: (violationId, fields) => api.patch(`/violations/${violationId}`, fields),
   updateStatus: (violationId, status) => api.patch(`/violations/${violationId}`, { status }),
+  escalate: (violationId) => api.post(`/violations/${violationId}/escalate`),
+  getNotes: (violationId) => api.get(`/violations/${violationId}/notes`),
+  addNote: (violationId, body) => api.post(`/violations/${violationId}/notes`, { body }),
   delete: (violationId) => api.delete(`/violations/${violationId}`),
 }
 

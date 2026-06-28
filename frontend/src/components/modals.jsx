@@ -1,0 +1,310 @@
+import React, { useState } from 'react'
+import { Modal } from './primitives'
+import { residentAPI, violationAPI, hoaAPI } from '../api'
+import { VIOLATION_TYPES } from '../lib/constants'
+
+const inputCls =
+  'w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder-slate-500'
+const labelCls = 'block text-sm font-medium text-slate-300 mb-1.5'
+
+function ErrorBox({ children }) {
+  if (!children) return null
+  return <div className="text-red-400 text-sm bg-red-950 border border-red-800 rounded-lg p-3">{children}</div>
+}
+
+function parseDetail(err, fallback) {
+  const detail = err.response?.data?.detail
+  if (Array.isArray(detail)) return detail.map((d) => d.msg).join(', ')
+  return detail || fallback
+}
+
+export function AddResidentModal({ onClose, onAdded }) {
+  const [name, setName] = useState('')
+  const [unit, setUnit] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      const res = await residentAPI.create(name, unit, email || null, phone || null)
+      onAdded(res.data)
+    } catch (err) {
+      setError(parseDetail(err, 'Failed to add resident.'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Modal title="Add Resident" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className={labelCls}>Full Name</label>
+          <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Smith" required />
+        </div>
+        <div>
+          <label className={labelCls}>Unit Number</label>
+          <input className={inputCls} value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="101" required />
+        </div>
+        <div>
+          <label className={labelCls}>
+            Email <span className="text-slate-500 font-normal">(required for sending letters)</span>
+          </label>
+          <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@example.com" />
+        </div>
+        <div>
+          <label className={labelCls}>Phone <span className="text-slate-500 font-normal">(optional)</span></label>
+          <input className={inputCls} type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="555-555-5555" />
+        </div>
+        <ErrorBox>{error}</ErrorBox>
+        <div className="flex gap-3 pt-2">
+          <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-medium rounded-lg transition-colors">
+            {loading ? 'Adding…' : 'Add Resident'}
+          </button>
+          <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+export function AddViolationModal({ residents, defaultResidentId, onClose, onAdded }) {
+  const [residentId, setResidentId] = useState(defaultResidentId || residents[0]?.id || '')
+  const [violationType, setViolationType] = useState('')
+  const [customType, setCustomType] = useState('')
+  const [description, setDescription] = useState('')
+  const [priority, setPriority] = useState('medium')
+  const [dueInDays, setDueInDays] = useState(14)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const selectedResident = residents.find((r) => r.id === parseInt(residentId))
+  const finalType = violationType === 'Other' ? customType : violationType
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!finalType.trim()) {
+      setError('Please choose or enter a violation type.')
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      await violationAPI.create(parseInt(residentId, 10), finalType, description, priority, parseInt(dueInDays, 10) || 14)
+      onAdded()
+    } catch (err) {
+      setError(parseDetail(err, 'Failed to create violation.'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Modal title="New Violation" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className={labelCls}>Resident</label>
+          <select className={inputCls} value={residentId} onChange={(e) => setResidentId(e.target.value)} required>
+            <option value="">Select a resident</option>
+            {residents.map((r) => (
+              <option key={r.id} value={r.id}>{r.name} — Unit {r.unit}</option>
+            ))}
+          </select>
+          {selectedResident && !selectedResident.email && (
+            <p className="mt-1.5 text-xs text-amber-400">⚠ This resident has no email — you won't be able to send them a letter.</p>
+          )}
+        </div>
+
+        <div>
+          <label className={labelCls}>Violation Type</label>
+          <select className={inputCls} value={violationType} onChange={(e) => setViolationType(e.target.value)} required>
+            <option value="">Select a type</option>
+            {VIOLATION_TYPES.map((t) => (<option key={t} value={t}>{t}</option>))}
+          </select>
+        </div>
+
+        {violationType === 'Other' && (
+          <div>
+            <label className={labelCls}>Custom Type</label>
+            <input className={inputCls} value={customType} onChange={(e) => setCustomType(e.target.value)} placeholder="Describe the violation type" required />
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelCls}>Priority</label>
+            <select className={inputCls} value={priority} onChange={(e) => setPriority(e.target.value)}>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Cure Period</label>
+            <select className={inputCls} value={dueInDays} onChange={(e) => setDueInDays(e.target.value)}>
+              <option value={7}>7 days</option>
+              <option value={14}>14 days</option>
+              <option value={30}>30 days</option>
+              <option value={45}>45 days</option>
+              <option value={60}>60 days</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className={labelCls}>Description</label>
+          <textarea
+            className={`${inputCls} resize-none`}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Describe the specific violation in detail…"
+            rows={3}
+            required
+          />
+        </div>
+
+        <ErrorBox>{error}</ErrorBox>
+
+        <div className="flex gap-3 pt-2">
+          <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-medium rounded-lg transition-colors">
+            {loading ? 'Creating…' : 'Create Violation'}
+          </button>
+          <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+export function ImportCSVModal({ onClose, onDone, addToast }) {
+  const [file, setFile] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState(null)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!file) return
+    setLoading(true)
+    try {
+      const res = await residentAPI.importCSV(file)
+      setResult(res.data)
+    } catch (err) {
+      addToast(parseDetail(err, 'Import failed.'), 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (result) {
+    return (
+      <Modal title="Import Results" onClose={() => onDone(result.added, result.errors || [])}>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 bg-green-950 border border-green-800 rounded-xl p-4">
+            <svg className="w-5 h-5 text-green-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <p className="text-green-200 text-sm">{result.message}</p>
+          </div>
+          {result.errors && result.errors.length > 0 && (
+            <div>
+              <p className="text-sm font-medium text-slate-300 mb-2">Rows with issues:</p>
+              <div className="bg-slate-800 rounded-xl p-3 max-h-48 overflow-y-auto space-y-1">
+                {result.errors.map((err, i) => (<p key={i} className="text-xs text-amber-300">{err}</p>))}
+              </div>
+            </div>
+          )}
+          <button onClick={() => onDone(result.added, result.errors || [])} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors">
+            Done
+          </button>
+        </div>
+      </Modal>
+    )
+  }
+
+  return (
+    <Modal title="Import Residents from CSV" onClose={onClose}>
+      <div className="space-y-4">
+        <div className="bg-slate-800 rounded-xl p-4 text-xs text-slate-400 space-y-1">
+          <p className="font-medium text-slate-300">Required CSV format:</p>
+          <p className="font-mono">name,unit,email,phone</p>
+          <p className="font-mono text-slate-500">Jane Smith,101,jane@example.com,555-1234</p>
+          <p className="mt-2">Columns <span className="text-slate-300">email</span> and <span className="text-slate-300">phone</span> are optional.</p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className={labelCls}>Select CSV File</label>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={(e) => setFile(e.target.files[0])}
+              className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-700 file:text-slate-200 hover:file:bg-slate-600 file:cursor-pointer"
+              required
+            />
+          </div>
+          <div className="flex gap-3">
+            <button type="submit" disabled={loading || !file} className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-medium rounded-lg transition-colors">
+              {loading ? 'Importing…' : 'Import'}
+            </button>
+            <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </Modal>
+  )
+}
+
+export function EditHOAModal({ hoa, onClose, onUpdated }) {
+  const [name, setName] = useState(hoa.name)
+  const [address, setAddress] = useState(hoa.address)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      const res = await hoaAPI.update(name, address)
+      onUpdated(res.data)
+    } catch (err) {
+      setError(parseDetail(err, 'Failed to update HOA.'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Modal title="Edit HOA" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className={labelCls}>HOA Name</label>
+          <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} required />
+        </div>
+        <div>
+          <label className={labelCls}>Address</label>
+          <input className={inputCls} value={address} onChange={(e) => setAddress(e.target.value)} required />
+        </div>
+        <ErrorBox>{error}</ErrorBox>
+        <div className="flex gap-3 pt-2">
+          <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-medium rounded-lg transition-colors">
+            {loading ? 'Saving…' : 'Save Changes'}
+          </button>
+          <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}

@@ -1,0 +1,119 @@
+import { formatDate, currency } from './format'
+
+const esc = (s) =>
+  String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+
+function isOverdue(v) {
+  if (!v.due_date || v.status === 'resolved') return false
+  return new Date(v.due_date) < new Date()
+}
+
+/**
+ * Opens a print-ready board meeting compliance report in a new window.
+ * Returns false if the popup was blocked.
+ */
+export function openBoardReport(hoa, analytics, violations) {
+  const win = window.open('', '_blank')
+  if (!win) return false
+
+  const k = analytics?.kpis || {}
+  const today = formatDate(new Date().toISOString())
+
+  const active = violations.filter((v) => v.status !== 'resolved')
+  const overdue = violations.filter(isOverdue)
+
+  const statusRows = (analytics?.by_status || [])
+    .map((s) => `<tr><td style="text-transform:capitalize">${esc(s.label)}</td><td style="text-align:right">${s.value}</td></tr>`)
+    .join('')
+
+  const typeRows = (analytics?.by_type || [])
+    .slice(0, 8)
+    .map((t) => `<tr><td>${esc(t.label)}</td><td style="text-align:right">${t.value}</td></tr>`)
+    .join('')
+
+  const activeRows = active
+    .slice(0, 200)
+    .map(
+      (v) => `
+      <tr class="${isOverdue(v) ? 'overdue' : ''}">
+        <td>${esc(v.resident_unit)}</td>
+        <td>${esc(v.resident_name)}</td>
+        <td>${esc(v.violation_type)}</td>
+        <td style="text-transform:capitalize">${esc(v.status)}</td>
+        <td style="text-transform:capitalize">${esc(v.priority)}</td>
+        <td>${v.due_date ? formatDate(v.due_date) : '—'}${isOverdue(v) ? ' ⚠' : ''}</td>
+        <td style="text-align:right">${v.fine_amount > 0 ? currency(v.fine_amount) + (v.fine_paid ? ' (paid)' : '') : '—'}</td>
+      </tr>`
+    )
+    .join('')
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Compliance Report — ${esc(hoa?.name || 'HOA')}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #1e293b; margin: 0; padding: 40px; }
+  h1 { font-size: 22px; margin: 0; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .05em; color: #64748b; margin: 28px 0 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; }
+  .sub { color: #64748b; font-size: 13px; margin-top: 4px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
+  .kpi { border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; }
+  .kpi .v { font-size: 22px; font-weight: 700; }
+  .kpi .l { font-size: 11px; color: #64748b; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; border-bottom: 2px solid #e2e8f0; padding: 8px 8px; }
+  td { padding: 7px 8px; border-bottom: 1px solid #f1f5f9; }
+  tr.overdue td { background: #fef2f2; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .footer { margin-top: 40px; color: #94a3b8; font-size: 11px; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+  .btn { position: fixed; top: 16px; right: 16px; background: #2563eb; color: white; border: 0; border-radius: 8px; padding: 10px 16px; font-size: 13px; cursor: pointer; }
+  @media print { .btn { display: none; } body { padding: 0; } }
+</style>
+</head>
+<body>
+  <button class="btn" onclick="window.print()">Print / Save as PDF</button>
+  <h1>${esc(hoa?.name || 'HOA')} — Violation Compliance Report</h1>
+  <div class="sub">${esc(hoa?.address || '')} · Generated ${esc(today)}</div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="v">${k.open_violations ?? active.length}</div><div class="l">Active Cases</div></div>
+    <div class="kpi"><div class="v" style="color:${(k.overdue_violations || 0) > 0 ? '#dc2626' : '#1e293b'}">${k.overdue_violations ?? overdue.length}</div><div class="l">Overdue</div></div>
+    <div class="kpi"><div class="v">${k.resolution_rate ?? 0}%</div><div class="l">Resolution Rate</div></div>
+    <div class="kpi"><div class="v">${currency(k.outstanding_fines || 0)}</div><div class="l">Outstanding Fines</div></div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <h2>By Status</h2>
+      <table><tbody>${statusRows || '<tr><td>No data</td></tr>'}</tbody></table>
+    </div>
+    <div>
+      <h2>Most Common Types</h2>
+      <table><tbody>${typeRows || '<tr><td>No data</td></tr>'}</tbody></table>
+    </div>
+  </div>
+
+  <h2>Active Violations (${active.length})</h2>
+  <table>
+    <thead>
+      <tr><th>Unit</th><th>Resident</th><th>Type</th><th>Status</th><th>Priority</th><th>Cure By</th><th style="text-align:right">Fine</th></tr>
+    </thead>
+    <tbody>${activeRows || '<tr><td colspan="7" style="color:#94a3b8">No active violations 🎉</td></tr>'}</tbody>
+  </table>
+
+  <div class="footer">
+    Generated by ViolationTrack · This report reflects data as of ${esc(today)} and is intended for HOA board review.
+  </div>
+</body>
+</html>`
+
+  win.document.open()
+  win.document.write(html)
+  win.document.close()
+  return true
+}

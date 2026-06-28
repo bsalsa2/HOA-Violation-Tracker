@@ -31,9 +31,33 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def generate_violation_letter(resident_name: str, violation_type: str, description: str, date: str = None) -> str:
+def generate_violation_letter(
+    resident_name: str,
+    violation_type: str,
+    description: str,
+    date: str = None,
+    hoa_name: str = None,
+    due_date: str = None,
+    fine_amount: float = 0,
+    notice_label: str = None,
+) -> str:
     if date is None:
         date = datetime.utcnow().strftime("%Y-%m-%d")
+
+    org = hoa_name or "the Homeowners Association"
+    cure_clause = (
+        f"You are required to correct this violation by {due_date}."
+        if due_date else
+        "You are required to correct this violation within fourteen (14) days of the date of this notice."
+    )
+    fine_clause = (
+        f"\n\nA fine of ${fine_amount:,.2f} has been assessed in connection with this violation."
+        if fine_amount and fine_amount > 0 else ""
+    )
+    notice_clause = (
+        f"This is a {notice_label}."
+        if notice_label and notice_label not in ("None",) else ""
+    )
 
     gemini_key = os.getenv("GEMINI_API_KEY")
     if gemini_key:
@@ -43,17 +67,22 @@ def generate_violation_letter(resident_name: str, violation_type: str, descripti
             model = genai.GenerativeModel("gemini-pro")
             prompt = f"""Generate a professional HOA violation notice letter.
 
+Association: {org}
 Resident: {resident_name}
 Violation Type: {violation_type}
 Description: {description}
 Date: {date}
+Cure deadline: {due_date or '14 days from notice date'}
+Notice level: {notice_label or 'First Notice'}
+Fine assessed: {f'${fine_amount:,.2f}' if fine_amount and fine_amount > 0 else 'None'}
 
 The letter should:
-- Be formal and professional
-- Clearly state the violation
-- Give 14 days to cure the violation
-- Be approximately 150-200 words
-- Include a signature line for HOA board president
+- Be formal and professional, on behalf of {org}
+- Clearly state the violation and the specific cure deadline
+- Reference the fine if one was assessed
+- Explain that failure to cure may result in additional fines or escalation
+- Be approximately 160-220 words
+- Include a signature line for the HOA board president
 
 Generate ONLY the letter text, no additional commentary."""
             response = model.generate_content(prompt)
@@ -65,12 +94,14 @@ Generate ONLY the letter text, no additional commentary."""
 
 Date: {date}
 
-This letter is to notify you of a violation recorded on your property within our community.
+{notice_clause}
+
+This letter is to notify you, on behalf of {org}, of a violation recorded on your property within our community.
 
 Violation Type: {violation_type}
 Description: {description}
 
-You are required to correct this violation within fourteen (14) days of the date of this notice. Failure to remedy the violation may result in additional fines or escalated enforcement action as outlined in the HOA governing documents.
+{cure_clause} Failure to remedy the violation may result in additional fines or escalated enforcement action as outlined in the HOA governing documents.{fine_clause}
 
 If you believe this notice was issued in error, or if you have already addressed this matter, please contact the HOA board immediately.
 
@@ -80,6 +111,7 @@ Sincerely,
 
 _______________________________
 HOA Board President
+{org}
 """
 
 
