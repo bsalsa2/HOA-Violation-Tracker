@@ -1,16 +1,8 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum as SAEnum
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
-import enum
 
 from database import Base
-
-
-class ViolationStatus(str, enum.Enum):
-    open = "open"
-    noticed = "noticed"
-    resolved = "resolved"
-    escalated = "escalated"
 
 
 class User(Base):
@@ -30,7 +22,7 @@ class HOA(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     address = Column(String)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="hoas")
@@ -61,8 +53,8 @@ class Violation(Base):
     hoa_id = Column(Integer, ForeignKey("hoas.id"))
     violation_type = Column(String, index=True)
     description = Column(Text)
-    date = Column(DateTime, default=datetime.utcnow)
-    status = Column(SAEnum(ViolationStatus), default=ViolationStatus.open)
+    status = Column(String, default="open")
+    email_sent_at = Column(DateTime, nullable=True)
     generated_letter = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
