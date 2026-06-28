@@ -198,15 +198,12 @@ function Dashboard({ setToken }) {
   }
 
   const handleSendEmail = async (violationId) => {
-    const EMAILJS_SERVICE_ID = import.meta.env.VITE_EJS_SERVICE
-    const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EJS_TEMPLATE
-    const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EJS_KEY
+    const EMAILJS_SERVICE_ID = import.meta.env.VITE_EJS_SERVICE || import.meta.env.VITE_EMAILJS_SERVICE_ID
+    const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EJS_TEMPLATE || import.meta.env.VITE_EMAILJS_TEMPLATE_ID
+    const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EJS_KEY || import.meta.env.VITE_EMAILJS_PUBLIC_KEY
 
     if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
-      addToast(
-        'EmailJS is not configured. Add VITE_EJS_SERVICE, VITE_EJS_TEMPLATE, and VITE_EJS_KEY to your Vercel environment variables.',
-        'error'
-      )
+      addToast('EmailJS is not configured. Check your Vercel environment variables.', 'error')
       return
     }
 
