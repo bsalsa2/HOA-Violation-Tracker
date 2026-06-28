@@ -120,40 +120,54 @@ def send_violation_letter_email(recipient_email: str, resident_name: str, letter
     try:
         from resend import Resend
         client = Resend(api_key=api_key)
+        html_body = f"""<html>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background: #f9fafb;">
+  <div style="max-width: 600px; margin: 40px auto; padding: 32px; background: white; border: 1px solid #e5e7eb; border-radius: 12px;">
+    <div style="border-bottom: 2px solid #dc2626; padding-bottom: 16px; margin-bottom: 24px;">
+      <h2 style="color: #dc2626; margin: 0; font-size: 20px;">HOA Violation Notice</h2>
+      <p style="color: #6b7280; margin: 4px 0 0; font-size: 14px;">{hoa_name}</p>
+    </div>
+    <p style="margin-top: 0;">Dear {resident_name},</p>
+    <div style="background: #f9fafb; border-left: 4px solid #dc2626; padding: 20px; margin: 20px 0;">
+      <pre style="white-space: pre-wrap; word-wrap: break-word; font-family: Georgia, serif; font-size: 14px; line-height: 1.7; margin: 0;">{letter_text}</pre>
+    </div>
+    <p style="color: #9ca3af; font-size: 12px; border-top: 1px solid #f3f4f6; padding-top: 16px; margin-top: 24px;">
+      This is an automated message from the {hoa_name} violation tracking system.
+    </p>
+  </div>
+</body>
+</html>"""
         response = client.emails.send({
             "from": "onboarding@resend.dev",
             "to": recipient_email,
             "subject": f"HOA Violation Notice — {hoa_name}",
-            "html": f"""
-            <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background: #f9fafb;">
-                <div style="max-width: 600px; margin: 40px auto; padding: 32px; background: white; border: 1px solid #e5e7eb; border-radius: 12px;">
-                    <div style="border-bottom: 2px solid #dc2626; padding-bottom: 16px; margin-bottom: 24px;">
-                        <h2 style="color: #dc2626; margin: 0; font-size: 20px;">HOA Violation Notice</h2>
-                        <p style="color: #6b7280; margin: 4px 0 0; font-size: 14px;">{hoa_name}</p>
-                    </div>
-                    <p style="margin-top: 0;">Dear {resident_name},</p>
-                    <div style="background: #f9fafb; border-left: 4px solid #dc2626; padding: 20px; border-radius: 0 8px 8px 0; margin: 20px 0;">
-                        <pre style="white-space: pre-wrap; word-wrap: break-word; font-family: Georgia, serif; font-size: 14px; line-height: 1.7; margin: 0;">{letter_text}</pre>
-                    </div>
-                    <p style="color: #9ca3af; font-size: 12px; margin-bottom: 0; border-top: 1px solid #f3f4f6; padding-top: 16px; margin-top: 24px;">
-                        This is an automated message from the {hoa_name} violation tracking system.
-                        Please do not reply to this email.
-                    </p>
-                </div>
-            </body>
-            </html>
-            """,
+            "html": html_body,
         })
         logger.info(f"Email sent to {recipient_email}: {response}")
         return True, ""
     except Exception as e:
-        error_msg = str(e)
+        # Try to extract a useful message from the exception
+        error_msg = ""
+        # Resend SDK sometimes wraps errors; try getting the response body
+        for attr in ("message", "body", "args"):
+            val = getattr(e, attr, None)
+            if val:
+                error_msg = str(val[0]) if isinstance(val, tuple) and val else str(val)
+                break
+        if not error_msg:
+            error_msg = str(e)
+
         logger.error(f"Email send failed to {recipient_email}: {type(e).__name__}: {error_msg}")
 
-        if "authentication" in error_msg.lower() or "invalid api key" in error_msg.lower() or "unauthorized" in error_msg.lower():
-            return False, "Email API key is invalid. Check your RESEND_API_KEY."
-        if "domain" in error_msg.lower():
-            return False, "Email domain not verified in Resend. Check your Resend account settings."
+        lower = error_msg.lower()
+        if "testing emails to your own" in lower or "free plan" in lower:
+            return False, (
+                "Resend free tier only allows sending to your own verified email address. "
+                "Upgrade your Resend plan or verify the recipient's domain."
+            )
+        if "api key" in lower or "unauthorized" in lower or "authentication" in lower or "403" in lower or "401" in lower:
+            return False, "RESEND_API_KEY is invalid or expired. Check your Resend dashboard."
+        if "domain" in lower and "not" in lower:
+            return False, "Sender domain not verified in Resend. Use onboarding@resend.dev for testing."
 
         return False, f"Failed to send email: {error_msg}"

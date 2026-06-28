@@ -210,8 +210,11 @@ function Dashboard({ setToken }) {
       )
       loadStats()
     } catch (err) {
-      const detail = err.response?.data?.detail || 'Failed to send email.'
-      addToast(detail, 'error')
+      const detail = err.response?.data?.detail
+      const msg = Array.isArray(detail)
+        ? detail.map((d) => d.msg).join(', ')
+        : (detail || err.message || 'Failed to send email. Check that RESEND_API_KEY is configured in Railway.')
+      addToast(msg, 'error')
     } finally {
       setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
     }
@@ -587,9 +590,9 @@ function Dashboard({ setToken }) {
         <AddViolationModal
           residents={residents}
           onClose={() => setShowAddViolation(false)}
-          onAdded={(v) => {
-            setViolations((prev) => [v, ...prev])
+          onAdded={() => {
             setShowAddViolation(false)
+            loadViolations()
             loadStats()
             addToast('Violation created.')
           }}
@@ -836,10 +839,11 @@ function AddViolationModal({ residents, onClose, onAdded }) {
     setLoading(true)
     setError('')
     try {
-      const res = await violationAPI.create(residentId, finalType, description)
-      onAdded(res.data)
+      await violationAPI.create(parseInt(residentId, 10), finalType, description)
+      onAdded()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to create violation.')
+      const detail = err.response?.data?.detail
+      setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail || 'Failed to create violation.'))
     } finally {
       setLoading(false)
     }
