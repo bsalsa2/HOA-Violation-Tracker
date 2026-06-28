@@ -25,57 +25,24 @@ app.add_middleware(
 )
 
 
-import logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-
 # -- Migrations (safe, idempotent) --
 @app.on_event("startup")
 def startup():
-    # Log configuration status
-    if not os.getenv("SECRET_KEY"):
-        logger.warning("SECRET_KEY not set — using insecure default. Set it in Railway environment variables.")
-    if not os.getenv("GEMINI_API_KEY"):
-        logger.info("GEMINI_API_KEY not set — using fallback violation letter template (no AI generation).")
-
     db = SessionLocal()
     try:
-        from sqlalchemy import text, inspect
-        # Use inspect to check columns before altering (avoids IF NOT EXISTS which is PG-only)
-        inspector = inspect(db.bind)
-        hoa_cols = [c["name"] for c in inspector.get_columns("hoas")]
-        violation_cols = [c["name"] for c in inspector.get_columns("violations")]
-
-        if "user_id" not in hoa_cols:
+        from sqlalchemy import text
+        for stmt in [
+            "ALTER TABLE hoas ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)",
+            "ALTER TABLE violations ADD COLUMN IF NOT EXISTS email_sent_at TIMESTAMP",
+            "ALTER TABLE violations ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'open'",
+        ]:
             try:
-                db.execute(text("ALTER TABLE hoas ADD COLUMN user_id INTEGER REFERENCES users(id)"))
+                db.execute(text(stmt))
                 db.commit()
-                logger.info("Added user_id column to hoas table")
-            except Exception as ex:
+            except Exception:
                 db.rollback()
-                logger.warning(f"Could not add user_id to hoas: {ex}")
-
-        if "email_sent_at" not in violation_cols:
-            try:
-                db.execute(text("ALTER TABLE violations ADD COLUMN email_sent_at TIMESTAMP"))
-                db.commit()
-                logger.info("Added email_sent_at column to violations table")
-            except Exception as ex:
-                db.rollback()
-                logger.warning(f"Could not add email_sent_at to violations: {ex}")
-
-        if "status" not in violation_cols:
-            try:
-                db.execute(text("ALTER TABLE violations ADD COLUMN status VARCHAR DEFAULT 'open'"))
-                db.commit()
-                logger.info("Added status column to violations table")
-            except Exception as ex:
-                db.rollback()
-                logger.warning(f"Could not add status to violations: {ex}")
-
     except Exception as e:
-        logger.error(f"Migration error: {e}")
+        print(f"Migration warning: {e}")
     finally:
         db.close()
 
