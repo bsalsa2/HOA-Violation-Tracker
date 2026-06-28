@@ -19,12 +19,15 @@ function Login({ setToken }) {
       setToken(response.data.access_token)
     } catch (err) {
       const detail = err.response?.data?.detail
-      if (mode === 'login' && err.response?.status === 401) {
+      const status = err.response?.status
+      if (mode === 'login' && status === 401) {
         setError('Invalid email or password.')
-      } else if (mode === 'register' && err.response?.status === 400) {
+      } else if (mode === 'register' && status === 400) {
         setError('An account with this email already exists.')
+      } else if (!err.response) {
+        setError('Cannot reach the server. The backend may still be deploying — wait 1-2 minutes and try again.')
       } else {
-        setError(detail || 'Something went wrong. Please try again.')
+        setError(`Error ${status}: ${Array.isArray(detail) ? detail.map(d => d.msg).join(', ') : (detail || err.message || 'Unknown error')}`)
       }
     } finally {
       setLoading(false)
