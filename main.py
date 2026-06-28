@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import Optional
 import jwt
 import os
 import csv
@@ -63,8 +64,8 @@ class HOACreate(BaseModel):
 class ResidentCreate(BaseModel):
     name: str
     unit: str
-    email: str = None
-    phone: str = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
 
 
 class ViolationCreate(BaseModel):
