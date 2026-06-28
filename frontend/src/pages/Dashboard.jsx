@@ -1,242 +1,481 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import emailjs from '@emailjs/browser'
 import { hoaAPI, residentAPI, violationAPI } from '../api'
+import HOASetup from './HOASetup'
 
-function Dashboard({ token, onLogout }) {
+const VIOLATION_TYPES = [
+  'Landscaping / Lawn Care',
+  'Parking Violation',
+  'Noise Complaint',
+  'Trash / Debris',
+  'Exterior Maintenance',
+  'Pet Violation',
+  'Architectural Modification',
+  'Pool / Amenity Misuse',
+  'Commercial Vehicle',
+  'Other',
+]
+
+const STATUS_CONFIG = {
+  open: { label: 'Open', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+  noticed: { label: 'Noticed', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+  resolved: { label: 'Resolved', color: 'bg-green-500/10 text-green-400 border-green-500/20' },
+  escalated: { label: 'Escalated', color: 'bg-red-500/10 text-red-400 border-red-500/20' },
+}
+
+function StatusBadge({ status }) {
+  const cfg = STATUS_CONFIG[status] || { label: status, color: 'bg-slate-500/10 text-slate-400 border-slate-500/20' }
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full border ${cfg.color}`}>
+      {cfg.label}
+    </span>
+  )
+}
+
+function Toast({ toasts, onDismiss }) {
+  return (
+    <div className="fixed bottom-4 right-4 z-50 space-y-2">
+      {toasts.map((t) => (
+        <div
+          key={t.id}
+          className={`flex items-start gap-3 px-4 py-3 rounded-xl shadow-lg border max-w-sm text-sm ${
+            t.type === 'error'
+              ? 'bg-red-950 border-red-800 text-red-200'
+              : 'bg-slate-800 border-slate-700 text-slate-100'
+          }`}
+        >
+          {t.type === 'error' ? (
+            <svg className="w-4 h-4 mt-0.5 shrink-0 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4 mt-0.5 shrink-0 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+          )}
+          <span className="flex-1">{t.message}</span>
+          <button onClick={() => onDismiss(t.id)} className="ml-2 opacity-50 hover:opacity-100">×</button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ConfirmDialog({ message, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex-shrink-0 w-10 h-10 bg-red-500/10 rounded-full flex items-center justify-center">
+            <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <p className="text-white text-sm">{message}</p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-2 text-sm border border-slate-600 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-2 text-sm bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors font-medium"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Modal({ title, onClose, children }) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+          <h3 className="text-white font-semibold">{title}</h3>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-800 transition-colors"
+          >
+            ×
+          </button>
+        </div>
+        <div className="p-6 overflow-y-auto">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+function Dashboard({ setToken }) {
   const [hoa, setHoa] = useState(null)
+  const [hoaLoading, setHoaLoading] = useState(true)
+  const [needsSetup, setNeedsSetup] = useState(false)
   const [stats, setStats] = useState(null)
   const [residents, setResidents] = useState([])
   const [violations, setViolations] = useState([])
-  const [violationFilter, setViolationFilter] = useState('open')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [toasts, setToasts] = useState([])
+  const toastCounter = useRef(0)
 
   const [showAddResident, setShowAddResident] = useState(false)
   const [showImportCSV, setShowImportCSV] = useState(false)
   const [showAddViolation, setShowAddViolation] = useState(false)
-  const [showViolationLetter, setShowViolationLetter] = useState(null)
+  const [letterModal, setLetterModal] = useState(null)
+  const [editHOAModal, setEditHOAModal] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(null)
 
-  const [residentForm, setResidentForm] = useState({ name: '', unit: '', email: '', phone: '' })
-  const [violationForm, setViolationForm] = useState({ resident_id: '', violation_type: '', description: '' })
-  const [csvFile, setCsvFile] = useState(null)
+  const [sendingEmail, setSendingEmail] = useState({})
+  const [letters, setLetters] = useState({})
+  const [letterLoading, setLetterLoading] = useState({})
+
+  const addToast = useCallback((message, type = 'success') => {
+    const id = ++toastCounter.current
+    setToasts((prev) => [...prev, { id, message, type }])
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000)
+  }, [])
+
+  const dismissToast = (id) => setToasts((prev) => prev.filter((t) => t.id !== id))
 
   useEffect(() => {
-    loadData()
-  }, [violationFilter])
+    loadInitialData()
+  }, [])
 
-  const loadData = async () => {
+  const loadInitialData = async () => {
+    setHoaLoading(true)
     try {
-      setLoading(true)
       const hoaRes = await hoaAPI.getMe()
       setHoa(hoaRes.data)
-
-      const statsRes = await hoaAPI.getStats()
-      setStats(statsRes.data)
-
-      const residentsRes = await residentAPI.getAll()
-      setResidents(residentsRes.data)
-
-      const violationsRes = await violationAPI.getAll(violationFilter)
-      setViolations(violationsRes.data)
+      setNeedsSetup(false)
+      await Promise.all([loadResidents(), loadViolations(), loadStats()])
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load data')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleAddResident = async (e) => {
-    e.preventDefault()
-    try {
-      await residentAPI.create(residentForm.name, residentForm.unit, residentForm.email, residentForm.phone)
-      setResidentForm({ name: '', unit: '', email: '', phone: '' })
-      setShowAddResident(false)
-      loadData()
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to add resident')
-    }
-  }
-
-  const handleDeleteResident = async (id) => {
-    if (window.confirm('Delete this resident?')) {
-      try {
-        await residentAPI.delete(id)
-        loadData()
-      } catch (err) {
-        setError(err.response?.data?.detail || 'Failed to delete resident')
+      if (err.response?.status === 404) {
+        setNeedsSetup(true)
       }
+    } finally {
+      setHoaLoading(false)
     }
   }
 
-  const handleImportCSV = async (e) => {
-    e.preventDefault()
-    if (!csvFile) {
-      setError('Please select a file')
+  const loadStats = async () => {
+    try {
+      const res = await hoaAPI.getStats()
+      setStats(res.data)
+    } catch {}
+  }
+
+  const loadResidents = async () => {
+    try {
+      const res = await residentAPI.getAll()
+      setResidents(res.data)
+    } catch {}
+  }
+
+  const loadViolations = async () => {
+    try {
+      const res = await violationAPI.getAll(statusFilter || undefined)
+      setViolations(res.data)
+    } catch {}
+  }
+
+  useEffect(() => {
+    if (hoa) loadViolations()
+  }, [statusFilter])
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token')
+    setToken(null)
+  }
+
+  const handleHOASetupComplete = (hoaData) => {
+    setHoa(hoaData)
+    setNeedsSetup(false)
+    loadStats()
+  }
+
+  const handleSendEmail = async (violationId) => {
+    const EMAILJS_SERVICE_ID = import.meta.env.VITE_EJS_SERVICE
+    const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EJS_TEMPLATE
+    const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EJS_KEY
+
+    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+      addToast(
+        'EmailJS is not configured. Add VITE_EJS_SERVICE, VITE_EJS_TEMPLATE, and VITE_EJS_KEY to your Vercel environment variables.',
+        'error'
+      )
       return
     }
 
+    setSendingEmail((prev) => ({ ...prev, [violationId]: true }))
     try {
-      const result = await residentAPI.importCSV(csvFile)
-      setError('')
-      alert(`Imported ${result.data.added} residents${result.data.errors.length > 0 ? `. Errors: ${result.data.errors.join('; ')}` : ''}`)
-      setCsvFile(null)
-      setShowImportCSV(false)
-      loadData()
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to import CSV')
-    }
-  }
+      // 1. Generate the letter from backend
+      const letterRes = await violationAPI.getLetter(violationId)
+      const letterText = letterRes.data.letter
 
-  const handleAddViolation = async (e) => {
-    e.preventDefault()
-    try {
-      await violationAPI.create(violationForm.resident_id, violationForm.violation_type, violationForm.description)
-      setViolationForm({ resident_id: '', violation_type: '', description: '' })
-      setShowAddViolation(false)
-      loadData()
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to add violation')
-    }
-  }
+      // 2. Look up violation + resident
+      const violation = violations.find((v) => v.id === violationId)
+      const resident = residentMap[violation?.resident_id]
 
-  const handleUpdateViolationStatus = async (violationId, newStatus) => {
-    try {
-      await violationAPI.updateStatus(violationId, newStatus)
-      loadData()
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to update violation')
-    }
-  }
-
-  const handleDeleteViolation = async (id) => {
-    if (window.confirm('Delete this violation?')) {
-      try {
-        await violationAPI.delete(id)
-        loadData()
-      } catch (err) {
-        setError(err.response?.data?.detail || 'Failed to delete violation')
+      if (!resident?.email) {
+        addToast('Resident has no email address.', 'error')
+        return
       }
-    }
-  }
 
-  const handleViewLetter = async (violationId) => {
-    try {
-      const res = await violationAPI.getLetter(violationId)
-      setShowViolationLetter({ id: violationId, letter: res.data.letter })
+      // 3. Send via EmailJS
+      await emailjs.send(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
+        {
+          to_email: resident.email,
+          to_name: resident.name,
+          hoa_name: hoa?.name || 'HOA',
+          violation_type: violation.violation_type,
+          violation_letter: letterText,
+          reply_to: 'noreply@violationtrack.com',
+        },
+        EMAILJS_PUBLIC_KEY
+      )
+
+      // 4. Record in backend
+      const markRes = await violationAPI.markSent(violationId)
+      addToast(`Letter sent to ${resident.email}.`)
+      setViolations((prev) =>
+        prev.map((v) =>
+          v.id === violationId
+            ? { ...v, status: 'noticed', email_sent_at: markRes.data.email_sent_at }
+            : v
+        )
+      )
+      loadStats()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to generate letter')
+      // EmailJS errors have a `text` field; Axios errors have response.data.detail
+      const detail = err.response?.data?.detail
+      const msg = Array.isArray(detail)
+        ? detail.map((d) => d.msg).join(', ')
+        : (detail || err.text || err.message || 'Failed to send email.')
+      addToast(msg, 'error')
+    } finally {
+      setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
     }
   }
 
-  const handleSendLetter = async (violationId) => {
+  const handleViewLetter = async (violation) => {
+    if (letters[violation.id]) {
+      setLetterModal({ violation, text: letters[violation.id] })
+      return
+    }
+    setLetterLoading((prev) => ({ ...prev, [violation.id]: true }))
     try {
-      await violationAPI.sendLetter(violationId)
-      alert('Letter sent successfully to resident!')
-      loadData()
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to send letter. Make sure resident has an email address.')
+      const res = await violationAPI.getLetter(violation.id)
+      setLetters((prev) => ({ ...prev, [violation.id]: res.data.letter }))
+      setLetterModal({ violation, text: res.data.letter })
+    } catch {
+      addToast('Failed to generate letter.', 'error')
+    } finally {
+      setLetterLoading((prev) => ({ ...prev, [violation.id]: false }))
     }
   }
 
-  if (loading) {
+  const handleStatusChange = async (violationId, status) => {
+    try {
+      await violationAPI.updateStatus(violationId, status)
+      setViolations((prev) => prev.map((v) => (v.id === violationId ? { ...v, status } : v)))
+      loadStats()
+    } catch {
+      addToast('Failed to update status.', 'error')
+    }
+  }
+
+  const handleDeleteViolation = (violationId) => {
+    setConfirmDelete({
+      message: 'Delete this violation? This cannot be undone.',
+      onConfirm: async () => {
+        setConfirmDelete(null)
+        try {
+          await violationAPI.delete(violationId)
+          setViolations((prev) => prev.filter((v) => v.id !== violationId))
+          loadStats()
+          addToast('Violation deleted.')
+        } catch {
+          addToast('Failed to delete violation.', 'error')
+        }
+      },
+    })
+  }
+
+  const handleDeleteResident = (residentId, residentName) => {
+    setConfirmDelete({
+      message: `Delete ${residentName}? All their violations will also be deleted.`,
+      onConfirm: async () => {
+        setConfirmDelete(null)
+        try {
+          await residentAPI.delete(residentId)
+          setResidents((prev) => prev.filter((r) => r.id !== residentId))
+          loadViolations()
+          loadStats()
+          addToast('Resident deleted.')
+        } catch {
+          addToast('Failed to delete resident.', 'error')
+        }
+      },
+    })
+  }
+
+  if (hoaLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="text-gray-600 text-lg">Loading...</div>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="flex items-center gap-3 text-slate-400">
+          <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          Loading...
+        </div>
       </div>
     )
   }
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'open': return 'bg-red-50 text-red-700 border-red-200'
-      case 'noticed': return 'bg-yellow-50 text-yellow-700 border-yellow-200'
-      case 'resolved': return 'bg-green-50 text-green-700 border-green-200'
-      case 'escalated': return 'bg-purple-50 text-purple-700 border-purple-200'
-      default: return 'bg-gray-50 text-gray-700 border-gray-200'
-    }
+  if (needsSetup) {
+    return (
+      <HOASetup
+        onComplete={handleHOASetupComplete}
+        onSkip={() => setNeedsSetup(false)}
+      />
+    )
   }
 
+  const filteredViolations = statusFilter
+    ? violations.filter((v) => v.status === statusFilter)
+    : violations
+
+  const residentMap = Object.fromEntries(residents.map((r) => [r.id, r]))
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-950 text-white">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{hoa?.name}</h1>
-            <p className="text-sm text-gray-600 mt-1">{hoa?.address}</p>
+      <header className="bg-slate-900 border-b border-slate-800 px-6 py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="font-semibold text-sm text-white leading-none">
+                {hoa ? hoa.name : 'ViolationTrack'}
+              </h1>
+              {hoa && <p className="text-xs text-slate-500 mt-0.5">{hoa.address}</p>}
+            </div>
           </div>
-          <button
-            onClick={onLogout}
-            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded font-medium transition"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="max-w-7xl mx-auto px-6 pt-4">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {error}
+          <div className="flex items-center gap-2">
+            {hoa && (
+              <button
+                onClick={() => setEditHOAModal(true)}
+                className="px-3 py-1.5 text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 rounded-lg transition-colors"
+              >
+                Edit HOA
+              </button>
+            )}
+            <button
+              onClick={handleLogout}
+              className="px-3 py-1.5 text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 rounded-lg transition-colors"
+            >
+              Sign Out
+            </button>
           </div>
         </div>
-      )}
+      </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Stats Grid */}
+      <main className="max-w-7xl mx-auto px-6 py-6">
+        {/* Stats */}
         {stats && (
-          <div className="grid grid-cols-5 gap-4 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
             {[
-              { label: 'Total Residents', value: stats.total_residents, color: 'text-blue-600' },
-              { label: 'Total Violations', value: stats.total_violations, color: 'text-slate-600' },
-              { label: 'Open', value: stats.open_violations, color: 'text-red-600' },
-              { label: 'Noticed', value: stats.noticed_violations, color: 'text-yellow-600' },
-              { label: 'Resolved', value: stats.resolved_violations, color: 'text-green-600' },
-            ].map((stat) => (
-              <div key={stat.label} className="bg-white p-6 rounded border border-gray-200">
-                <p className="text-sm font-medium text-gray-600">{stat.label}</p>
-                <p className={`text-4xl font-bold mt-2 ${stat.color}`}>{stat.value}</p>
+              { label: 'Residents', value: stats.total_residents, color: 'text-white' },
+              { label: 'Total Violations', value: stats.total_violations, color: 'text-white' },
+              { label: 'Open', value: stats.open_violations, color: 'text-amber-400' },
+              { label: 'Noticed', value: stats.noticed_violations, color: 'text-blue-400' },
+              { label: 'Resolved', value: stats.resolved_violations, color: 'text-green-400' },
+            ].map((s) => (
+              <div key={s.label} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                <p className="text-slate-500 text-xs mt-1">{s.label}</p>
               </div>
             ))}
           </div>
         )}
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-2 gap-8">
-          {/* Residents */}
-          <div className="bg-white rounded border border-gray-200">
-            <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900">Residents</h2>
+        {!hoa && (
+          <div className="bg-blue-950 border border-blue-800 rounded-xl p-4 mb-6 flex items-start gap-3">
+            <svg className="w-5 h-5 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <p className="text-blue-200 text-sm font-medium">HOA not configured</p>
+              <p className="text-blue-300/70 text-xs mt-0.5">
+                <button onClick={() => setNeedsSetup(true)} className="underline hover:no-underline">
+                  Set up your HOA
+                </button>{' '}
+                to unlock all features.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Residents Panel */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+              <h2 className="font-semibold text-slate-100">Residents</h2>
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowImportCSV(true)}
-                  className="px-3 py-1.5 text-sm bg-blue-50 hover:bg-blue-100 text-blue-700 rounded font-medium transition border border-blue-200"
+                  className="px-3 py-1.5 text-xs text-slate-300 border border-slate-700 hover:border-slate-500 rounded-lg transition-colors"
                 >
                   Import CSV
                 </button>
                 <button
                   onClick={() => setShowAddResident(true)}
-                  className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition"
+                  className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors font-medium"
                 >
-                  Add Resident
+                  + Add
                 </button>
               </div>
             </div>
-            <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+
+            <div className="divide-y divide-slate-800 overflow-y-auto max-h-96 flex-1">
               {residents.length === 0 ? (
-                <div className="px-6 py-8 text-center text-gray-500">No residents yet</div>
+                <div className="py-12 text-center text-slate-500 text-sm">
+                  No residents yet. Add one or import a CSV.
+                </div>
               ) : (
                 residents.map((r) => (
-                  <div key={r.id} className="px-6 py-4 hover:bg-gray-50 flex justify-between items-start group">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{r.name}</p>
-                      <p className="text-sm text-gray-600">Unit {r.unit}</p>
-                      {r.email && <p className="text-sm text-gray-600">{r.email}</p>}
+                  <div key={r.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-800/50 group transition-colors">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-100 truncate">{r.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-slate-500">Unit {r.unit}</span>
+                        {r.email ? (
+                          <span className="text-xs text-slate-500 truncate">{r.email}</span>
+                        ) : (
+                          <span className="text-xs text-amber-500/70">No email</span>
+                        )}
+                        {r.phone && <span className="text-xs text-slate-500">{r.phone}</span>}
+                      </div>
                     </div>
                     <button
-                      onClick={() => handleDeleteResident(r.id)}
-                      className="opacity-0 group-hover:opacity-100 ml-4 px-2 py-1 text-xs bg-red-50 hover:bg-red-100 text-red-700 rounded transition"
+                      onClick={() => handleDeleteResident(r.id, r.name)}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-red-400/10 transition-all"
+                      title="Delete resident"
                     >
-                      Delete
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
                     </button>
                   </div>
                 ))
@@ -244,84 +483,112 @@ function Dashboard({ token, onLogout }) {
             </div>
           </div>
 
-          {/* Violations */}
-          <div className="bg-white rounded border border-gray-200">
-            <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900">Violations</h2>
+          {/* Violations Panel */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <h2 className="font-semibold text-slate-100">Violations</h2>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="text-xs bg-slate-800 text-slate-300 border border-slate-700 rounded-lg px-2 py-1 focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">All</option>
+                  <option value="open">Open</option>
+                  <option value="noticed">Noticed</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="escalated">Escalated</option>
+                </select>
+              </div>
               <button
                 onClick={() => setShowAddViolation(true)}
-                className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition"
+                disabled={residents.length === 0}
+                className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
+                title={residents.length === 0 ? 'Add residents first' : ''}
               >
-                Add Violation
+                + Add
               </button>
             </div>
 
-            <div className="border-b border-gray-200 px-6 py-3">
-              <select
-                value={violationFilter}
-                onChange={(e) => setViolationFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="open">Open</option>
-                <option value="noticed">Noticed</option>
-                <option value="resolved">Resolved</option>
-                <option value="">All</option>
-              </select>
-            </div>
-
-            <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
-              {violations.length === 0 ? (
-                <div className="px-6 py-8 text-center text-gray-500">No violations</div>
+            <div className="divide-y divide-slate-800 overflow-y-auto max-h-[36rem] flex-1">
+              {filteredViolations.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 text-sm">
+                  {statusFilter ? `No ${statusFilter} violations.` : 'No violations yet.'}
+                </div>
               ) : (
-                violations.map((v) => {
-                  const resident = residents.find((r) => r.id === v.resident_id)
+                filteredViolations.map((v) => {
+                  const resident = residentMap[v.resident_id]
+                  const isSending = sendingEmail[v.id]
+                  const isLoadingLetter = letterLoading[v.id]
+                  const hasEmail = resident?.email
+
                   return (
-                    <div key={v.id} className="px-6 py-4 hover:bg-gray-50 group">
-                      <div className="flex justify-between items-start gap-3 mb-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium text-gray-900">{resident?.name}</p>
-                            {v.email_sent_at && (
-                              <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200">
-                                Email sent
-                              </span>
-                            )}
+                    <div key={v.id} className="px-5 py-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-medium text-slate-100">{v.violation_type}</span>
+                            <StatusBadge status={v.status} />
                           </div>
-                          <p className="text-sm text-gray-600">{v.violation_type}</p>
-                          <p className="text-sm text-gray-700 mt-1">{v.description}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{resident?.name} · Unit {resident?.unit}</p>
+                          <p className="text-xs text-slate-500 mt-1 leading-relaxed">{v.description}</p>
+                          <p className="text-xs text-slate-600 mt-1">
+                            {new Date(v.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </p>
+                          {v.email_sent_at && (
+                            <p className="text-xs text-blue-400/70 mt-1">
+                              Letter sent {new Date(v.email_sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </p>
+                          )}
                         </div>
-                        <select
-                          value={v.status}
-                          onChange={(e) => handleUpdateViolationStatus(v.id, e.target.value)}
-                          className={`px-2 py-1 text-xs rounded font-medium border cursor-pointer whitespace-nowrap ${getStatusColor(v.status)}`}
-                        >
-                          <option value="open">Open</option>
-                          <option value="noticed">Noticed</option>
-                          <option value="resolved">Resolved</option>
-                          <option value="escalated">Escalated</option>
-                        </select>
-                      </div>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
-                        {!v.email_sent_at && (
-                          <button
-                            onClick={() => handleSendLetter(v.id)}
-                            className="text-xs px-2 py-1 bg-green-50 hover:bg-green-100 text-green-700 rounded transition font-medium"
+
+                        <div className="flex flex-col items-end gap-1.5 shrink-0">
+                          <select
+                            value={v.status}
+                            onChange={(e) => handleStatusChange(v.id, e.target.value)}
+                            className="text-xs bg-slate-800 text-slate-300 border border-slate-700 rounded-lg px-2 py-1 focus:outline-none focus:border-blue-500"
                           >
-                            Send Email
+                            <option value="open">Open</option>
+                            <option value="noticed">Noticed</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="escalated">Escalated</option>
+                          </select>
+
+                          <button
+                            onClick={() => handleViewLetter(v)}
+                            disabled={isLoadingLetter}
+                            className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-50 transition-colors"
+                          >
+                            {isLoadingLetter ? 'Loading...' : 'View Letter'}
                           </button>
-                        )}
-                        <button
-                          onClick={() => handleViewLetter(v.id)}
-                          className="text-xs px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded transition"
-                        >
-                          View Letter
-                        </button>
-                        <button
-                          onClick={() => handleDeleteViolation(v.id)}
-                          className="text-xs px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded transition"
-                        >
-                          Delete
-                        </button>
+
+                          {hasEmail ? (
+                            <button
+                              onClick={() => handleSendEmail(v.id)}
+                              disabled={isSending}
+                              className="text-xs text-emerald-400 hover:text-emerald-300 disabled:opacity-50 transition-colors flex items-center gap-1"
+                            >
+                              {isSending ? (
+                                <>
+                                  <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                  </svg>
+                                  Sending...
+                                </>
+                              ) : v.email_sent_at ? 'Resend Email' : 'Send Email'}
+                            </button>
+                          ) : (
+                            <span className="text-xs text-slate-600" title="Resident has no email address">No email</span>
+                          )}
+
+                          <button
+                            onClick={() => handleDeleteViolation(v.id)}
+                            className="text-xs text-slate-600 hover:text-red-400 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )
@@ -330,211 +597,448 @@ function Dashboard({ token, onLogout }) {
             </div>
           </div>
         </div>
-      </div>
+      </main>
 
-      {/* Add Resident Modal */}
+      {/* Modals */}
       {showAddResident && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg w-full max-w-md shadow-lg">
-            <div className="border-b border-gray-200 px-6 py-4">
-              <h3 className="text-lg font-bold text-gray-900">Add Resident</h3>
-            </div>
-            <form onSubmit={handleAddResident} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-                <input
-                  type="text"
-                  value={residentForm.name}
-                  onChange={(e) => setResidentForm({ ...residentForm, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Unit *</label>
-                <input
-                  type="text"
-                  value={residentForm.unit}
-                  onChange={(e) => setResidentForm({ ...residentForm, unit: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={residentForm.email}
-                  onChange={(e) => setResidentForm({ ...residentForm, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input
-                  type="text"
-                  value={residentForm.phone}
-                  onChange={(e) => setResidentForm({ ...residentForm, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition"
-                >
-                  Add Resident
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddResident(false)}
-                  className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded font-medium transition"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <AddResidentModal
+          onClose={() => setShowAddResident(false)}
+          onAdded={(r) => {
+            setResidents((prev) => [...prev, r])
+            setShowAddResident(false)
+            loadStats()
+            addToast(`${r.name} added successfully.`)
+          }}
+        />
       )}
 
-      {/* Import CSV Modal */}
       {showImportCSV && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg w-full max-w-md shadow-lg">
-            <div className="border-b border-gray-200 px-6 py-4">
-              <h3 className="text-lg font-bold text-gray-900">Import Residents</h3>
-            </div>
-            <form onSubmit={handleImportCSV} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">CSV File *</label>
-                <p className="text-xs text-gray-600 mb-3">Format: name, unit, email (optional), phone (optional)</p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-              <div className="bg-gray-50 p-3 rounded text-xs text-gray-700 border border-gray-200">
-                <p className="font-medium mb-2">Example:</p>
-                <pre className="whitespace-pre-wrap break-words">John Doe,101,john@example.com,555-1234
-Jane Smith,102,jane@example.com</pre>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition"
-                >
-                  Import
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowImportCSV(false)
-                    setCsvFile(null)
-                  }}
-                  className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded font-medium transition"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <ImportCSVModal
+          onClose={() => setShowImportCSV(false)}
+          onDone={(added, errors) => {
+            setShowImportCSV(false)
+            loadResidents()
+            loadStats()
+            if (errors.length > 0) {
+              addToast(`Imported ${added} residents. ${errors.length} rows skipped.`, errors.length > 0 && added === 0 ? 'error' : 'success')
+            } else {
+              addToast(`Successfully imported ${added} residents.`)
+            }
+          }}
+          addToast={addToast}
+        />
       )}
 
-      {/* Add Violation Modal */}
       {showAddViolation && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg w-full max-w-md shadow-lg">
-            <div className="border-b border-gray-200 px-6 py-4">
-              <h3 className="text-lg font-bold text-gray-900">Add Violation</h3>
-            </div>
-            <form onSubmit={handleAddViolation} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Resident *</label>
-                <select
-                  value={violationForm.resident_id}
-                  onChange={(e) => setViolationForm({ ...violationForm, resident_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">Select resident...</option>
-                  {residents.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name} - Unit {r.unit}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Violation Type *</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Unmaintained Lawn"
-                  value={violationForm.violation_type}
-                  onChange={(e) => setViolationForm({ ...violationForm, violation_type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
-                <textarea
-                  placeholder="Details of the violation..."
-                  value={violationForm.description}
-                  onChange={(e) => setViolationForm({ ...violationForm, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows="4"
-                  required
-                />
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition"
-                >
-                  Add Violation
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddViolation(false)}
-                  className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded font-medium transition"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <AddViolationModal
+          residents={residents}
+          onClose={() => setShowAddViolation(false)}
+          onAdded={() => {
+            setShowAddViolation(false)
+            loadViolations()
+            loadStats()
+            addToast('Violation created.')
+          }}
+        />
       )}
 
-      {/* View Letter Modal */}
-      {showViolationLetter && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg w-full max-w-2xl shadow-lg max-h-96 overflow-hidden flex flex-col">
-            <div className="border-b border-gray-200 px-6 py-4">
-              <h3 className="text-lg font-bold text-gray-900">Violation Letter</h3>
-            </div>
-            <div className="overflow-y-auto flex-1 p-6 bg-gray-50">
-              <div className="bg-white p-4 rounded border border-gray-200 text-sm text-gray-900 whitespace-pre-wrap">
-                {showViolationLetter.letter}
+      {letterModal && (
+        <Modal title={`Violation Letter — ${letterModal.violation.violation_type}`} onClose={() => setLetterModal(null)}>
+          <div className="bg-slate-800 rounded-xl p-4">
+            <pre className="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed font-sans">{letterModal.text}</pre>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(letterModal.text)
+              addToast('Letter copied to clipboard.')
+            }}
+            className="mt-4 w-full py-2 text-sm border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
+          >
+            Copy to Clipboard
+          </button>
+        </Modal>
+      )}
+
+      {editHOAModal && hoa && (
+        <EditHOAModal
+          hoa={hoa}
+          onClose={() => setEditHOAModal(false)}
+          onUpdated={(updated) => {
+            setHoa(updated)
+            setEditHOAModal(false)
+            addToast('HOA updated.')
+          }}
+        />
+      )}
+
+      {confirmDelete && (
+        <ConfirmDialog
+          message={confirmDelete.message}
+          onConfirm={confirmDelete.onConfirm}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
+      <Toast toasts={toasts} onDismiss={dismissToast} />
+    </div>
+  )
+}
+
+function AddResidentModal({ onClose, onAdded }) {
+  const [name, setName] = useState('')
+  const [unit, setUnit] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      const res = await residentAPI.create(name, unit, email || null, phone || null)
+      onAdded(res.data)
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to add resident.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Modal title="Add Resident" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">Full Name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder-slate-500"
+            placeholder="Jane Smith"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">Unit Number</label>
+          <input
+            type="text"
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+            className="w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder-slate-500"
+            placeholder="101"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">
+            Email <span className="text-slate-500 font-normal">(required for sending letters)</span>
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder-slate-500"
+            placeholder="jane@example.com"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">Phone <span className="text-slate-500 font-normal">(optional)</span></label>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder-slate-500"
+            placeholder="555-555-5555"
+          />
+        </div>
+        {error && (
+          <div className="text-red-400 text-sm bg-red-950 border border-red-800 rounded-lg p-3">{error}</div>
+        )}
+        <div className="flex gap-3 pt-2">
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-medium rounded-lg transition-colors"
+          >
+            {loading ? 'Adding...' : 'Add Resident'}
+          </button>
+          <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+function ImportCSVModal({ onClose, onDone, addToast }) {
+  const [file, setFile] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState(null)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!file) return
+    setLoading(true)
+    try {
+      const res = await residentAPI.importCSV(file)
+      setResult(res.data)
+    } catch (err) {
+      addToast(err.response?.data?.detail || 'Import failed.', 'error')
+      setLoading(false)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (result) {
+    return (
+      <Modal title="Import Results" onClose={() => onDone(result.added, result.errors || [])}>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 bg-green-950 border border-green-800 rounded-xl p-4">
+            <svg className="w-5 h-5 text-green-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <p className="text-green-200 text-sm">{result.message}</p>
+          </div>
+          {result.errors && result.errors.length > 0 && (
+            <div>
+              <p className="text-sm font-medium text-slate-300 mb-2">Rows with issues:</p>
+              <div className="bg-slate-800 rounded-xl p-3 max-h-48 overflow-y-auto space-y-1">
+                {result.errors.map((err, i) => (
+                  <p key={i} className="text-xs text-amber-300">{err}</p>
+                ))}
               </div>
             </div>
-            <div className="border-t border-gray-200 px-6 py-4 flex gap-3">
-              <button
-                onClick={() => setShowViolationLetter(null)}
-                className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded font-medium transition"
-              >
-                Close
-              </button>
-            </div>
-          </div>
+          )}
+          <button
+            onClick={() => onDone(result.added, result.errors || [])}
+            className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors"
+          >
+            Done
+          </button>
         </div>
-      )}
-    </div>
+      </Modal>
+    )
+  }
+
+  return (
+    <Modal title="Import Residents from CSV" onClose={onClose}>
+      <div className="space-y-4">
+        <div className="bg-slate-800 rounded-xl p-4 text-xs text-slate-400 space-y-1">
+          <p className="font-medium text-slate-300">Required CSV format:</p>
+          <p className="font-mono">name,unit,email,phone</p>
+          <p className="font-mono text-slate-500">Jane Smith,101,jane@example.com,555-1234</p>
+          <p className="mt-2">Columns <span className="text-slate-300">email</span> and <span className="text-slate-300">phone</span> are optional.</p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Select CSV File</label>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={(e) => setFile(e.target.files[0])}
+              className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-700 file:text-slate-200 hover:file:bg-slate-600 file:cursor-pointer"
+              required
+            />
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={loading || !file}
+              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-medium rounded-lg transition-colors"
+            >
+              {loading ? 'Importing...' : 'Import'}
+            </button>
+            <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </Modal>
+  )
+}
+
+function AddViolationModal({ residents, onClose, onAdded }) {
+  const [residentId, setResidentId] = useState(residents[0]?.id || '')
+  const [violationType, setViolationType] = useState('')
+  const [customType, setCustomType] = useState('')
+  const [description, setDescription] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const selectedResident = residents.find((r) => r.id === parseInt(residentId))
+  const finalType = violationType === 'Other' ? customType : violationType
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!finalType.trim()) {
+      setError('Please enter a violation type.')
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      await violationAPI.create(parseInt(residentId, 10), finalType, description)
+      onAdded()
+    } catch (err) {
+      const detail = err.response?.data?.detail
+      setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail || 'Failed to create violation.'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Modal title="Add Violation" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">Resident</label>
+          <select
+            value={residentId}
+            onChange={(e) => setResidentId(e.target.value)}
+            className="w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500"
+            required
+          >
+            <option value="">Select a resident</option>
+            {residents.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name} — Unit {r.unit}
+              </option>
+            ))}
+          </select>
+          {selectedResident && !selectedResident.email && (
+            <p className="mt-1.5 text-xs text-amber-400">
+              ⚠ This resident has no email. You won't be able to send them a letter.
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">Violation Type</label>
+          <select
+            value={violationType}
+            onChange={(e) => setViolationType(e.target.value)}
+            className="w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500"
+            required
+          >
+            <option value="">Select a type</option>
+            {VIOLATION_TYPES.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+
+        {violationType === 'Other' && (
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Custom Type</label>
+            <input
+              type="text"
+              value={customType}
+              onChange={(e) => setCustomType(e.target.value)}
+              className="w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 placeholder-slate-500"
+              placeholder="Describe the violation type"
+              required
+            />
+          </div>
+        )}
+
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">Description</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 placeholder-slate-500 resize-none"
+            placeholder="Describe the specific violation in detail..."
+            rows={3}
+            required
+          />
+        </div>
+
+        {error && (
+          <div className="text-red-400 text-sm bg-red-950 border border-red-800 rounded-lg p-3">{error}</div>
+        )}
+
+        <div className="flex gap-3 pt-2">
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-medium rounded-lg transition-colors"
+          >
+            {loading ? 'Creating...' : 'Create Violation'}
+          </button>
+          <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+function EditHOAModal({ hoa, onClose, onUpdated }) {
+  const [name, setName] = useState(hoa.name)
+  const [address, setAddress] = useState(hoa.address)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      const res = await hoaAPI.update(name, address)
+      onUpdated(res.data)
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to update HOA.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Modal title="Edit HOA" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">HOA Name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 placeholder-slate-500"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">Address</label>
+          <input
+            type="text"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            className="w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 placeholder-slate-500"
+            required
+          />
+        </div>
+        {error && (
+          <div className="text-red-400 text-sm bg-red-950 border border-red-800 rounded-lg p-3">{error}</div>
+        )}
+        <div className="flex gap-3 pt-2">
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-medium rounded-lg transition-colors"
+          >
+            {loading ? 'Saving...' : 'Save Changes'}
+          </button>
+          <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 
