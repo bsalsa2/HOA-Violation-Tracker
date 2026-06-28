@@ -36,8 +36,6 @@ def startup():
     # Log configuration status
     if not os.getenv("SECRET_KEY"):
         logger.warning("SECRET_KEY not set — using insecure default. Set it in Railway environment variables.")
-    if not os.getenv("RESEND_API_KEY"):
-        logger.warning("RESEND_API_KEY not set — email sending will fail. Add it to Railway environment variables.")
     if not os.getenv("GEMINI_API_KEY"):
         logger.info("GEMINI_API_KEY not set — using fallback violation letter template (no AI generation).")
 
@@ -450,49 +448,18 @@ def delete_violation(
     return {"message": "Violation deleted"}
 
 
-@app.post("/violations/{violation_id}/send-letter")
-def send_violation_letter(
+@app.post("/violations/{violation_id}/mark-sent")
+def mark_violation_sent(
     violation_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Called by the frontend after EmailJS successfully sends the letter."""
     hoa = get_user_hoa(current_user, db)
     violation = db.query(Violation).filter(Violation.id == violation_id, Violation.hoa_id == hoa.id).first()
     if not violation:
         raise HTTPException(status_code=404, detail="Violation not found")
-
-    resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
-    if not resident:
-        raise HTTPException(status_code=404, detail="Resident not found")
-    if not resident.email:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Resident {resident.name} has no email address. Update their profile to add one.",
-        )
-
-    letter = utils.generate_violation_letter(
-        resident.name,
-        violation.violation_type,
-        violation.description,
-        violation.created_at.strftime("%Y-%m-%d"),
-    )
-
-    success, error_msg = utils.send_violation_letter_email(
-        recipient_email=resident.email,
-        resident_name=resident.name,
-        letter_text=letter,
-        hoa_name=hoa.name,
-    )
-
-    if not success:
-        raise HTTPException(status_code=500, detail=error_msg)
-
     violation.email_sent_at = datetime.utcnow()
     violation.status = "noticed"
-    violation.generated_letter = letter
     db.commit()
-
-    return {
-        "message": "Letter sent successfully",
-        "email_sent_at": violation.email_sent_at.isoformat(),
-    }
+    return {"email_sent_at": violation.email_sent_at.isoformat()}

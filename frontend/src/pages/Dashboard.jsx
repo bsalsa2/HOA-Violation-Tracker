@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import emailjs from '@emailjs/browser'
 import { hoaAPI, residentAPI, violationAPI } from '../api'
 import HOASetup from './HOASetup'
 
@@ -197,23 +198,65 @@ function Dashboard({ setToken }) {
   }
 
   const handleSendEmail = async (violationId) => {
+    const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID
+    const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID
+    const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY
+
+    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+      addToast(
+        'EmailJS is not configured. Add VITE_EMAILJS_SERVICE_ID, VITE_EMAILJS_TEMPLATE_ID, and VITE_EMAILJS_PUBLIC_KEY to your Vercel environment variables.',
+        'error'
+      )
+      return
+    }
+
     setSendingEmail((prev) => ({ ...prev, [violationId]: true }))
     try {
-      const res = await violationAPI.sendLetter(violationId)
-      addToast('Violation letter sent successfully.')
+      // 1. Generate the letter from backend
+      const letterRes = await violationAPI.getLetter(violationId)
+      const letterText = letterRes.data.letter
+
+      // 2. Look up violation + resident
+      const violation = violations.find((v) => v.id === violationId)
+      const resident = residentMap[violation?.resident_id]
+
+      if (!resident?.email) {
+        addToast('Resident has no email address.', 'error')
+        return
+      }
+
+      // 3. Send via EmailJS
+      await emailjs.send(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
+        {
+          to_email: resident.email,
+          to_name: resident.name,
+          hoa_name: hoa?.name || 'HOA',
+          violation_type: violation.violation_type,
+          violation_letter: letterText,
+          reply_to: 'noreply@violationtrack.com',
+        },
+        EMAILJS_PUBLIC_KEY
+      )
+
+      // 4. Record in backend
+      const markRes = await violationAPI.markSent(violationId)
+      addToast(`Letter sent to ${resident.email}.`)
       setViolations((prev) =>
         prev.map((v) =>
           v.id === violationId
-            ? { ...v, status: 'noticed', email_sent_at: res.data.email_sent_at }
+            ? { ...v, status: 'noticed', email_sent_at: markRes.data.email_sent_at }
             : v
         )
       )
       loadStats()
     } catch (err) {
+      // EmailJS errors have a `text` field; Axios errors have response.data.detail
       const detail = err.response?.data?.detail
       const msg = Array.isArray(detail)
         ? detail.map((d) => d.msg).join(', ')
-        : (detail || err.message || 'Failed to send email. Check that RESEND_API_KEY is configured in Railway.')
+        : (detail || err.text || err.message || 'Failed to send email.')
       addToast(msg, 'error')
     } finally {
       setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
