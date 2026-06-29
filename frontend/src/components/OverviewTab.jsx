@@ -5,12 +5,17 @@ import { STATUS_CONFIG, PRIORITY_CONFIG } from '../lib/constants'
 import { currency } from '../lib/format'
 
 const TONES = {
-  amber: { text: 'text-amber-300', rail: 'from-amber-400 to-amber-600', chip: 'bg-amber-500/12 text-amber-300 ring-amber-500/20', spark: '#fbbf24' },
-  red: { text: 'text-red-300', rail: 'from-red-400 to-red-600', chip: 'bg-red-500/12 text-red-300 ring-red-500/20', spark: '#f87171' },
-  green: { text: 'text-emerald-300', rail: 'from-emerald-400 to-emerald-600', chip: 'bg-emerald-500/12 text-emerald-300 ring-emerald-500/20', spark: '#34d399' },
-  blue: { text: 'text-blue-300', rail: 'from-blue-400 to-blue-600', chip: 'bg-blue-500/12 text-blue-300 ring-blue-500/20', spark: '#60a5fa' },
-  rose: { text: 'text-rose-300', rail: 'from-rose-400 to-rose-600', chip: 'bg-rose-500/12 text-rose-300 ring-rose-500/20', spark: '#fb7185' },
-  slate: { text: 'text-slate-200', rail: 'from-slate-400 to-slate-600', chip: 'bg-slate-500/12 text-slate-300 ring-slate-500/20', spark: '#94a3b8' },
+  gold: { text: 'text-[#e0c78f]', rail: 'from-[#e3c98e] to-[#b08d57]', chip: 'bg-[#caa96b]/12 text-[#dcc08a] ring-[#caa96b]/25', spark: '#caa96b' },
+  clay: { text: 'text-[#d4988a]', rail: 'from-[#d4988a] to-[#a5604f]', chip: 'bg-[#c17b6a]/12 text-[#d4988a] ring-[#c17b6a]/25', spark: '#c17b6a' },
+  sage: { text: 'text-[#a8c3a3]', rail: 'from-[#a8c3a3] to-[#6f9069]', chip: 'bg-[#8fae8b]/12 text-[#a8c3a3] ring-[#8fae8b]/25', spark: '#8fae8b' },
+  stone: { text: 'text-[#c4bdb0]', rail: 'from-[#c4bdb0] to-[#7c766a]', chip: 'bg-[#9a948a]/12 text-[#c4bdb0] ring-[#9a948a]/25', spark: '#a8a194' },
+  // legacy aliases → mapped to the luxe set
+  amber: { text: 'text-[#e0c78f]', rail: 'from-[#e3c98e] to-[#b08d57]', chip: 'bg-[#caa96b]/12 text-[#dcc08a] ring-[#caa96b]/25', spark: '#caa96b' },
+  red: { text: 'text-[#d4988a]', rail: 'from-[#d4988a] to-[#a5604f]', chip: 'bg-[#c17b6a]/12 text-[#d4988a] ring-[#c17b6a]/25', spark: '#c17b6a' },
+  green: { text: 'text-[#a8c3a3]', rail: 'from-[#a8c3a3] to-[#6f9069]', chip: 'bg-[#8fae8b]/12 text-[#a8c3a3] ring-[#8fae8b]/25', spark: '#8fae8b' },
+  blue: { text: 'text-[#c4bdb0]', rail: 'from-[#c4bdb0] to-[#7c766a]', chip: 'bg-[#9a948a]/12 text-[#c4bdb0] ring-[#9a948a]/25', spark: '#a8a194' },
+  rose: { text: 'text-[#d4988a]', rail: 'from-[#d4988a] to-[#a5604f]', chip: 'bg-[#c17b6a]/12 text-[#d4988a] ring-[#c17b6a]/25', spark: '#c17b6a' },
+  slate: { text: 'text-[#c4bdb0]', rail: 'from-[#c4bdb0] to-[#7c766a]', chip: 'bg-[#9a948a]/12 text-[#c4bdb0] ring-[#9a948a]/25', spark: '#a8a194' },
 }
 
 const ICONS = {
@@ -105,12 +110,12 @@ export default function OverviewTab({ analytics, loading, onOpenResident }) {
     <div className="space-y-6">
       {/* KPI Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">
-        <KpiCard label="Open Cases" value={k.open_violations} tone="amber" iconKey="open" trend={newTrend} delay="stagger-1" />
-        <KpiCard label="Overdue" value={k.overdue_violations} tone={k.overdue_violations > 0 ? 'red' : 'slate'} iconKey="overdue" delay="stagger-2" />
-        <KpiCard label="Resolution Rate" value={`${k.resolution_rate}%`} tone="green" iconKey="rate" trend={resolvedTrend} delay="stagger-3" />
-        <KpiCard label="Avg. Days to Resolve" value={k.avg_days_to_resolve} tone="blue" iconKey="clock" sub="open → resolved" delay="stagger-4" />
-        <KpiCard label="Outstanding Fines" value={currency(k.outstanding_fines)} tone="rose" iconKey="fineDue" delay="stagger-5" />
-        <KpiCard label="Collected Fines" value={currency(k.collected_fines)} tone="green" iconKey="fineGot" delay="stagger-6" />
+        <KpiCard label="Open Cases" value={k.open_violations} tone="gold" iconKey="open" trend={newTrend} delay="stagger-1" />
+        <KpiCard label="Overdue" value={k.overdue_violations} tone={k.overdue_violations > 0 ? 'clay' : 'stone'} iconKey="overdue" delay="stagger-2" />
+        <KpiCard label="Resolution Rate" value={`${k.resolution_rate}%`} tone="sage" iconKey="rate" trend={resolvedTrend} delay="stagger-3" />
+        <KpiCard label="Avg. Days to Resolve" value={k.avg_days_to_resolve} tone="stone" iconKey="clock" sub="open → resolved" delay="stagger-4" />
+        <KpiCard label="Outstanding Fines" value={currency(k.outstanding_fines)} tone="clay" iconKey="fineDue" delay="stagger-5" />
+        <KpiCard label="Collected Fines" value={currency(k.collected_fines)} tone="sage" iconKey="fineGot" delay="stagger-6" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -129,7 +134,7 @@ export default function OverviewTab({ analytics, loading, onOpenResident }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Panel title="Most Common Violation Types" className="anim-rise stagger-3">
-          <BarList data={analytics.by_type || []} color="#3b82f6" />
+          <BarList data={analytics.by_type || []} color="#caa96b" />
         </Panel>
 
         <Panel title="Repeat Offenders" className="anim-rise stagger-4">
@@ -154,7 +159,7 @@ export default function OverviewTab({ analytics, loading, onOpenResident }) {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {o.open > 0 && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#caa96b]/12 text-[#d8be86] border border-[#caa96b]/25">
                         {o.open} active
                       </span>
                     )}

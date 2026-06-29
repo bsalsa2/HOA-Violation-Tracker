@@ -140,8 +140,8 @@ export function TrendChart({ data = [], height = 150 }) {
   const toPoints = (key) => data.map((d, i) => [padX + i * step, padTop + innerH - ((d[key] || 0) / max) * innerH])
 
   const series = [
-    { key: 'new', color: '#60a5fa', label: 'New' },
-    { key: 'resolved', color: '#34d399', label: 'Resolved' },
+    { key: 'new', color: '#caa96b', label: 'New' },
+    { key: 'resolved', color: '#8fae8b', label: 'Resolved' },
   ]
 
   useEffect(() => {

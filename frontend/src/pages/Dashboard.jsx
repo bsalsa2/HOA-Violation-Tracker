@@ -272,7 +272,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between py-3 gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shrink-0 ring-1 ring-white/20" style={{ boxShadow: '0 6px 20px -4px rgba(59,130,246,0.55), inset 0 1px 0 0 rgba(255,255,255,0.3)' }}>
+              <div className="w-8 h-8 bg-gradient-to-br from-[#d8be86] to-[#9c7c44] rounded-xl flex items-center justify-center shrink-0 ring-1 ring-white/20" style={{ boxShadow: '0 6px 20px -4px rgba(202,169,107,0.55), inset 0 1px 0 0 rgba(255,255,255,0.3)' }}>
                 <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
@@ -302,13 +302,13 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
               >
                 {t.label}
                 {t.badge !== undefined && t.badge > 0 && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${tab === t.key ? 'bg-blue-500/15 text-blue-300' : 'bg-white/[0.06] text-slate-400'}`}>{t.badge}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${tab === t.key ? 'bg-[#caa96b]/15 text-[#dcc08a]' : 'bg-white/[0.06] text-slate-400'}`}>{t.badge}</span>
                 )}
                 {t.key === 'violations' && overdueCount > 0 && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20">{overdueCount} overdue</span>
                 )}
                 {tab === t.key && (
-                  <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-blue-400 to-indigo-500" style={{ boxShadow: '0 0 10px rgba(59,130,246,0.6)' }} />
+                  <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-[#e3c98e] to-[#b08d57]" style={{ boxShadow: '0 0 10px rgba(202,169,107,0.6)' }} />
                 )}
               </button>
             ))}

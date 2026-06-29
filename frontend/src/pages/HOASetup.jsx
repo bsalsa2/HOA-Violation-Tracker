@@ -25,7 +25,7 @@ function HOASetup({ onComplete, onSignOut }) {
     <div className="min-h-screen bg-transparent flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
         <div className="text-center mb-8 anim-rise">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-4 ring-1 ring-white/20" style={{ boxShadow: '0 16px 44px -10px rgba(59,130,246,0.6), inset 0 1px 0 0 rgba(255,255,255,0.3)' }}>
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-[#d8be86] to-[#9c7c44] rounded-2xl mb-4 ring-1 ring-white/20" style={{ boxShadow: '0 16px 44px -10px rgba(202,169,107,0.6), inset 0 1px 0 0 rgba(255,255,255,0.3)' }}>
             <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
@@ -44,7 +44,7 @@ function HOASetup({ onComplete, onSignOut }) {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors placeholder-slate-500"
+                className="w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-[#caa96b] focus:ring-1 focus:ring-[#caa96b] transition-colors placeholder-slate-500"
                 placeholder="e.g., Sunridge Estates HOA"
                 required
               />
@@ -56,7 +56,7 @@ function HOASetup({ onComplete, onSignOut }) {
                 type="text"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors placeholder-slate-500"
+                className="w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-[#caa96b] focus:ring-1 focus:ring-[#caa96b] transition-colors placeholder-slate-500"
                 placeholder="e.g., 123 Main St, Anytown, CA 90210"
                 required
               />
@@ -75,7 +75,7 @@ function HOASetup({ onComplete, onSignOut }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 py-2.5 bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 shadow-lg shadow-blue-600/25 active:scale-[.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
+                className="flex-1 py-2.5 bg-gradient-to-b from-[#e3c98e] to-[#c4a566] hover:from-[#ecd49d] hover:to-[#d0b06f] shadow-lg shadow-[#b08d57]/30 active:scale-[.98] disabled:opacity-60 disabled:cursor-not-allowed text-[#2a2317] font-semibold rounded-lg transition-colors"
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">

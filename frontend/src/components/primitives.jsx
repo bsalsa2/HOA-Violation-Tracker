@@ -62,7 +62,7 @@ export function CountUp({ value, duration = 900, className = '' }) {
 }
 
 /** Tiny inline sparkline. data: number[] */
-export function Sparkline({ data = [], width = 72, height = 24, color = '#60a5fa', className = '' }) {
+export function Sparkline({ data = [], width = 72, height = 24, color = '#caa96b', className = '' }) {
   if (!data.length) return null
   const max = Math.max(...data, 1)
   const min = Math.min(...data, 0)
@@ -163,7 +163,7 @@ export function ToastStack({ toasts, onDismiss }) {
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
             </svg>
           ) : (
-            <svg className="w-4 h-4 mt-0.5 shrink-0 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+            <svg className="w-4 h-4 mt-0.5 shrink-0 text-[#a8c3a3]" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
           )}
