@@ -345,6 +345,9 @@ def list_hoas(current_user: User = Depends(get_current_user), db: Session = Depe
     return [
         {
             "id": h.id, "name": h.name, "address": h.address,
+            "email": h.email, "phone": h.phone,
+            "contact_person_name": h.contact_person_name,
+            "website": h.website, "business_hours": h.business_hours,
             "total_residents": int(res_counts.get(h.id, 0)),
             "total_violations": agg[h.id]["total"],
             "open_violations": agg[h.id]["open"],
@@ -357,11 +360,21 @@ def list_hoas(current_user: User = Depends(get_current_user), db: Session = Depe
 
 @app.post("/hoas")
 def create_hoa(data: HOACreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    hoa = HOA(name=data.name, address=data.address, user_id=current_user.id)
+    hoa = HOA(
+        name=data.name, address=data.address, user_id=current_user.id,
+        email=data.email, phone=data.phone,
+        contact_person_name=data.contact_person_name,
+        website=data.website, business_hours=data.business_hours
+    )
     db.add(hoa)
     db.commit()
     db.refresh(hoa)
-    return {"id": hoa.id, "name": hoa.name, "address": hoa.address}
+    return {
+        "id": hoa.id, "name": hoa.name, "address": hoa.address,
+        "email": hoa.email, "phone": hoa.phone,
+        "contact_person_name": hoa.contact_person_name,
+        "website": hoa.website, "business_hours": hoa.business_hours,
+    }
 
 
 # Backward-compatible alias for the old one-time setup endpoint
