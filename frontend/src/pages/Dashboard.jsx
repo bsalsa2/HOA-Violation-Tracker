@@ -161,7 +161,9 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
           hoa_email: hoaEmail,
           violation_type: violation.violation_type,
           violation_letter: letterRes.data.letter,
-          reply_to: hoaEmail,
+          from_name: 'ViolationTrack',
+          from_email: 'violationtrack@gmail.com',
+          reply_to: 'violationtrack@gmail.com',
         },
         cfg.key
       )

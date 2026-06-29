@@ -120,15 +120,16 @@ Description: {description}
 
 {cure_clause} Failure to remedy the violation may result in additional fines or escalated enforcement action as outlined in the HOA governing documents.{fine_clause}
 
-If you believe this notice was issued in error, or if you have already addressed this matter, please contact the HOA board immediately.
+If you believe this notice was issued in error, or if you have already addressed this matter, please contact {org} immediately.
 
 We appreciate your cooperation in maintaining the standards of our community.
 
 Sincerely,
 
 _______________________________
-HOA Board President
-{org}{contact_block}
+{org}
+Managed by ViolationTrack
+violationtrack@gmail.com{contact_block}
 """
 
 
