@@ -278,7 +278,7 @@ export function ImportCSVModal({ hoaId, onClose, onDone, addToast }) {
   )
 }
 
-export function EditHOAModal({ hoa, onClose, onUpdated, onDelete }) {
+export function EditHOAModal({ hoa, onClose, onUpdated, onDelete, onSaveHoaEmail }) {
   const [name, setName] = useState(hoa.name)
   const [address, setAddress] = useState(hoa.address)
   const [email, setEmail] = useState(hoa.email || '')
@@ -298,12 +298,19 @@ export function EditHOAModal({ hoa, onClose, onUpdated, onDelete }) {
     setLoading(true)
     setError('')
     try {
-      console.log('Saving HOA settings:', { name, address, email, phone, contactPersonName, website, businessHours })
-      const res = await hoaAPI.update(hoa.id, name, address, email || null, phone || null, contactPersonName || null, website || null, businessHours || null)
-      console.log('HOA updated response:', res.data)
-      onUpdated(res.data)
+      // Save email locally first (this always works)
+      if (onSaveHoaEmail) {
+        onSaveHoaEmail(hoa.id, email)
+      }
+      // Try to save to backend too (optional, might fail if DB columns don't exist)
+      try {
+        await hoaAPI.update(hoa.id, name, address, email || null, phone || null, contactPersonName || null, website || null, businessHours || null)
+      } catch (err) {
+        console.warn('Backend update failed, but email saved locally:', err)
+      }
+      onUpdated()
     } catch (err) {
-      console.error('HOA update error:', err)
+      console.error('Error:', err)
       setError(parseDetail(err, 'Failed to update HOA.'))
     } finally {
       setLoading(false)

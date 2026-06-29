@@ -19,7 +19,7 @@ function getEmailJSConfig() {
   }
 }
 
-export default function Dashboard({ hoa, hoas, onSwitchHoa, onShowPortfolio, onAddClient, onEditClient, setToken }) {
+export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitchHoa, onShowPortfolio, onAddClient, onEditClient, setToken }) {
   const hoaId = hoa.id
 
   const [residents, setResidents] = useState([])
@@ -140,7 +140,7 @@ export default function Dashboard({ hoa, hoas, onSwitchHoa, onShowPortfolio, onA
       addToast('EmailJS is not configured. Check your Vercel environment variables.', 'error')
       return
     }
-    if (!hoa?.email) {
+    if (!hoaEmail) {
       addToast('Please configure your HOA email address in settings before sending letters.', 'error')
       return
     }
@@ -160,7 +160,7 @@ export default function Dashboard({ hoa, hoas, onSwitchHoa, onShowPortfolio, onA
           hoa_name: hoa?.name || 'HOA',
           violation_type: violation.violation_type,
           violation_letter: letterRes.data.letter,
-          reply_to: hoa?.email || 'noreply@violationtrack.com',
+          reply_to: hoaEmail,
         },
         cfg.key
       )
@@ -176,7 +176,7 @@ export default function Dashboard({ hoa, hoas, onSwitchHoa, onShowPortfolio, onA
     } finally {
       setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
     }
-  }, [violations, hoa, addToast, loadAnalytics])
+  }, [violations, hoaEmail, addToast, loadAnalytics])
 
   const handleViewLetter = useCallback(async (violation) => {
     if (letterCache.current[violation.id]) {

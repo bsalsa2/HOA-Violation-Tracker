@@ -8,6 +8,7 @@ import { ConfirmDialog, Spinner } from './components/primitives'
 import { hoaAPI } from './api'
 
 const ACTIVE_KEY = 'active_hoa_id'
+const HOA_EMAIL_KEY = (hoaId) => `hoa_email_${hoaId}`
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('access_token'))
@@ -18,6 +19,7 @@ function App() {
     const v = localStorage.getItem(ACTIVE_KEY)
     return v ? parseInt(v, 10) : null
   })
+  const [hoaEmails, setHoaEmails] = useState({})
   const [view, setView] = useState('dashboard')
 
   const [showAddClient, setShowAddClient] = useState(false)
@@ -29,6 +31,17 @@ function App() {
     if (id) localStorage.setItem(ACTIVE_KEY, String(id))
     else localStorage.removeItem(ACTIVE_KEY)
   }, [])
+
+  const saveHoaEmail = useCallback((hoaId, email) => {
+    if (email) {
+      localStorage.setItem(HOA_EMAIL_KEY(hoaId), email)
+      setHoaEmails(prev => ({ ...prev, [hoaId]: email }))
+    }
+  }, [])
+
+  const getHoaEmail = useCallback((hoaId) => {
+    return hoaEmails[hoaId] || localStorage.getItem(HOA_EMAIL_KEY(hoaId))
+  }, [hoaEmails])
 
   const refreshPortfolio = useCallback(async () => {
     const res = await hoaAPI.list()
@@ -133,6 +146,8 @@ function App() {
           key={activeHoa.id}
           hoa={activeHoa}
           hoas={hoas}
+          hoaEmail={getHoaEmail(activeHoa.id)}
+          onSaveHoaEmail={saveHoaEmail}
           onSwitchHoa={(h) => { setActive(h.id); setView('dashboard') }}
           onShowPortfolio={() => { refreshPortfolio(); setView('portfolio') }}
           onAddClient={() => setShowAddClient(true)}
@@ -151,6 +166,7 @@ function App() {
           onClose={() => setShowEditClient(false)}
           onUpdated={handleClientUpdated}
           onDelete={() => setConfirmDeleteClient(true)}
+          onSaveHoaEmail={saveHoaEmail}
         />
       )}
 
