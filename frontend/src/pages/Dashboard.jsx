@@ -140,6 +140,10 @@ export default function Dashboard({ hoa, hoas, onSwitchHoa, onShowPortfolio, onA
       addToast('EmailJS is not configured. Check your Vercel environment variables.', 'error')
       return
     }
+    if (!hoa?.email) {
+      addToast('Please configure your HOA email address in settings before sending letters.', 'error')
+      return
+    }
     const violation = violations.find((v) => v.id === violationId)
     if (!violation?.resident_email) {
       addToast('Resident has no email address.', 'error')
@@ -156,7 +160,7 @@ export default function Dashboard({ hoa, hoas, onSwitchHoa, onShowPortfolio, onA
           hoa_name: hoa?.name || 'HOA',
           violation_type: violation.violation_type,
           violation_letter: letterRes.data.letter,
-          reply_to: 'noreply@violationtrack.com',
+          reply_to: hoa.email,
         },
         cfg.key
       )

@@ -37,6 +37,10 @@ def generate_violation_letter(
     description: str,
     date: str = None,
     hoa_name: str = None,
+    hoa_contact_person: str = None,
+    hoa_email: str = None,
+    hoa_phone: str = None,
+    hoa_website: str = None,
     due_date: str = None,
     fine_amount: float = 0,
     notice_label: str = None,
@@ -58,6 +62,19 @@ def generate_violation_letter(
         f"This is a {notice_label}."
         if notice_label and notice_label not in ("None",) else ""
     )
+
+    contact_block = ""
+    if hoa_contact_person or hoa_email or hoa_phone or hoa_website:
+        contact_lines = []
+        if hoa_contact_person:
+            contact_lines.append(hoa_contact_person)
+        if hoa_email:
+            contact_lines.append(f"Email: {hoa_email}")
+        if hoa_phone:
+            contact_lines.append(f"Phone: {hoa_phone}")
+        if hoa_website:
+            contact_lines.append(f"Website: {hoa_website}")
+        contact_block = "\n" + "\n".join(contact_lines)
 
     gemini_key = os.getenv("GEMINI_API_KEY")
     if gemini_key:
@@ -111,7 +128,7 @@ Sincerely,
 
 _______________________________
 HOA Board President
-{org}
+{org}{contact_block}
 """
 
 

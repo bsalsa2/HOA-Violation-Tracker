@@ -33,7 +33,12 @@ export const hoaAPI = {
   list: () => api.get('/hoas'),
   create: (name, address) => api.post('/hoas', { name, address }),
   get: (hoaId) => api.get(`/hoas/${hoaId}`),
-  update: (hoaId, name, address) => api.patch(`/hoas/${hoaId}`, { name, address }),
+  update: (hoaId, name, address, email, phone, contactPersonName, website, businessHours) =>
+    api.patch(`/hoas/${hoaId}`, {
+      name, address, email, phone,
+      contact_person_name: contactPersonName,
+      website, business_hours: businessHours,
+    }),
   delete: (hoaId) => api.delete(`/hoas/${hoaId}`),
   getStats: (hoaId) => api.get(`/hoas/${hoaId}/stats`),
   getAnalytics: (hoaId) => api.get(`/hoas/${hoaId}/analytics`),

@@ -25,6 +25,13 @@ class HOA(Base):
     user_id = Column(Integer, ForeignKey("users.id"), index=True)  # a manager (user) can own many HOAs
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    # HOA contact information
+    email = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    contact_person_name = Column(String, nullable=True)
+    website = Column(String, nullable=True)
+    business_hours = Column(String, nullable=True)  # e.g. "Mon-Fri 9am-5pm PST"
+
     user = relationship("User", back_populates="hoas")
     residents = relationship("Resident", back_populates="hoa", cascade="all, delete-orphan")
     violations = relationship("Violation", back_populates="hoa", cascade="all, delete-orphan")

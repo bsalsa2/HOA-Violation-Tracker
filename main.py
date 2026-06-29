@@ -41,6 +41,11 @@ def startup():
             "ALTER TABLE hoas ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)",
             # Portfolio: a manager may own many HOAs — drop the old one-HOA-per-user unique constraint
             "ALTER TABLE hoas DROP CONSTRAINT IF EXISTS hoas_user_id_key",
+            "ALTER TABLE hoas ADD COLUMN IF NOT EXISTS email VARCHAR",
+            "ALTER TABLE hoas ADD COLUMN IF NOT EXISTS phone VARCHAR",
+            "ALTER TABLE hoas ADD COLUMN IF NOT EXISTS contact_person_name VARCHAR",
+            "ALTER TABLE hoas ADD COLUMN IF NOT EXISTS website VARCHAR",
+            "ALTER TABLE hoas ADD COLUMN IF NOT EXISTS business_hours VARCHAR",
             "ALTER TABLE violations ADD COLUMN IF NOT EXISTS email_sent_at TIMESTAMP",
             "ALTER TABLE violations ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'open'",
             "ALTER TABLE violations ADD COLUMN IF NOT EXISTS priority VARCHAR DEFAULT 'medium'",
@@ -72,6 +77,11 @@ class UserRegister(BaseModel):
 class HOACreate(BaseModel):
     name: str
     address: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    contact_person_name: Optional[str] = None
+    website: Optional[str] = None
+    business_hours: Optional[str] = None
 
 
 class ResidentCreate(BaseModel):
@@ -363,7 +373,12 @@ def setup_hoa(data: HOACreate, current_user: User = Depends(get_current_user), d
 @app.get("/hoas/{hoa_id}")
 def get_hoa(hoa_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     hoa = owned_hoa(hoa_id, current_user, db)
-    return {"id": hoa.id, "name": hoa.name, "address": hoa.address}
+    return {
+        "id": hoa.id, "name": hoa.name, "address": hoa.address,
+        "email": hoa.email, "phone": hoa.phone,
+        "contact_person_name": hoa.contact_person_name,
+        "website": hoa.website, "business_hours": hoa.business_hours,
+    }
 
 
 @app.patch("/hoas/{hoa_id}")
@@ -371,9 +386,19 @@ def update_hoa(hoa_id: int, data: HOACreate, current_user: User = Depends(get_cu
     hoa = owned_hoa(hoa_id, current_user, db)
     hoa.name = data.name
     hoa.address = data.address
+    hoa.email = data.email
+    hoa.phone = data.phone
+    hoa.contact_person_name = data.contact_person_name
+    hoa.website = data.website
+    hoa.business_hours = data.business_hours
     db.commit()
     db.refresh(hoa)
-    return {"id": hoa.id, "name": hoa.name, "address": hoa.address}
+    return {
+        "id": hoa.id, "name": hoa.name, "address": hoa.address,
+        "email": hoa.email, "phone": hoa.phone,
+        "contact_person_name": hoa.contact_person_name,
+        "website": hoa.website, "business_hours": hoa.business_hours,
+    }
 
 
 @app.delete("/hoas/{hoa_id}")
@@ -536,6 +561,10 @@ def get_violation_letter(violation_id: int, current_user: User = Depends(get_cur
         description=violation.description,
         date=violation.created_at.strftime("%Y-%m-%d"),
         hoa_name=hoa.name if hoa else None,
+        hoa_contact_person=hoa.contact_person_name if hoa else None,
+        hoa_email=hoa.email if hoa else None,
+        hoa_phone=hoa.phone if hoa else None,
+        hoa_website=hoa.website if hoa else None,
         due_date=violation.due_date.strftime("%B %d, %Y") if violation.due_date else None,
         fine_amount=float(violation.fine_amount or 0),
         notice_label=NOTICE_LEVELS[min(violation.notice_level or 0, len(NOTICE_LEVELS) - 1)],

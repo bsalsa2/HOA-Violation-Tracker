@@ -281,6 +281,11 @@ export function ImportCSVModal({ hoaId, onClose, onDone, addToast }) {
 export function EditHOAModal({ hoa, onClose, onUpdated, onDelete }) {
   const [name, setName] = useState(hoa.name)
   const [address, setAddress] = useState(hoa.address)
+  const [email, setEmail] = useState(hoa.email || '')
+  const [phone, setPhone] = useState(hoa.phone || '')
+  const [contactPersonName, setContactPersonName] = useState(hoa.contact_person_name || '')
+  const [website, setWebsite] = useState(hoa.website || '')
+  const [businessHours, setBusinessHours] = useState(hoa.business_hours || '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -289,7 +294,7 @@ export function EditHOAModal({ hoa, onClose, onUpdated, onDelete }) {
     setLoading(true)
     setError('')
     try {
-      const res = await hoaAPI.update(hoa.id, name, address)
+      const res = await hoaAPI.update(hoa.id, name, address, email || null, phone || null, contactPersonName || null, website || null, businessHours || null)
       onUpdated(res.data)
     } catch (err) {
       setError(parseDetail(err, 'Failed to update HOA.'))
@@ -299,15 +304,40 @@ export function EditHOAModal({ hoa, onClose, onUpdated, onDelete }) {
   }
 
   return (
-    <Modal title="Edit Client" onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <Modal title="Edit HOA Settings" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4 max-h-96 overflow-y-auto">
+        <div className="bg-blue-950 border border-blue-800 rounded-lg p-3 text-xs text-blue-200">
+          ⓘ Add your HOA contact information so violation notices are sent on behalf of your organization.
+        </div>
         <div>
-          <label className={labelCls}>HOA Name</label>
+          <label className={labelCls}>HOA Name *</label>
           <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
         <div>
-          <label className={labelCls}>Address</label>
+          <label className={labelCls}>Address *</label>
           <input className={inputCls} value={address} onChange={(e) => setAddress(e.target.value)} required />
+        </div>
+        <div>
+          <label className={labelCls}>Email Address</label>
+          <input type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="board@yourhoa.com" />
+          <p className="text-xs text-slate-500 mt-1">Used as reply-to address on violation notices.</p>
+        </div>
+        <div>
+          <label className={labelCls}>Phone Number</label>
+          <input type="tel" className={inputCls} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 123-4567" />
+        </div>
+        <div>
+          <label className={labelCls}>Contact Person</label>
+          <input className={inputCls} value={contactPersonName} onChange={(e) => setContactPersonName(e.target.value)} placeholder="Board President Name" />
+          <p className="text-xs text-slate-500 mt-1">Name to appear on violation notices (e.g., board president).</p>
+        </div>
+        <div>
+          <label className={labelCls}>Website</label>
+          <input type="url" className={inputCls} value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://www.yourhoa.com" />
+        </div>
+        <div>
+          <label className={labelCls}>Business Hours</label>
+          <input className={inputCls} value={businessHours} onChange={(e) => setBusinessHours(e.target.value)} placeholder="Mon-Fri 9am-5pm EST" />
         </div>
         <ErrorBox>{error}</ErrorBox>
         <div className="flex gap-3 pt-2">
