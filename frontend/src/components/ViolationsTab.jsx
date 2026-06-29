@@ -100,7 +100,7 @@ export default function ViolationsTab({ violations, onOpen, onNew, canAdd, query
   ]
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl">
+    <div className="bg-slate-900/70 border border-white/[0.06] shadow-xl shadow-black/20 rounded-2xl">
       <div className="px-5 py-4 border-b border-slate-800 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="relative flex-1 max-w-sm">
@@ -123,7 +123,7 @@ export default function ViolationsTab({ violations, onOpen, onNew, canAdd, query
             <button
               onClick={onNew}
               disabled={!canAdd}
-              className="px-3 py-2 text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium whitespace-nowrap"
+              className="px-3 py-2 text-xs bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 shadow-lg shadow-blue-600/25 active:scale-[.98] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium whitespace-nowrap"
               title={!canAdd ? 'Add residents first' : ''}
             >
               + New Violation

@@ -99,8 +99,8 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
   const atMaxNotice = (violation.notice_level || 0) >= NOTICE_LEVELS.length - 1
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="relative w-full max-w-md bg-slate-900 border-l border-slate-800 h-full overflow-y-auto shadow-2xl">
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 anim-fade" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="anim-slide-right relative w-full max-w-md bg-slate-900 border-l border-white/10 h-full overflow-y-auto shadow-2xl shadow-black/50">
         {/* Header */}
         <div className="sticky top-0 bg-slate-900 border-b border-slate-800 px-5 py-4 z-10">
           <div className="flex items-start justify-between gap-3">
@@ -201,7 +201,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
                   onChange={(e) => setFineInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSaveFine()}
                 />
-                <button onClick={handleSaveFine} className="text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg">Save</button>
+                <button onClick={handleSaveFine} className="text-xs px-3 py-1.5 bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 shadow-lg shadow-blue-600/25 active:scale-[.98] text-white rounded-lg">Save</button>
                 <button onClick={() => { setEditingFine(false); setFineInput(String(violation.fine_amount || '')) }} className="text-xs px-2 py-1.5 text-slate-400 hover:text-white">Cancel</button>
               </div>
             ) : (
@@ -255,7 +255,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
                 value={newNote}
                 onChange={(e) => setNewNote(e.target.value)}
               />
-              <button type="submit" disabled={savingNote || !newNote.trim()} className="text-sm px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg shrink-0">
+              <button type="submit" disabled={savingNote || !newNote.trim()} className="text-sm px-3 py-1.5 bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 shadow-lg shadow-blue-600/25 active:scale-[.98] disabled:opacity-50 text-white rounded-lg shrink-0">
                 {savingNote ? <Spinner className="w-3.5 h-3.5" /> : 'Add'}
               </button>
             </form>

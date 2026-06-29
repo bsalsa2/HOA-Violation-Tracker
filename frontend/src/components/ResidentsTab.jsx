@@ -16,7 +16,7 @@ export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onV
   }, [residents, query])
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl">
+    <div className="bg-slate-900/70 border border-white/[0.06] shadow-xl shadow-black/20 rounded-2xl">
       <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between gap-3">
         <div className="relative flex-1 max-w-sm">
           <svg className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -33,7 +33,7 @@ export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onV
           <button onClick={onImport} className="px-3 py-2 text-xs text-slate-300 border border-slate-700 hover:border-slate-500 rounded-lg transition-colors">
             Import CSV
           </button>
-          <button onClick={onAdd} className="px-3 py-2 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors font-medium">
+          <button onClick={onAdd} className="px-3 py-2 text-xs bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 shadow-lg shadow-blue-600/25 active:scale-[.98] text-white rounded-lg transition-colors font-medium">
             + Add Resident
           </button>
         </div>

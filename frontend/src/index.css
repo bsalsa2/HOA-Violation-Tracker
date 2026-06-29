@@ -1,3 +1,112 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: #070a14;
+    color: #e2e8f0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Ambient accent glow behind the whole app */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(55rem 36rem at 50% -12%, rgba(59, 130, 246, 0.12), transparent 60%),
+      radial-gradient(40rem 28rem at 100% 0%, rgba(99, 102, 241, 0.10), transparent 55%),
+      radial-gradient(40rem 30rem at 0% 8%, rgba(56, 189, 248, 0.06), transparent 55%);
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background: rgba(59, 130, 246, 0.35);
+    color: #fff;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #334155 transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #334155;
+    background-clip: content-box;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(96, 165, 250, 0.55);
+    outline-offset: 1px;
+  }
+}
+
+@layer components {
+  .surface {
+    @apply bg-slate-900/70 border border-white/[0.06] shadow-xl shadow-black/20;
+  }
+  .surface-hover {
+    @apply transition-all duration-200 hover:border-white/[0.12] hover:shadow-2xl hover:shadow-black/30;
+  }
+  .btn-primary {
+    @apply bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500
+           text-white font-medium rounded-lg shadow-lg shadow-blue-600/25
+           transition-all active:scale-[.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+}
+
+@layer utilities {
+  @keyframes vt-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes vt-scale-in {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes vt-slide-right {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+  @keyframes vt-rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .anim-fade { animation: vt-fade 0.2s ease-out both; }
+  .anim-scale-in { animation: vt-scale-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .anim-slide-right { animation: vt-slide-right 0.26s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .anim-rise { animation: vt-rise 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+}

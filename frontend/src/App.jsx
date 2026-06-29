@@ -94,7 +94,7 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-transparent flex items-center justify-center">
         <div className="flex items-center gap-3 text-slate-400"><Spinner className="w-5 h-5" /> Loading your portfolio…</div>
       </div>
     )
@@ -102,11 +102,11 @@ function App() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-transparent flex items-center justify-center p-4">
         <div className="text-center">
           <p className="text-slate-300 text-sm">Couldn't reach the server.</p>
           <p className="text-slate-500 text-xs mt-1">It may still be deploying — wait a moment and retry.</p>
-          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg">Retry</button>
+          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 text-sm bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 shadow-lg shadow-blue-600/25 active:scale-[.98] text-white rounded-lg">Retry</button>
         </div>
       </div>
     )

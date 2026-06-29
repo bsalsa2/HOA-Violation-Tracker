@@ -6,7 +6,7 @@ import { currency } from '../lib/format'
 
 function KpiCard({ label, value, accent = 'text-white', sub }) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+    <div className="bg-slate-900/70 border border-white/[0.06] shadow-xl shadow-black/20 rounded-xl p-4">
       <p className={`text-2xl font-bold ${accent}`}>{value}</p>
       <p className="text-slate-500 text-xs mt-1">{label}</p>
       {sub && <p className="text-slate-600 text-[11px] mt-0.5">{sub}</p>}
@@ -16,7 +16,7 @@ function KpiCard({ label, value, accent = 'text-white', sub }) {
 
 function Panel({ title, children, action }) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+    <div className="bg-slate-900/70 border border-white/[0.06] shadow-xl shadow-black/20 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-slate-200">{title}</h3>
         {action}
