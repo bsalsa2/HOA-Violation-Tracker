@@ -58,10 +58,12 @@ def startup():
             try:
                 db.execute(text(stmt))
                 db.commit()
-            except Exception:
+                print(f"✓ Migration: {stmt[:60]}")
+            except Exception as e:
                 db.rollback()
+                print(f"✗ Migration failed: {e}")
     except Exception as e:
-        print(f"Migration warning: {e}")
+        print(f"Migration error: {e}")
     finally:
         db.close()
 
