@@ -9,8 +9,8 @@ function ViolationCard({ violation, onOpen }) {
   return (
     <button
       onClick={() => onOpen(violation)}
-      className={`w-full text-left px-5 py-4 hover:bg-slate-800/50 transition-colors border-l-2 ${
-        overdue ? 'border-red-500' : violation.priority === 'high' ? 'border-rose-500/40' : 'border-transparent'
+      className={`group w-full text-left px-5 py-4 hover:bg-white/[0.03] transition-colors border-l-2 ${
+        overdue ? 'border-red-500' : violation.priority === 'high' ? 'border-rose-500/40' : 'border-transparent hover:border-white/10'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -45,7 +45,7 @@ function ViolationCard({ violation, onOpen }) {
             )}
           </div>
         </div>
-        <svg className="w-4 h-4 text-slate-600 shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4 text-slate-600 shrink-0 mt-1 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
       </div>
@@ -100,8 +100,8 @@ export default function ViolationsTab({ violations, onOpen, onNew, canAdd, query
   ]
 
   return (
-    <div className="bg-slate-900/70 border border-white/[0.06] shadow-xl shadow-black/20 rounded-2xl">
-      <div className="px-5 py-4 border-b border-slate-800 space-y-3">
+    <div className="vt-card overflow-hidden anim-rise">
+      <div className="px-5 py-4 border-b border-white/[0.06] space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="relative flex-1 max-w-sm">
             <svg className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -111,11 +111,11 @@ export default function ViolationsTab({ violations, onOpen, onNew, canAdd, query
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search violations…"
-              className="w-full pl-9 pr-3 py-2 bg-slate-800 text-sm text-white rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 placeholder-slate-500"
+              className="vt-input pl-9 pr-3 py-2 text-sm"
             />
           </div>
           <div className="flex items-center gap-2">
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="text-xs bg-slate-800 text-slate-300 border border-slate-700 rounded-lg px-2 py-2 focus:outline-none focus:border-blue-500">
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="text-xs bg-slate-900/60 text-slate-300 border border-white/10 rounded-lg px-2 py-2 focus:outline-none focus:border-blue-500">
               <option value="recent">Most recent</option>
               <option value="due">Due soonest</option>
               <option value="priority">Priority</option>
@@ -123,7 +123,7 @@ export default function ViolationsTab({ violations, onOpen, onNew, canAdd, query
             <button
               onClick={onNew}
               disabled={!canAdd}
-              className="px-3 py-2 text-xs bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 shadow-lg shadow-blue-600/25 active:scale-[.98] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium whitespace-nowrap"
+              className="btn-primary btn-sheen px-3 py-2 text-xs whitespace-nowrap"
               title={!canAdd ? 'Add residents first' : ''}
             >
               + New Violation
@@ -135,19 +135,19 @@ export default function ViolationsTab({ violations, onOpen, onNew, canAdd, query
             <button
               key={chip.key || 'all'}
               onClick={() => setStatusFilter(chip.key)}
-              className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+              className={`vt-chip ${
                 statusFilter === chip.key
                   ? chip.danger ? 'bg-red-500/15 text-red-300 border-red-500/30' : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-                  : 'text-slate-400 border-slate-700 hover:border-slate-600'
+                  : 'text-slate-400 border-white/10 hover:border-white/20 hover:bg-white/[0.03]'
               }`}
             >
-              {chip.label} <span className="opacity-60">{chip.count}</span>
+              {chip.label} <span className="opacity-60 tabular">{chip.count}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <div className="divide-y divide-slate-800 max-h-[calc(100vh-22rem)] overflow-y-auto">
+      <div className="divide-y divide-white/[0.05] max-h-[calc(100vh-22rem)] overflow-y-auto">
         {filtered.length === 0 ? (
           <EmptyState
             title={query || statusFilter ? 'No violations match your filters.' : 'No violations yet.'}

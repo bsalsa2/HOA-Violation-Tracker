@@ -24,19 +24,19 @@ function HOASetup({ onComplete, onSignOut }) {
   return (
     <div className="min-h-screen bg-transparent flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-[0_10px_40px_-8px_rgba(59,130,246,0.55)] mb-4">
+        <div className="text-center mb-8 anim-rise">
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-4 ring-1 ring-white/20" style={{ boxShadow: '0 16px 44px -10px rgba(59,130,246,0.6), inset 0 1px 0 0 rgba(255,255,255,0.3)' }}>
             <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-white">Add Your First Client</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Add Your First Client</h1>
           <p className="text-slate-400 mt-2 text-sm leading-relaxed">
             Enter the HOA / community you manage. You can add more communities to your portfolio anytime.
           </p>
         </div>
 
-        <div className="bg-slate-900/70 border border-white/[0.06] shadow-xl shadow-black/20 rounded-2xl p-8">
+        <div className="vt-card p-8 anim-rise stagger-1">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">HOA Name</label>

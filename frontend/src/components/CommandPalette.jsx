@@ -79,9 +79,9 @@ export default function CommandPalette({ open, onClose, residents, violations, o
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-start justify-center pt-[15vh] px-4 bg-black/60 anim-fade" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="anim-scale-in w-full max-w-lg bg-slate-900 border border-white/10 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden">
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-800">
+    <div className="fixed inset-0 z-[80] flex items-start justify-center pt-[15vh] px-4 bg-black/60 backdrop-blur-sm anim-fade" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="anim-scale-in w-full max-w-lg vt-card overflow-hidden" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.08), var(--shadow-xl)' }}>
+        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-white/[0.06]">
           <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -105,12 +105,18 @@ export default function CommandPalette({ open, onClose, residents, violations, o
                 key={item.id}
                 onMouseEnter={() => setActiveIdx(i)}
                 onClick={() => { item.run(); onClose() }}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${i === activeIdx ? 'bg-slate-800' : ''}`}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${i === activeIdx ? 'bg-white/[0.06]' : ''}`}
               >
-                <span className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 text-xs ${
-                  item.type === 'action' ? 'bg-blue-500/15 text-blue-400' : item.type === 'resident' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-purple-500/15 text-purple-400'
+                <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ring-1 ${
+                  item.type === 'action' ? 'bg-blue-500/12 text-blue-400 ring-blue-500/20' : item.type === 'resident' ? 'bg-emerald-500/12 text-emerald-400 ring-emerald-500/20' : 'bg-purple-500/12 text-purple-400 ring-purple-500/20'
                 }`}>
-                  {item.type === 'action' ? '⚡' : item.type === 'resident' ? '👤' : '⚠'}
+                  {item.type === 'action' ? (
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                  ) : item.type === 'resident' ? (
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                  ) : (
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  )}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-slate-200 truncate">{item.label}</p>

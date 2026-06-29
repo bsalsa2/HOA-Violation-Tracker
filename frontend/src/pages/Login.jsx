@@ -40,25 +40,25 @@ function Login({ setToken }) {
       <div className="w-full max-w-md anim-rise">
         {/* Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-[0_10px_40px_-8px_rgba(59,130,246,0.6)] mb-5 ring-1 ring-white/20">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 mb-5 ring-1 ring-white/20" style={{ boxShadow: '0 16px 50px -10px rgba(59,130,246,0.65), inset 0 1px 0 0 rgba(255,255,255,0.35)' }}>
             <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">ViolationTrack</h1>
+          <h1 className="text-3xl font-bold tracking-tight brand-gradient">ViolationTrack</h1>
           <p className="text-slate-400 text-sm mt-2">Modern violation management for property managers</p>
         </div>
 
         {/* Auth card */}
-        <div className="bg-slate-900/70 border border-white/10 shadow-2xl shadow-black/40 rounded-2xl p-7">
-          <div className="flex bg-slate-800/70 rounded-xl p-1 mb-6">
+        <div className="vt-card p-7" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.08), var(--shadow-xl)' }}>
+          <div className="flex bg-black/30 ring-1 ring-white/[0.06] rounded-xl p-1 mb-6">
             {['login', 'register'].map((m) => (
               <button
                 key={m}
                 type="button"
                 onClick={() => { setMode(m); setError('') }}
                 className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-                  mode === m ? 'bg-slate-700 text-white shadow-sm ring-1 ring-white/10' : 'text-slate-400 hover:text-white'
+                  mode === m ? 'bg-gradient-to-b from-slate-700 to-slate-800 text-white ring-1 ring-white/10 shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 {m === 'login' ? 'Sign In' : 'Create Account'}

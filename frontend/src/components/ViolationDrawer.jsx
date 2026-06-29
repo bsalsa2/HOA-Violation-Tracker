@@ -4,7 +4,7 @@ import { Badge, Spinner } from './primitives'
 import { STATUS_CONFIG, PRIORITY_CONFIG, NOTICE_LEVELS } from '../lib/constants'
 import { formatDate, formatDateTime, relativeTime, currency, dueLabel, isOverdue } from '../lib/format'
 
-const inputCls = 'px-2.5 py-1.5 bg-slate-800 text-white text-sm rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500'
+const inputCls = 'px-2.5 py-1.5 bg-slate-900/60 text-white text-sm rounded-lg border border-white/10 focus:outline-none focus:border-blue-500'
 
 export default function ViolationDrawer({ violation, onClose, onUpdate, onEscalate, onSendEmail, onViewLetter, onDelete, sending }) {
   const [notes, setNotes] = useState([])
@@ -99,10 +99,10 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
   const atMaxNotice = (violation.notice_level || 0) >= NOTICE_LEVELS.length - 1
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 anim-fade" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="anim-slide-right relative w-full max-w-md bg-slate-900 border-l border-white/10 h-full overflow-y-auto shadow-2xl shadow-black/50">
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm anim-fade" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="anim-slide-right relative w-full max-w-md bg-[#0b1020] border-l border-white/10 h-full overflow-y-auto shadow-2xl shadow-black/60">
         {/* Header */}
-        <div className="sticky top-0 bg-slate-900 border-b border-slate-800 px-5 py-4 z-10">
+        <div className="sticky top-0 bg-[#0b1020]/90 backdrop-blur-xl border-b border-white/[0.06] px-5 py-4 z-10">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-white font-semibold truncate">{violation.violation_type}</h2>
@@ -171,7 +171,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
           </div>
 
           {/* Fine ledger */}
-          <div className="bg-slate-800/50 border border-slate-800 rounded-xl p-4">
+          <div className="vt-card p-4">
             <div className="flex items-center justify-between">
               <p className="text-xs uppercase tracking-wide text-slate-500">Fine</p>
               {violation.fine_amount > 0 && (

@@ -3,8 +3,7 @@ import { Modal } from './primitives'
 import { residentAPI, violationAPI, hoaAPI } from '../api'
 import { VIOLATION_TYPES } from '../lib/constants'
 
-const inputCls =
-  'w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder-slate-500'
+const inputCls = 'vt-input px-3 py-2.5'
 const labelCls = 'block text-sm font-medium text-slate-300 mb-1.5'
 
 function ErrorBox({ children }) {
@@ -254,9 +253,9 @@ export function ImportCSVModal({ hoaId, onClose, onDone, addToast }) {
   return (
     <Modal title="Import Residents from CSV" onClose={onClose}>
       <div className="space-y-4">
-        <div className="bg-slate-800 rounded-xl p-4 text-xs text-slate-400 space-y-1">
+        <div className="bg-black/30 ring-1 ring-white/[0.06] rounded-xl p-4 text-xs text-slate-400 space-y-1">
           <p className="font-medium text-slate-300">Required CSV format:</p>
-          <p className="font-mono">name,unit,email,phone</p>
+          <p className="font-mono text-blue-300/90">name,unit,email,phone</p>
           <p className="font-mono text-slate-500">Jane Smith,101,jane@example.com,555-1234</p>
           <p className="mt-2">The <span className="text-slate-300">unit</span> column accepts a unit number or a street address. <span className="text-slate-300">email</span> and <span className="text-slate-300">phone</span> are optional.</p>
         </div>
@@ -264,7 +263,7 @@ export function ImportCSVModal({ hoaId, onClose, onDone, addToast }) {
           <div>
             <label className={labelCls}>Select CSV File</label>
             <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files[0])}
-              className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-700 file:text-slate-200 hover:file:bg-slate-600 file:cursor-pointer" required />
+              className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-500/15 file:text-blue-300 hover:file:bg-blue-500/25 file:cursor-pointer file:transition-colors" required />
           </div>
           <div className="flex gap-3">
             <button type="submit" disabled={loading || !file} className="flex-1 py-2.5 bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 shadow-lg shadow-blue-600/25 active:scale-[.98] disabled:opacity-60 text-white font-medium rounded-lg transition-colors">

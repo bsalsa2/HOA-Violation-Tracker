@@ -268,11 +268,11 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
 
   return (
     <div className="min-h-screen bg-transparent text-white">
-      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-30">
+      <header className="bg-[#0a0e1a]/80 backdrop-blur-xl border-b border-white/[0.06] sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between py-3 gap-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-lg shadow-blue-600/30 flex items-center justify-center shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shrink-0 ring-1 ring-white/20" style={{ boxShadow: '0 6px 20px -4px rgba(59,130,246,0.55), inset 0 1px 0 0 rgba(255,255,255,0.3)' }}>
                 <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
@@ -281,13 +281,13 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
             </div>
 
             <div className="flex items-center gap-2">
-              <button onClick={() => setPaletteOpen(true)} className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 bg-slate-800/60 hover:bg-slate-800 border border-slate-700 rounded-lg transition-colors">
+              <button onClick={() => setPaletteOpen(true)} className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 bg-white/[0.04] hover:bg-white/[0.07] border border-white/10 rounded-lg transition-colors">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                Search <kbd className="text-[10px] border border-slate-600 rounded px-1">⌘K</kbd>
+                Search <kbd className="text-[10px] border border-white/15 rounded px-1 ml-0.5">⌘K</kbd>
               </button>
-              <button onClick={handleBoardReport} className="px-3 py-1.5 text-xs text-slate-300 border border-slate-700 hover:border-slate-500 rounded-lg transition-colors">Board Report</button>
-              <button onClick={onEditClient} className="hidden md:block px-3 py-1.5 text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 rounded-lg transition-colors">Edit</button>
-              <button onClick={handleLogout} className="px-3 py-1.5 text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 rounded-lg transition-colors">Sign Out</button>
+              <button onClick={handleBoardReport} className="px-3 py-1.5 text-xs text-slate-300 border border-white/10 hover:border-white/20 hover:bg-white/[0.04] rounded-lg transition-colors">Board Report</button>
+              <button onClick={onEditClient} className="hidden md:block px-3 py-1.5 text-xs text-slate-400 hover:text-white border border-white/10 hover:border-white/20 hover:bg-white/[0.04] rounded-lg transition-colors">Edit</button>
+              <button onClick={handleLogout} className="px-3 py-1.5 text-xs text-slate-400 hover:text-white border border-white/10 hover:border-white/20 hover:bg-white/[0.04] rounded-lg transition-colors">Sign Out</button>
             </div>
           </div>
 
@@ -296,16 +296,19 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
-                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                  tab === t.key ? 'border-blue-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'
+                className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                  tab === t.key ? 'text-white' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 {t.label}
                 {t.badge !== undefined && t.badge > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-400">{t.badge}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${tab === t.key ? 'bg-blue-500/15 text-blue-300' : 'bg-white/[0.06] text-slate-400'}`}>{t.badge}</span>
                 )}
                 {t.key === 'violations' && overdueCount > 0 && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20">{overdueCount} overdue</span>
+                )}
+                {tab === t.key && (
+                  <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-blue-400 to-indigo-500" style={{ boxShadow: '0 0 10px rgba(59,130,246,0.6)' }} />
                 )}
               </button>
             ))}
@@ -399,12 +402,12 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
 
       {letterModal && (
         <Modal title={`Violation Letter — ${letterModal.violation.violation_type}`} subtitle={`${letterModal.violation.resident_name} · ${letterModal.violation.resident_unit}`} onClose={() => setLetterModal(null)}>
-          <div className="bg-slate-800 rounded-xl p-4">
+          <div className="bg-black/30 ring-1 ring-white/[0.06] rounded-xl p-5">
             <pre className="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed font-sans">{letterModal.text}</pre>
           </div>
           <button
             onClick={() => { navigator.clipboard?.writeText(letterModal.text); addToast('Letter copied to clipboard.') }}
-            className="mt-4 w-full py-2 text-sm border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
+            className="mt-4 w-full py-2 text-sm border border-white/10 text-slate-300 hover:bg-white/[0.04] rounded-lg transition-colors"
           >
             Copy to Clipboard
           </button>

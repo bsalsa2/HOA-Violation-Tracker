@@ -5,6 +5,20 @@
 @layer base {
   :root {
     color-scheme: dark;
+
+    /* ── Design tokens ───────────────────────────────────────── */
+    --bg: #060912;
+    --surface-1: 222 34% 11%;   /* hsl parts for layering */
+    --line: 255 255 255;        /* rgb parts for hairlines */
+    --brand: 59 130 246;
+    --brand-2: 99 102 241;
+    --radius: 14px;
+
+    /* Elevation shadows tuned for a near-black canvas */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 14px -4px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 18px 50px -12px rgba(0, 0, 0, 0.65);
+    --shadow-xl: 0 30px 80px -20px rgba(0, 0, 0, 0.75);
   }
 
   html {
@@ -13,13 +27,16 @@
 
   body {
     margin: 0;
-    background-color: #070a14;
-    color: #e2e8f0;
+    background-color: var(--bg);
+    color: #e6ebf4;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+    letter-spacing: -0.011em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
-  /* Ambient accent glow behind the whole app */
+  /* Ambient, atmospheric accent glow behind the whole app */
   body::before {
     content: "";
     position: fixed;
@@ -27,9 +44,22 @@
     z-index: 0;
     pointer-events: none;
     background:
-      radial-gradient(55rem 36rem at 50% -12%, rgba(59, 130, 246, 0.12), transparent 60%),
-      radial-gradient(40rem 28rem at 100% 0%, rgba(99, 102, 241, 0.10), transparent 55%),
-      radial-gradient(40rem 30rem at 0% 8%, rgba(56, 189, 248, 0.06), transparent 55%);
+      radial-gradient(60rem 40rem at 50% -16%, rgba(59, 130, 246, 0.16), transparent 60%),
+      radial-gradient(44rem 30rem at 100% -4%, rgba(99, 102, 241, 0.13), transparent 58%),
+      radial-gradient(46rem 34rem at -4% 6%, rgba(56, 189, 248, 0.08), transparent 56%),
+      radial-gradient(70rem 50rem at 50% 120%, rgba(37, 99, 235, 0.06), transparent 60%);
+  }
+
+  /* Ultra-fine film grain for a richer, less "flat digital" surface */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.022;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
   #root {
@@ -48,7 +78,7 @@
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: #334155 transparent;
+    scrollbar-color: #2a3650 transparent;
   }
   ::-webkit-scrollbar {
     width: 10px;
@@ -58,33 +88,114 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #1e293b;
+    background: #233049;
     border-radius: 9999px;
     border: 2px solid transparent;
     background-clip: content-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #334155;
+    background: #33425f;
     background-clip: content-box;
   }
 
   :focus-visible {
-    outline: 2px solid rgba(96, 165, 250, 0.55);
-    outline-offset: 1px;
+    outline: 2px solid rgba(96, 165, 250, 0.6);
+    outline-offset: 2px;
   }
 }
 
 @layer components {
+  /* ── Materials ───────────────────────────────────────────────
+     A "card" is a layered surface: a subtle top-lit gradient fill,
+     a hairline border, an inset highlight on the top edge, and a
+     soft drop shadow. This is the core of the premium feel. */
+  .vt-card {
+    position: relative;
+    border-radius: var(--radius);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.008) 40%, rgba(255, 255, 255, 0) 100%),
+      hsl(var(--surface-1) / 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+      var(--shadow-md);
+    backdrop-filter: blur(8px);
+  }
+
+  /* Interactive cards lift and brighten on hover */
+  .vt-card-interactive {
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 0.22s ease;
+  }
+  .vt-card-interactive:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.09),
+      var(--shadow-lg);
+  }
+
+  /* Legacy alias kept so existing markup still looks right */
   .surface {
-    @apply bg-slate-900/70 border border-white/[0.06] shadow-xl shadow-black/20;
+    @apply vt-card;
   }
   .surface-hover {
-    @apply transition-all duration-200 hover:border-white/[0.12] hover:shadow-2xl hover:shadow-black/30;
+    @apply vt-card-interactive;
   }
+
+  /* ── Controls ────────────────────────────────────────────── */
+  .vt-input {
+    @apply w-full bg-slate-900/60 text-white rounded-xl border border-white/10
+           placeholder-slate-500 transition-all duration-200;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+  .vt-input:focus {
+    @apply outline-none border-blue-500/70;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(59, 130, 246, 0.18);
+  }
+
   .btn-primary {
-    @apply bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500
-           text-white font-medium rounded-lg shadow-lg shadow-blue-600/25
-           transition-all active:scale-[.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100;
+    position: relative;
+    isolation: isolate;
+    @apply text-white font-medium rounded-xl transition-all duration-200
+           active:scale-[.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100;
+    background: linear-gradient(180deg, #4f93ff, #2563eb);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
+      0 6px 18px -4px rgba(37, 99, 235, 0.55),
+      0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(180deg, #62a0ff, #3b82f6);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+      0 8px 26px -4px rgba(37, 99, 235, 0.7),
+      0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Subtle sheen that sweeps a primary button on hover */
+  .btn-sheen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.25) 50%, transparent 70%);
+    transform: translateX(-120%);
+    z-index: -1;
+  }
+  .btn-sheen:hover::before {
+    animation: vt-sheen 0.9s ease;
+  }
+
+  .vt-chip {
+    @apply px-2.5 py-1 text-xs rounded-full border transition-all duration-200;
+  }
+
+  /* Hairline divider with a faint gradient (premium detail) */
+  .vt-hairline {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
   }
 }
 
@@ -102,11 +213,75 @@
     to { transform: translateX(0); }
   }
   @keyframes vt-rise {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  @keyframes vt-shimmer {
+    100% { transform: translateX(100%); }
+  }
+  @keyframes vt-sheen {
+    100% { transform: translateX(120%); }
+  }
+  @keyframes vt-pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
+    70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+  }
+  @keyframes vt-gradient-pan {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  @keyframes vt-draw {
+    to { stroke-dashoffset: 0; }
+  }
+
   .anim-fade { animation: vt-fade 0.2s ease-out both; }
   .anim-scale-in { animation: vt-scale-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both; }
-  .anim-slide-right { animation: vt-slide-right 0.26s cubic-bezier(0.16, 1, 0.3, 1) both; }
-  .anim-rise { animation: vt-rise 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .anim-slide-right { animation: vt-slide-right 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .anim-rise { animation: vt-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+  /* Staggered entrance — apply alongside .anim-rise */
+  .stagger-1 { animation-delay: 0.04s; }
+  .stagger-2 { animation-delay: 0.08s; }
+  .stagger-3 { animation-delay: 0.12s; }
+  .stagger-4 { animation-delay: 0.16s; }
+  .stagger-5 { animation-delay: 0.20s; }
+  .stagger-6 { animation-delay: 0.24s; }
+
+  /* Shimmer skeleton */
+  .vt-skeleton {
+    position: relative;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .vt-skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+    animation: vt-shimmer 1.5s infinite;
+  }
+
+  .live-dot {
+    animation: vt-pulse-ring 2s infinite;
+  }
+
+  /* Animated brand gradient text */
+  .brand-gradient {
+    background: linear-gradient(100deg, #93c5fd, #c7d2fe, #93c5fd);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: vt-gradient-pan 6s ease infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
 }

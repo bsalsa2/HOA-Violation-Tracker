@@ -16,8 +16,8 @@ export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onV
   }, [residents, query])
 
   return (
-    <div className="bg-slate-900/70 border border-white/[0.06] shadow-xl shadow-black/20 rounded-2xl">
-      <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between gap-3">
+    <div className="vt-card overflow-hidden anim-rise">
+      <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between gap-3">
         <div className="relative flex-1 max-w-sm">
           <svg className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -26,20 +26,20 @@ export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onV
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search residents…"
-            className="w-full pl-9 pr-3 py-2 bg-slate-800 text-sm text-white rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 placeholder-slate-500"
+            className="vt-input pl-9 pr-3 py-2 text-sm"
           />
         </div>
         <div className="flex gap-2 shrink-0">
-          <button onClick={onImport} className="px-3 py-2 text-xs text-slate-300 border border-slate-700 hover:border-slate-500 rounded-lg transition-colors">
+          <button onClick={onImport} className="px-3 py-2 text-xs text-slate-300 border border-white/10 hover:border-white/20 hover:bg-white/[0.04] rounded-lg transition-colors">
             Import CSV
           </button>
-          <button onClick={onAdd} className="px-3 py-2 text-xs bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 shadow-lg shadow-blue-600/25 active:scale-[.98] text-white rounded-lg transition-colors font-medium">
+          <button onClick={onAdd} className="btn-primary btn-sheen px-3 py-2 text-xs">
             + Add Resident
           </button>
         </div>
       </div>
 
-      <div className="divide-y divide-slate-800 max-h-[calc(100vh-20rem)] overflow-y-auto">
+      <div className="divide-y divide-white/[0.05] max-h-[calc(100vh-20rem)] overflow-y-auto">
         {filtered.length === 0 ? (
           <EmptyState
             title={query ? 'No residents match your search.' : 'No residents yet.'}
@@ -49,8 +49,12 @@ export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onV
           filtered.map((r) => {
             const repeat = (r.violation_count || 0) >= 3
             return (
-              <div key={r.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-800/40 group transition-colors">
-                <div className="min-w-0">
+              <div key={r.id} className="flex items-center justify-between px-5 py-3 hover:bg-white/[0.03] group transition-colors">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-700/60 to-slate-800/60 ring-1 ring-white/[0.06] flex items-center justify-center text-xs font-semibold text-slate-300 shrink-0">
+                    {(r.name || '?').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-slate-100 truncate">{r.name}</p>
                     {repeat && (
@@ -70,6 +74,7 @@ export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onV
                       <span className="text-xs text-amber-500/70">No email</span>
                     )}
                     {r.phone && <span className="text-xs text-slate-500">{r.phone}</span>}
+                  </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
