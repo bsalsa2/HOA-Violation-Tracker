@@ -291,12 +291,19 @@ export function EditHOAModal({ hoa, onClose, onUpdated, onDelete }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (!email) {
+      setError('Email address is required to send violation letters.')
+      return
+    }
     setLoading(true)
     setError('')
     try {
+      console.log('Saving HOA settings:', { name, address, email, phone, contactPersonName, website, businessHours })
       const res = await hoaAPI.update(hoa.id, name, address, email || null, phone || null, contactPersonName || null, website || null, businessHours || null)
+      console.log('HOA updated response:', res.data)
       onUpdated(res.data)
     } catch (err) {
+      console.error('HOA update error:', err)
       setError(parseDetail(err, 'Failed to update HOA.'))
     } finally {
       setLoading(false)

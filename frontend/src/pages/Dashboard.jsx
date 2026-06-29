@@ -135,12 +135,14 @@ export default function Dashboard({ hoa, hoas, onSwitchHoa, onShowPortfolio, onA
   }, [addToast, loadAnalytics])
 
   const handleSendEmail = useCallback(async (violationId) => {
+    console.log('handleSendEmail - Current HOA:', hoa)
     const cfg = getEmailJSConfig()
     if (!cfg.service || !cfg.template || !cfg.key) {
       addToast('EmailJS is not configured. Check your Vercel environment variables.', 'error')
       return
     }
     if (!hoa?.email) {
+      console.warn('HOA email not configured. HOA object:', hoa)
       addToast('Please configure your HOA email address in settings before sending letters.', 'error')
       return
     }
