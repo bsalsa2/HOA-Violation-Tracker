@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import emailjs from '@emailjs/browser'
-import { hoaAPI, residentAPI, violationAPI } from '../api'
-import HOASetup from './HOASetup'
+import { residentAPI, violationAPI, hoaAPI } from '../api'
 import OverviewTab from '../components/OverviewTab'
 import ViolationsTab from '../components/ViolationsTab'
 import ResidentsTab from '../components/ResidentsTab'
 import ViolationDrawer from '../components/ViolationDrawer'
 import CommandPalette from '../components/CommandPalette'
-import { AddResidentModal, AddViolationModal, ImportCSVModal, EditHOAModal } from '../components/modals'
+import HoaSwitcher from '../components/HoaSwitcher'
+import { AddResidentModal, AddViolationModal, ImportCSVModal } from '../components/modals'
 import { Modal, ConfirmDialog, ToastStack, Spinner } from '../components/primitives'
 import { openBoardReport } from '../lib/boardReport'
 
@@ -19,15 +19,14 @@ function getEmailJSConfig() {
   }
 }
 
-export default function Dashboard({ setToken }) {
-  const [hoa, setHoa] = useState(null)
-  const [hoaLoading, setHoaLoading] = useState(true)
-  const [needsSetup, setNeedsSetup] = useState(false)
+export default function Dashboard({ hoa, hoas, onSwitchHoa, onShowPortfolio, onAddClient, onEditClient, setToken }) {
+  const hoaId = hoa.id
 
   const [residents, setResidents] = useState([])
   const [violations, setViolations] = useState([])
   const [analytics, setAnalytics] = useState(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(true)
+  const [dataLoading, setDataLoading] = useState(true)
 
   const [tab, setTab] = useState('overview')
   const [violationQuery, setViolationQuery] = useState('')
@@ -43,7 +42,6 @@ export default function Dashboard({ setToken }) {
   const [showAddResident, setShowAddResident] = useState(false)
   const [showImportCSV, setShowImportCSV] = useState(false)
   const [showAddViolation, setShowAddViolation] = useState(false)
-  const [editHOAModal, setEditHOAModal] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
 
@@ -54,46 +52,44 @@ export default function Dashboard({ setToken }) {
   }, [])
   const dismissToast = (id) => setToasts((prev) => prev.filter((t) => t.id !== id))
 
-  // ---- Data loading ----
+  // ---- Data loading (scoped to active HOA) ----
   const loadResidents = useCallback(async () => {
     try {
-      const res = await residentAPI.getAll()
+      const res = await residentAPI.getAll(hoaId)
       setResidents(res.data)
     } catch {}
-  }, [])
+  }, [hoaId])
 
   const loadViolations = useCallback(async () => {
     try {
-      const res = await violationAPI.getAll()
+      const res = await violationAPI.getAll(hoaId)
       setViolations(res.data)
     } catch {}
-  }, [])
+  }, [hoaId])
 
   const loadAnalytics = useCallback(async () => {
     setAnalyticsLoading(true)
     try {
-      const res = await hoaAPI.getAnalytics()
+      const res = await hoaAPI.getAnalytics(hoaId)
       setAnalytics(res.data)
     } catch {} finally {
       setAnalyticsLoading(false)
     }
-  }, [])
+  }, [hoaId])
 
-  const loadAll = useCallback(async () => {
-    setHoaLoading(true)
-    try {
-      const hoaRes = await hoaAPI.getMe()
-      setHoa(hoaRes.data)
-      setNeedsSetup(false)
-      await Promise.all([loadResidents(), loadViolations(), loadAnalytics()])
-    } catch (err) {
-      if (err.response?.status === 404) setNeedsSetup(true)
-    } finally {
-      setHoaLoading(false)
-    }
-  }, [loadResidents, loadViolations, loadAnalytics])
-
-  useEffect(() => { loadAll() }, [loadAll])
+  useEffect(() => {
+    let cancelled = false
+    setDataLoading(true)
+    setSelectedId(null)
+    setViolationQuery('')
+    letterCache.current = {}
+    Promise.all([
+      residentAPI.getAll(hoaId).then((r) => !cancelled && setResidents(r.data)).catch(() => {}),
+      violationAPI.getAll(hoaId).then((r) => !cancelled && setViolations(r.data)).catch(() => {}),
+      hoaAPI.getAnalytics(hoaId).then((r) => !cancelled && setAnalytics(r.data)).catch(() => {}),
+    ]).finally(() => { if (!cancelled) { setDataLoading(false); setAnalyticsLoading(false) } })
+    return () => { cancelled = true }
+  }, [hoaId])
 
   // ---- ⌘K ----
   useEffect(() => {
@@ -153,8 +149,7 @@ export default function Dashboard({ setToken }) {
     try {
       const letterRes = await violationAPI.getLetter(violationId)
       await emailjs.send(
-        cfg.service,
-        cfg.template,
+        cfg.service, cfg.template,
         {
           to_email: violation.resident_email,
           to_name: violation.resident_name,
@@ -211,7 +206,6 @@ export default function Dashboard({ setToken }) {
     })
   }, [addToast, loadAnalytics])
 
-  // ---- Resident handlers ----
   const handleDeleteResident = useCallback((residentId, residentName) => {
     setConfirmDelete({
       message: `Delete ${residentName}? All their violations will also be deleted.`,
@@ -240,25 +234,20 @@ export default function Dashboard({ setToken }) {
     if (r) goToResidentViolations(r)
   }, [residents, goToResidentViolations])
 
-  // ---- Render ----
-  if (hoaLoading) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="flex items-center gap-3 text-slate-400">
-          <Spinner className="w-5 h-5" /> Loading…
-        </div>
-      </div>
-    )
-  }
-
-  if (needsSetup) {
-    return (
-      <HOASetup
-        onComplete={(hoaData) => { setHoa(hoaData); setNeedsSetup(false); loadAll() }}
-        onSkip={() => setNeedsSetup(false)}
-      />
-    )
-  }
+  // ---- Board report (open window in-gesture, then fetch fresh analytics) ----
+  const handleBoardReport = useCallback(() => {
+    const win = window.open('', '_blank')
+    if (!win) {
+      addToast('Allow pop-ups to generate the report.', 'error')
+      return
+    }
+    try {
+      win.document.write('<p style="font-family:system-ui,sans-serif;padding:24px;color:#475569">Generating report…</p>')
+    } catch {}
+    hoaAPI.getAnalytics(hoaId)
+      .then((res) => { setAnalytics(res.data); openBoardReport(hoa, res.data, violations, win) })
+      .catch(() => openBoardReport(hoa, analytics, violations, win))
+  }, [hoa, hoaId, violations, analytics, addToast])
 
   const selectedViolation = violations.find((v) => v.id === selectedId) || null
   const canAdd = residents.length > 0
@@ -272,49 +261,29 @@ export default function Dashboard({ setToken }) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      {/* Header */}
       <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center justify-between py-3">
-            <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center justify-between py-3 gap-3">
+            <div className="flex items-center gap-2 min-w-0">
               <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
                 <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
               </div>
-              <div className="min-w-0">
-                <h1 className="font-semibold text-sm text-white leading-none truncate">{hoa?.name || 'ViolationTrack'}</h1>
-                {hoa && <p className="text-xs text-slate-500 mt-0.5 truncate">{hoa.address}</p>}
-              </div>
+              <HoaSwitcher hoas={hoas} activeHoa={hoa} onSwitch={onSwitchHoa} onShowPortfolio={onShowPortfolio} onAddClient={onAddClient} />
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPaletteOpen(true)}
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 bg-slate-800/60 hover:bg-slate-800 border border-slate-700 rounded-lg transition-colors"
-              >
+              <button onClick={() => setPaletteOpen(true)} className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 bg-slate-800/60 hover:bg-slate-800 border border-slate-700 rounded-lg transition-colors">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                Search
-                <kbd className="text-[10px] border border-slate-600 rounded px-1">⌘K</kbd>
+                Search <kbd className="text-[10px] border border-slate-600 rounded px-1">⌘K</kbd>
               </button>
-              <button
-                onClick={() => { if (!openBoardReport(hoa, analytics, violations)) addToast('Allow pop-ups to generate the report.', 'error') }}
-                className="px-3 py-1.5 text-xs text-slate-300 border border-slate-700 hover:border-slate-500 rounded-lg transition-colors"
-              >
-                Board Report
-              </button>
-              {hoa && (
-                <button onClick={() => setEditHOAModal(true)} className="hidden md:block px-3 py-1.5 text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 rounded-lg transition-colors">
-                  Edit HOA
-                </button>
-              )}
-              <button onClick={handleLogout} className="px-3 py-1.5 text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 rounded-lg transition-colors">
-                Sign Out
-              </button>
+              <button onClick={handleBoardReport} className="px-3 py-1.5 text-xs text-slate-300 border border-slate-700 hover:border-slate-500 rounded-lg transition-colors">Board Report</button>
+              <button onClick={onEditClient} className="hidden md:block px-3 py-1.5 text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 rounded-lg transition-colors">Edit</button>
+              <button onClick={handleLogout} className="px-3 py-1.5 text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 rounded-lg transition-colors">Sign Out</button>
             </div>
           </div>
 
-          {/* Tabs */}
           <div className="flex items-center gap-1 -mb-px">
             {tabs.map((t) => (
               <button
@@ -338,9 +307,7 @@ export default function Dashboard({ setToken }) {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-6">
-        {tab === 'overview' && (
-          <OverviewTab analytics={analytics} loading={analyticsLoading} onOpenResident={goToResidentById} />
-        )}
+        {tab === 'overview' && <OverviewTab analytics={analytics} loading={analyticsLoading} onOpenResident={goToResidentById} />}
         {tab === 'violations' && (
           <ViolationsTab
             violations={violations}
@@ -362,7 +329,6 @@ export default function Dashboard({ setToken }) {
         )}
       </main>
 
-      {/* Drawer */}
       {selectedViolation && (
         <ViolationDrawer
           violation={selectedViolation}
@@ -376,7 +342,6 @@ export default function Dashboard({ setToken }) {
         />
       )}
 
-      {/* Command palette */}
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
@@ -388,13 +353,14 @@ export default function Dashboard({ setToken }) {
           { id: 'new-violation', label: 'New violation', run: () => { if (canAdd) setShowAddViolation(true); else addToast('Add a resident first.', 'error') } },
           { id: 'new-resident', label: 'New resident', run: () => setShowAddResident(true) },
           { id: 'import-csv', label: 'Import residents from CSV', run: () => setShowImportCSV(true) },
-          { id: 'board-report', label: 'Generate board report', run: () => { if (!openBoardReport(hoa, analytics, violations)) addToast('Allow pop-ups to generate the report.', 'error') } },
+          { id: 'board-report', label: 'Generate board report', run: handleBoardReport },
+          { id: 'switch-portfolio', label: 'View all clients (portfolio)', run: onShowPortfolio },
         ]}
       />
 
-      {/* Modals */}
       {showAddResident && (
         <AddResidentModal
+          hoaId={hoaId}
           onClose={() => setShowAddResident(false)}
           onAdded={(r) => { setResidents((prev) => [...prev, r].sort((a, b) => (a.name || '').localeCompare(b.name || ''))); setShowAddResident(false); loadAnalytics(); addToast(`${r.name} added.`) }}
         />
@@ -402,6 +368,7 @@ export default function Dashboard({ setToken }) {
 
       {showImportCSV && (
         <ImportCSVModal
+          hoaId={hoaId}
           onClose={() => setShowImportCSV(false)}
           addToast={addToast}
           onDone={(added, errors) => {
@@ -416,6 +383,7 @@ export default function Dashboard({ setToken }) {
 
       {showAddViolation && (
         <AddViolationModal
+          hoaId={hoaId}
           residents={residents}
           onClose={() => setShowAddViolation(false)}
           onAdded={() => { setShowAddViolation(false); loadViolations(); loadAnalytics(); addToast('Violation created.') }}
@@ -423,7 +391,7 @@ export default function Dashboard({ setToken }) {
       )}
 
       {letterModal && (
-        <Modal title={`Violation Letter — ${letterModal.violation.violation_type}`} subtitle={`${letterModal.violation.resident_name} · Unit ${letterModal.violation.resident_unit}`} onClose={() => setLetterModal(null)}>
+        <Modal title={`Violation Letter — ${letterModal.violation.violation_type}`} subtitle={`${letterModal.violation.resident_name} · ${letterModal.violation.resident_unit}`} onClose={() => setLetterModal(null)}>
           <div className="bg-slate-800 rounded-xl p-4">
             <pre className="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed font-sans">{letterModal.text}</pre>
           </div>
@@ -434,10 +402,6 @@ export default function Dashboard({ setToken }) {
             Copy to Clipboard
           </button>
         </Modal>
-      )}
-
-      {editHOAModal && hoa && (
-        <EditHOAModal hoa={hoa} onClose={() => setEditHOAModal(false)} onUpdated={(updated) => { setHoa(updated); setEditHOAModal(false); addToast('HOA updated.') }} />
       )}
 
       {confirmDelete && (

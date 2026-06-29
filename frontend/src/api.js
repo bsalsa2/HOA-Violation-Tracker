@@ -30,38 +30,42 @@ export const authAPI = {
 }
 
 export const hoaAPI = {
-  setup: (name, address) => api.post('/hoas/setup', { name, address }),
-  getMe: () => api.get('/hoas/me'),
-  update: (name, address) => api.patch('/hoas/me', { name, address }),
-  getStats: () => api.get('/hoas/me/stats'),
-  getAnalytics: () => api.get('/hoas/me/analytics'),
+  list: () => api.get('/hoas'),
+  create: (name, address) => api.post('/hoas', { name, address }),
+  get: (hoaId) => api.get(`/hoas/${hoaId}`),
+  update: (hoaId, name, address) => api.patch(`/hoas/${hoaId}`, { name, address }),
+  delete: (hoaId) => api.delete(`/hoas/${hoaId}`),
+  getStats: (hoaId) => api.get(`/hoas/${hoaId}/stats`),
+  getAnalytics: (hoaId) => api.get(`/hoas/${hoaId}/analytics`),
 }
 
 export const residentAPI = {
-  create: (name, unit, email, phone) => api.post('/residents', { name, unit, email, phone }),
-  getAll: () => api.get('/residents'),
+  create: (hoaId, name, unit, email, phone) => api.post('/residents', { hoa_id: hoaId, name, unit, email, phone }),
+  getAll: (hoaId) => api.get(`/residents?hoa_id=${hoaId}`),
   update: (residentId, name, unit, email, phone) =>
     api.patch(`/residents/${residentId}`, { name, unit, email, phone }),
   delete: (residentId) => api.delete(`/residents/${residentId}`),
-  importCSV: (file) => {
+  importCSV: (hoaId, file) => {
     const formData = new FormData()
     formData.append('file', file)
-    return api.post('/residents/import/csv', formData, {
+    return api.post(`/residents/import/csv?hoa_id=${hoaId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
 }
 
 export const violationAPI = {
-  create: (residentId, violationType, description, priority = 'medium', dueInDays = 14) =>
+  create: (hoaId, residentId, violationType, description, priority = 'medium', dueInDays = 14) =>
     api.post('/violations', {
+      hoa_id: hoaId,
       resident_id: residentId,
       violation_type: violationType,
       description,
       priority,
       due_in_days: dueInDays,
     }),
-  getAll: (status) => (status ? api.get(`/violations?status=${status}`) : api.get('/violations')),
+  getAll: (hoaId, status) =>
+    api.get(`/violations?hoa_id=${hoaId}${status ? `&status=${status}` : ''}`),
   getLetter: (violationId) => api.get(`/violations/${violationId}/letter`),
   markSent: (violationId) => api.post(`/violations/${violationId}/mark-sent`),
   update: (violationId, fields) => api.patch(`/violations/${violationId}`, fields),

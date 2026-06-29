@@ -97,7 +97,7 @@ export default function OverviewTab({ analytics, loading, onOpenResident }) {
                 >
                   <div className="min-w-0">
                     <p className="text-sm text-slate-200 truncate">{o.name}</p>
-                    <p className="text-xs text-slate-500">Unit {o.unit}</p>
+                    <p className="text-xs text-slate-500">{o.unit}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {o.open > 0 && (

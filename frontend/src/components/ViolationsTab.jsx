@@ -23,7 +23,7 @@ function ViolationCard({ violation, onOpen }) {
               <Badge className="bg-purple-500/10 text-purple-300 border-purple-500/20">{violation.notice_label}</Badge>
             )}
           </div>
-          <p className="text-xs text-slate-400 mt-1">{violation.resident_name} · Unit {violation.resident_unit}</p>
+          <p className="text-xs text-slate-400 mt-1">{violation.resident_name} · {violation.resident_unit}</p>
           <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{violation.description}</p>
           <div className="flex items-center gap-3 mt-2 flex-wrap">
             <span className="text-xs text-slate-600">{formatDate(violation.created_at)}</span>

@@ -22,7 +22,7 @@ class HOA(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     address = Column(String)
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)  # a manager (user) can own many HOAs
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="hoas")

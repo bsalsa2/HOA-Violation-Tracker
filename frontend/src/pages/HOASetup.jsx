@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { hoaAPI } from '../api'
 
-function HOASetup({ onComplete, onSkip }) {
+function HOASetup({ onComplete, onSignOut }) {
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
   const [loading, setLoading] = useState(false)
@@ -12,10 +12,10 @@ function HOASetup({ onComplete, onSkip }) {
     setLoading(true)
     setError('')
     try {
-      const response = await hoaAPI.setup(name, address)
+      const response = await hoaAPI.create(name, address)
       onComplete(response.data)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to set up HOA. Please try again.')
+      setError(err.response?.data?.detail || 'Failed to add client. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -30,9 +30,9 @@ function HOASetup({ onComplete, onSkip }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-white">Set Up Your HOA</h1>
+          <h1 className="text-2xl font-bold text-white">Add Your First Client</h1>
           <p className="text-slate-400 mt-2 text-sm leading-relaxed">
-            Enter your HOA's name and address. This only takes a moment and you can update it later.
+            Enter the HOA / community you manage. You can add more communities to your portfolio anytime.
           </p>
         </div>
 
@@ -87,13 +87,13 @@ function HOASetup({ onComplete, onSkip }) {
                   </span>
                 ) : 'Continue'}
               </button>
-              {onSkip && (
+              {onSignOut && (
                 <button
                   type="button"
-                  onClick={onSkip}
+                  onClick={onSignOut}
                   className="px-5 py-2.5 text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 rounded-lg transition-colors text-sm font-medium"
                 >
-                  Skip for now
+                  Sign Out
                 </button>
               )}
             </div>
@@ -101,7 +101,7 @@ function HOASetup({ onComplete, onSkip }) {
         </div>
 
         <p className="text-center text-slate-500 text-xs mt-6">
-          You can update your HOA details anytime from the dashboard settings.
+          You can edit or add communities anytime from your portfolio.
         </p>
       </div>
     </div>

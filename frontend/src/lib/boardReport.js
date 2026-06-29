@@ -12,11 +12,13 @@ function isOverdue(v) {
 }
 
 /**
- * Opens a print-ready board meeting compliance report in a new window.
+ * Renders a print-ready board meeting compliance report.
+ * Pass an already-opened `win` (so the caller can open it inside the click
+ * gesture, then fetch fresh data) — otherwise one is opened here.
  * Returns false if the popup was blocked.
  */
-export function openBoardReport(hoa, analytics, violations) {
-  const win = window.open('', '_blank')
+export function openBoardReport(hoa, analytics, violations, win) {
+  if (!win) win = window.open('', '_blank')
   if (!win) return false
 
   const k = analytics?.kpis || {}
@@ -85,6 +87,13 @@ export function openBoardReport(hoa, analytics, violations) {
     <div class="kpi"><div class="v" style="color:${(k.overdue_violations || 0) > 0 ? '#dc2626' : '#1e293b'}">${k.overdue_violations ?? overdue.length}</div><div class="l">Overdue</div></div>
     <div class="kpi"><div class="v">${k.resolution_rate ?? 0}%</div><div class="l">Resolution Rate</div></div>
     <div class="kpi"><div class="v">${currency(k.outstanding_fines || 0)}</div><div class="l">Outstanding Fines</div></div>
+  </div>
+
+  <h2>Fines Ledger</h2>
+  <div class="kpis" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="kpi"><div class="v">${currency(k.total_fines || 0)}</div><div class="l">Total Assessed</div></div>
+    <div class="kpi"><div class="v" style="color:#16a34a">${currency(k.collected_fines || 0)}</div><div class="l">Collected (Paid)</div></div>
+    <div class="kpi"><div class="v" style="color:#dc2626">${currency(k.outstanding_fines || 0)}</div><div class="l">Outstanding</div></div>
   </div>
 
   <div class="two-col">

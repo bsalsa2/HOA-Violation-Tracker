@@ -14,6 +14,8 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
   const [fineInput, setFineInput] = useState(String(violation.fine_amount || ''))
   const [editingFine, setEditingFine] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [resolveOpen, setResolveOpen] = useState(false)
+  const [resolveNote, setResolveNote] = useState('')
 
   const loadNotes = useCallback(async () => {
     setNotesLoading(true)
@@ -76,6 +78,21 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
     }
   }
 
+  const handleStatusSelect = (value) => {
+    if (value === 'resolved' && violation.status !== 'resolved') {
+      setResolveNote('')
+      setResolveOpen(true)
+      return
+    }
+    runUpdate({ status: value })
+  }
+
+  const confirmResolve = async () => {
+    const note = resolveNote.trim()
+    setResolveOpen(false)
+    await runUpdate(note ? { status: 'resolved', note: `Resolution: ${note}` } : { status: 'resolved' })
+  }
+
   const overdue = isOverdue(violation)
   const due = dueLabel(violation)
   const dueDateValue = violation.due_date ? new Date(violation.due_date).toISOString().split('T')[0] : ''
@@ -94,7 +111,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
             <div className="min-w-0">
               <h2 className="text-white font-semibold truncate">{violation.violation_type}</h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                {violation.resident_name} · Unit {violation.resident_unit}
+                {violation.resident_name} · {violation.resident_unit}
               </p>
             </div>
             <button onClick={onClose} className="text-slate-400 hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-800 shrink-0">×</button>
@@ -121,7 +138,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs uppercase tracking-wide text-slate-500 mb-1.5 block">Status</label>
-              <select className={`${inputCls} w-full`} value={violation.status} disabled={busy} onChange={(e) => runUpdate({ status: e.target.value })}>
+              <select className={`${inputCls} w-full`} value={violation.status} disabled={busy} onChange={(e) => handleStatusSelect(e.target.value)}>
                 <option value="open">Open</option>
                 <option value="noticed">Noticed</option>
                 <option value="resolved">Resolved</option>
@@ -277,6 +294,36 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
           </div>
         </div>
       </div>
+
+      {/* Resolve confirmation */}
+      {resolveOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onMouseDown={() => setResolveOpen(false)}>
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-green-500/10 rounded-full flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <div>
+                <p className="text-white text-sm font-medium">Mark violation resolved?</p>
+                <p className="text-xs text-slate-500">This records the resolution in the audit log.</p>
+              </div>
+            </div>
+            <label className="block text-xs text-slate-400 mb-1.5">How was it resolved? <span className="text-slate-600">(optional)</span></label>
+            <textarea
+              autoFocus
+              className={`${inputCls} w-full resize-none`}
+              rows={3}
+              value={resolveNote}
+              onChange={(e) => setResolveNote(e.target.value)}
+              placeholder="e.g. Resident corrected the violation; verified on site."
+            />
+            <div className="flex gap-3 mt-4">
+              <button onClick={() => setResolveOpen(false)} className="flex-1 py-2 text-sm border border-slate-600 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
+              <button onClick={confirmResolve} className="flex-1 py-2 text-sm bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors font-medium">Mark Resolved</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

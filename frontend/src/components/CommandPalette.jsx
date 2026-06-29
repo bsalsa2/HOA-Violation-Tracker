@@ -34,7 +34,7 @@ export default function CommandPalette({ open, onClose, residents, violations, o
             type: 'resident',
             id: `resident-${r.id}`,
             label: r.name,
-            hint: `Unit ${r.unit}${r.violation_count ? ` · ${r.violation_count} violations` : ''}`,
+            hint: `${r.unit}${r.violation_count ? ` · ${r.violation_count} violations` : ''}`,
             run: () => onSelectResident(r),
           })
         )
@@ -47,7 +47,7 @@ export default function CommandPalette({ open, onClose, residents, violations, o
             type: 'violation',
             id: `violation-${v.id}`,
             label: v.violation_type,
-            hint: `${v.resident_name} · Unit ${v.resident_unit}`,
+            hint: `${v.resident_name} · ${v.resident_unit}`,
             status: v.status,
             run: () => onSelectViolation(v),
           })
