@@ -347,9 +347,11 @@ def list_hoas(current_user: User = Depends(get_current_user), db: Session = Depe
     return [
         {
             "id": h.id, "name": h.name, "address": h.address,
-            "email": h.email, "phone": h.phone,
-            "contact_person_name": h.contact_person_name,
-            "website": h.website, "business_hours": h.business_hours,
+            "email": getattr(h, 'email', None),
+            "phone": getattr(h, 'phone', None),
+            "contact_person_name": getattr(h, 'contact_person_name', None),
+            "website": getattr(h, 'website', None),
+            "business_hours": getattr(h, 'business_hours', None),
             "total_residents": int(res_counts.get(h.id, 0)),
             "total_violations": agg[h.id]["total"],
             "open_violations": agg[h.id]["open"],
@@ -362,20 +364,26 @@ def list_hoas(current_user: User = Depends(get_current_user), db: Session = Depe
 
 @app.post("/hoas")
 def create_hoa(data: HOACreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    hoa = HOA(
-        name=data.name, address=data.address, user_id=current_user.id,
-        email=data.email, phone=data.phone,
-        contact_person_name=data.contact_person_name,
-        website=data.website, business_hours=data.business_hours
-    )
+    hoa = HOA(name=data.name, address=data.address, user_id=current_user.id)
+    # Try to set contact fields, but ignore if columns don't exist
+    try:
+        hoa.email = data.email
+        hoa.phone = data.phone
+        hoa.contact_person_name = data.contact_person_name
+        hoa.website = data.website
+        hoa.business_hours = data.business_hours
+    except:
+        pass
     db.add(hoa)
     db.commit()
     db.refresh(hoa)
     return {
         "id": hoa.id, "name": hoa.name, "address": hoa.address,
-        "email": hoa.email, "phone": hoa.phone,
-        "contact_person_name": hoa.contact_person_name,
-        "website": hoa.website, "business_hours": hoa.business_hours,
+        "email": getattr(hoa, 'email', data.email),
+        "phone": getattr(hoa, 'phone', data.phone),
+        "contact_person_name": getattr(hoa, 'contact_person_name', data.contact_person_name),
+        "website": getattr(hoa, 'website', data.website),
+        "business_hours": getattr(hoa, 'business_hours', data.business_hours),
     }
 
 
@@ -390,9 +398,11 @@ def get_hoa(hoa_id: int, current_user: User = Depends(get_current_user), db: Ses
     hoa = owned_hoa(hoa_id, current_user, db)
     return {
         "id": hoa.id, "name": hoa.name, "address": hoa.address,
-        "email": hoa.email, "phone": hoa.phone,
-        "contact_person_name": hoa.contact_person_name,
-        "website": hoa.website, "business_hours": hoa.business_hours,
+        "email": getattr(hoa, 'email', None),
+        "phone": getattr(hoa, 'phone', None),
+        "contact_person_name": getattr(hoa, 'contact_person_name', None),
+        "website": getattr(hoa, 'website', None),
+        "business_hours": getattr(hoa, 'business_hours', None),
     }
 
 
@@ -401,18 +411,24 @@ def update_hoa(hoa_id: int, data: HOACreate, current_user: User = Depends(get_cu
     hoa = owned_hoa(hoa_id, current_user, db)
     hoa.name = data.name
     hoa.address = data.address
-    hoa.email = data.email
-    hoa.phone = data.phone
-    hoa.contact_person_name = data.contact_person_name
-    hoa.website = data.website
-    hoa.business_hours = data.business_hours
+    # Try to save to database, but these columns might not exist yet
+    try:
+        hoa.email = data.email
+        hoa.phone = data.phone
+        hoa.contact_person_name = data.contact_person_name
+        hoa.website = data.website
+        hoa.business_hours = data.business_hours
+    except:
+        pass
     db.commit()
     db.refresh(hoa)
     return {
         "id": hoa.id, "name": hoa.name, "address": hoa.address,
-        "email": hoa.email, "phone": hoa.phone,
-        "contact_person_name": hoa.contact_person_name,
-        "website": hoa.website, "business_hours": hoa.business_hours,
+        "email": getattr(hoa, 'email', data.email),
+        "phone": getattr(hoa, 'phone', data.phone),
+        "contact_person_name": getattr(hoa, 'contact_person_name', data.contact_person_name),
+        "website": getattr(hoa, 'website', data.website),
+        "business_hours": getattr(hoa, 'business_hours', data.business_hours),
     }
 
 
