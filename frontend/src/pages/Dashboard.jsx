@@ -158,6 +158,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
           to_email: violation.resident_email,
           to_name: violation.resident_name,
           hoa_name: hoa?.name || 'HOA',
+          hoa_email: hoaEmail,
           violation_type: violation.violation_type,
           violation_letter: letterRes.data.letter,
           reply_to: hoaEmail,
