@@ -7,7 +7,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
   const isConfigured = hoa.email && hoa.contact_person_name
   return (
     <div
-      className={`group vt-card vt-card-interactive p-5 ${hasOverdue ? '!border-red-500/25' : ''}`}
+      className={`group vt-card vt-card-interactive vt-spotlight p-5 ${hasOverdue ? '!border-[#c17b6a]/30' : ''}`}
     >
       <div className="flex items-start justify-between gap-3">
         <button
@@ -80,11 +80,12 @@ export default function PortfolioOverview({ hoas, onOpen, onAddClient, onSignOut
 
   return (
     <div className="min-h-screen bg-transparent text-white">
-      <header className="bg-[#0a0e1a]/80 backdrop-blur-xl border-b border-white/[0.06] px-6 py-3 sticky top-0 z-20">
+      <header className="relative bg-[#0d0b08]/85 backdrop-blur-xl border-b border-white/[0.06] px-6 py-3 sticky top-0 z-20">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#caa96b]/50 to-transparent" />
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-[#d8be86] to-[#9c7c44] rounded-xl flex items-center justify-center ring-1 ring-white/20" style={{ boxShadow: '0 6px 20px -4px rgba(202,169,107,0.55), inset 0 1px 0 0 rgba(255,255,255,0.3)' }}>
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+            <div className="w-8 h-8 bg-gradient-to-br from-[#e7d29c] to-[#9c7c44] rounded-xl flex items-center justify-center ring-1 ring-white/25" style={{ boxShadow: '0 6px 20px -4px rgba(202,169,107,0.55), inset 0 1px 0 0 rgba(255,255,255,0.4)' }}>
+              <svg className="w-4 h-4 text-[#2a2317]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
             </div>
             <h1 className="font-semibold text-sm text-white tracking-tight">ViolationTrack <span className="text-slate-500 font-normal">· Portfolio</span></h1>
           </div>

@@ -44,7 +44,7 @@ function HOASetup({ onComplete, onSignOut }) {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-[#caa96b] focus:ring-1 focus:ring-[#caa96b] transition-colors placeholder-slate-500"
+                className="vt-input px-3 py-2.5"
                 placeholder="e.g., Sunridge Estates HOA"
                 required
               />
@@ -56,7 +56,7 @@ function HOASetup({ onComplete, onSignOut }) {
                 type="text"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-800 text-white rounded-lg border border-slate-700 focus:outline-none focus:border-[#caa96b] focus:ring-1 focus:ring-[#caa96b] transition-colors placeholder-slate-500"
+                className="vt-input px-3 py-2.5"
                 placeholder="e.g., 123 Main St, Anytown, CA 90210"
                 required
               />

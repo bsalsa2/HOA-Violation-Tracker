@@ -40,8 +40,8 @@ function Login({ setToken }) {
       <div className="w-full max-w-md anim-rise">
         {/* Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#d8be86] to-[#9c7c44] mb-5 ring-1 ring-white/20" style={{ boxShadow: '0 16px 50px -10px rgba(202,169,107,0.65), inset 0 1px 0 0 rgba(255,255,255,0.35)' }}>
-            <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="vt-halo inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#e7d29c] via-[#cda863] to-[#9c7c44] mb-5 ring-1 ring-white/25" style={{ boxShadow: '0 16px 50px -10px rgba(202,169,107,0.6), inset 0 1px 0 0 rgba(255,255,255,0.45)' }}>
+            <svg className="w-8 h-8 text-[#2a2317]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
           </div>
@@ -58,7 +58,7 @@ function Login({ setToken }) {
                 type="button"
                 onClick={() => { setMode(m); setError('') }}
                 className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-                  mode === m ? 'bg-gradient-to-b from-slate-700 to-slate-800 text-white ring-1 ring-white/10 shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white'
+                  mode === m ? 'bg-gradient-to-b from-[#272219] to-[#1a1610] text-white ring-1 ring-[#caa96b]/15 shadow-lg shadow-black/40' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 {m === 'login' ? 'Sign In' : 'Create Account'}
@@ -73,7 +73,7 @@ function Login({ setToken }) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3.5 py-3 bg-slate-800/80 text-white rounded-xl border border-slate-700 focus:outline-none focus:border-[#caa96b] focus:ring-2 focus:ring-[#caa96b]/25 transition-all placeholder-slate-500"
+                className="vt-input px-3.5 py-3 focus:ring-2 focus:ring-[#caa96b]/20"
                 placeholder="you@example.com"
                 required
                 autoComplete="email"
@@ -85,7 +85,7 @@ function Login({ setToken }) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3.5 py-3 bg-slate-800/80 text-white rounded-xl border border-slate-700 focus:outline-none focus:border-[#caa96b] focus:ring-2 focus:ring-[#caa96b]/25 transition-all placeholder-slate-500"
+                className="vt-input px-3.5 py-3 focus:ring-2 focus:ring-[#caa96b]/20"
                 placeholder={mode === 'register' ? 'Choose a password' : 'Your password'}
                 required
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}

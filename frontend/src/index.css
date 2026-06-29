@@ -199,6 +199,42 @@
     height: 1px;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
   }
+
+  /* Cursor-tracking champagne spotlight — a soft light that follows the
+     pointer across a card. Coordinates are fed by a global listener. */
+  .vt-spotlight::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(240px circle at var(--mx, 50%) var(--my, -20%),
+      rgba(224, 199, 143, 0.13), transparent 62%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+  .vt-spotlight:hover::before { opacity: 1; }
+
+  /* A slowly rotating conic halo, e.g. behind the brand mark */
+  .vt-halo {
+    position: relative;
+  }
+  .vt-halo::after {
+    content: "";
+    position: absolute;
+    inset: -45%;
+    z-index: -1;
+    border-radius: 9999px;
+    background: conic-gradient(from 0deg,
+      rgba(224, 199, 143, 0) 0deg,
+      rgba(224, 199, 143, 0.45) 70deg,
+      rgba(224, 199, 143, 0) 150deg,
+      rgba(224, 199, 143, 0) 210deg,
+      rgba(224, 199, 143, 0.32) 290deg,
+      rgba(224, 199, 143, 0) 360deg);
+    filter: blur(14px);
+    animation: vt-spin 7s linear infinite;
+  }
 }
 
 @layer utilities {
@@ -235,6 +271,9 @@
   }
   @keyframes vt-draw {
     to { stroke-dashoffset: 0; }
+  }
+  @keyframes vt-spin {
+    to { transform: rotate(360deg); }
   }
 
   .anim-fade { animation: vt-fade 0.2s ease-out both; }

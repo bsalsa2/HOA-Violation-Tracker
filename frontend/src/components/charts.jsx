@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
 
-/** Donut chart. data: [{ label, value, color }] */
+/** Interactive donut chart. data: [{ label, value, color }] */
 export function DonutChart({ data = [], size = 168, thickness = 20, centerLabel, centerValue }) {
   const [mounted, setMounted] = useState(false)
+  const [hover, setHover] = useState(null) // hovered source-data index
   useEffect(() => { const id = requestAnimationFrame(() => setMounted(true)); return () => cancelAnimationFrame(id) }, [])
 
   const total = data.reduce((sum, d) => sum + (d.value || 0), 0)
@@ -10,58 +11,89 @@ export function DonutChart({ data = [], size = 168, thickness = 20, centerLabel,
   const cx = size / 2
   const cy = size / 2
   const circumference = 2 * Math.PI * radius
-  const gap = total > 0 ? 1.5 : 0 // tiny gap between segments
+  const gap = total > 0 ? 1.5 : 0
 
   let offset = 0
   const segments = total > 0
-    ? data.filter((d) => d.value > 0).map((d) => {
+    ? data.map((d, idx) => {
+        if (!(d.value > 0)) return null
         const fraction = d.value / total
         const len = Math.max(0, fraction * circumference - gap)
-        const seg = { ...d, dash: len, offset }
+        const seg = { ...d, idx, dash: len, offset, pct: Math.round(fraction * 100) }
         offset += fraction * circumference
         return seg
-      })
+      }).filter(Boolean)
     : []
+
+  const active = hover != null ? data[hover] : null
+  const activePct = active && total ? Math.round((active.value / total) * 100) : null
 
   return (
     <div className="flex items-center gap-5">
       <div className="relative shrink-0" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="-rotate-90">
           <defs>
-            {segments.map((s, i) => (
-              <linearGradient key={i} id={`donut-${i}-${s.color.replace('#', '')}`} x1="0" y1="0" x2="1" y2="1">
+            {segments.map((s) => (
+              <linearGradient key={s.idx} id={`donut-${s.idx}-${s.color.replace('#', '')}`} x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stopColor={s.color} stopOpacity="0.85" />
                 <stop offset="100%" stopColor={s.color} stopOpacity="1" />
               </linearGradient>
             ))}
           </defs>
           <circle cx={cx} cy={cy} r={radius} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={thickness} />
-          {segments.map((s, i) => (
-            <circle
-              key={i}
-              cx={cx}
-              cy={cy}
-              r={radius}
-              fill="none"
-              stroke={`url(#donut-${i}-${s.color.replace('#', '')})`}
-              strokeWidth={thickness}
-              strokeDasharray={`${mounted ? s.dash : 0} ${circumference - (mounted ? s.dash : 0)}`}
-              strokeDashoffset={-s.offset}
-              strokeLinecap="round"
-              style={{ transition: 'stroke-dasharray 0.9s cubic-bezier(0.16,1,0.3,1)', transitionDelay: `${i * 0.08}s`, filter: `drop-shadow(0 0 5px ${s.color}40)` }}
-            />
-          ))}
+          {segments.map((s, i) => {
+            const isHover = hover === s.idx
+            const dimmed = hover != null && !isHover
+            return (
+              <circle
+                key={s.idx}
+                cx={cx}
+                cy={cy}
+                r={radius}
+                fill="none"
+                stroke={`url(#donut-${s.idx}-${s.color.replace('#', '')})`}
+                strokeWidth={isHover ? thickness + 5 : thickness}
+                strokeDasharray={`${mounted ? s.dash : 0} ${circumference - (mounted ? s.dash : 0)}`}
+                strokeDashoffset={-s.offset}
+                strokeLinecap="round"
+                onMouseEnter={() => setHover(s.idx)}
+                onMouseLeave={() => setHover(null)}
+                style={{
+                  transition: 'stroke-dasharray 0.9s cubic-bezier(0.16,1,0.3,1), stroke-width 0.2s ease, opacity 0.2s ease',
+                  transitionDelay: mounted ? `0s, 0s, 0s` : `${i * 0.08}s`,
+                  opacity: dimmed ? 0.28 : 1,
+                  filter: `drop-shadow(0 0 ${isHover ? 9 : 5}px ${s.color}${isHover ? '88' : '40'})`,
+                  cursor: 'pointer',
+                }}
+              />
+            )
+          })}
         </svg>
         {centerValue !== undefined && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-[26px] font-bold text-white leading-none tabular tracking-tight">{centerValue}</span>
-            {centerLabel && <span className="text-[10px] uppercase tracking-wider text-slate-500 mt-1">{centerLabel}</span>}
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            {active ? (
+              <>
+                <span className="text-[24px] font-bold leading-none tabular tracking-tight" style={{ color: active.color }}>{activePct}%</span>
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 mt-1 capitalize max-w-[7rem] truncate text-center">{active.label}</span>
+              </>
+            ) : (
+              <>
+                <span className="text-[26px] font-bold text-white leading-none tabular tracking-tight">{centerValue}</span>
+                {centerLabel && <span className="text-[10px] uppercase tracking-wider text-slate-500 mt-1">{centerLabel}</span>}
+              </>
+            )}
           </div>
         )}
       </div>
       <div className="space-y-2 min-w-0 flex-1">
         {data.map((d, i) => (
-          <div key={i} className="flex items-center gap-2 text-xs">
+          <div
+            key={i}
+            onMouseEnter={() => d.value > 0 && setHover(i)}
+            onMouseLeave={() => setHover(null)}
+            className="flex items-center gap-2 text-xs rounded-md px-1 -mx-1 py-0.5 transition-colors cursor-default"
+            style={{ background: hover === i ? 'rgba(255,255,255,0.05)' : 'transparent', opacity: hover != null && hover !== i ? 0.5 : 1 }}
+          >
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color, boxShadow: `0 0 6px ${d.color}66` }} />
             <span className="text-slate-400 capitalize truncate">{d.label}</span>
             <span className="text-slate-100 font-semibold ml-auto tabular">{d.value}</span>

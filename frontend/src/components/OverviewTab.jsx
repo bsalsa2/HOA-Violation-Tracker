@@ -30,7 +30,7 @@ const ICONS = {
 function KpiCard({ label, value, tone = 'slate', iconKey, sub, trend, delay = '' }) {
   const t = TONES[tone] || TONES.slate
   return (
-    <div className={`vt-card vt-card-interactive overflow-hidden p-4 anim-rise ${delay}`}>
+    <div className={`vt-card vt-card-interactive vt-spotlight overflow-hidden p-4 anim-rise ${delay}`}>
       {/* accent rail */}
       <div className={`absolute left-0 top-0 h-full w-[3px] bg-gradient-to-b ${t.rail} opacity-80`} />
       <div className="flex items-start justify-between">
@@ -52,7 +52,7 @@ function KpiCard({ label, value, tone = 'slate', iconKey, sub, trend, delay = ''
 
 function Panel({ title, children, action, className = '' }) {
   return (
-    <div className={`vt-card p-5 ${className}`}>
+    <div className={`vt-card vt-spotlight p-5 ${className}`}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-slate-200 tracking-tight">{title}</h3>
         {action}
