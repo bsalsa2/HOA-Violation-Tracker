@@ -79,8 +79,8 @@ export default function CommandPalette({ open, onClose, residents, violations, o
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-start justify-center pt-[15vh] px-4 bg-black/50 backdrop-blur-sm" onMouseDown={onClose}>
-      <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden" onMouseDown={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[80] flex items-start justify-center pt-[15vh] px-4 bg-black/60" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-800">
           <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />

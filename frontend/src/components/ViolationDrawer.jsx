@@ -99,14 +99,10 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
   const atMaxNotice = (violation.notice_level || 0) >= NOTICE_LEVELS.length - 1
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end" onMouseDown={onClose}>
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-      <div
-        className="relative w-full max-w-md bg-slate-900 border-l border-slate-800 h-full overflow-y-auto shadow-2xl"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="relative w-full max-w-md bg-slate-900 border-l border-slate-800 h-full overflow-y-auto shadow-2xl">
         {/* Header */}
-        <div className="sticky top-0 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-5 py-4 z-10">
+        <div className="sticky top-0 bg-slate-900 border-b border-slate-800 px-5 py-4 z-10">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-white font-semibold truncate">{violation.violation_type}</h2>
@@ -297,8 +293,8 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
 
       {/* Resolve confirmation */}
       {resolveOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onMouseDown={() => setResolveOpen(false)}>
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70" onClick={(e) => { if (e.target === e.currentTarget) setResolveOpen(false) }}>
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 bg-green-500/10 rounded-full flex items-center justify-center shrink-0">
                 <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
