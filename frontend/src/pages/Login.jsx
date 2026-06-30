@@ -45,8 +45,8 @@ function Login({ setToken }) {
       <div className="w-full max-w-md anim-rise">
         {/* Brand */}
         <div className="text-center mb-8">
-          <div className="vt-halo inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#e7d29c] via-[#cda863] to-[#9c7c44] mb-5 ring-1 ring-white/25" style={{ boxShadow: '0 16px 50px -10px rgba(202,169,107,0.6), inset 0 1px 0 0 rgba(255,255,255,0.45)' }}>
-            <svg className="w-8 h-8 text-[#2a2317]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="vt-halo inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#a7f3d0] via-[#34d399] to-[#059669] mb-5 ring-1 ring-white/25" style={{ boxShadow: '0 16px 50px -10px rgba(16,185,129,0.6), inset 0 1px 0 0 rgba(255,255,255,0.45)' }}>
+            <svg className="w-8 h-8 text-[#064e3b]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
           </div>
@@ -63,7 +63,7 @@ function Login({ setToken }) {
                 type="button"
                 onClick={() => { setMode(m); setError('') }}
                 className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-                  mode === m ? 'bg-gradient-to-b from-[#272219] to-[#1a1610] text-white ring-1 ring-[#caa96b]/15 shadow-lg shadow-black/40' : 'text-slate-400 hover:text-white'
+                  mode === m ? 'bg-gradient-to-b from-[#272219] to-[#1a1610] text-white ring-1 ring-[#10b981]/15 shadow-lg shadow-black/40' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 {m === 'login' ? 'Sign In' : 'Create Account'}
@@ -78,7 +78,7 @@ function Login({ setToken }) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="vt-input px-3.5 py-3 focus:ring-2 focus:ring-[#caa96b]/20"
+                className="vt-input px-3.5 py-3 focus:ring-2 focus:ring-[#10b981]/20"
                 placeholder="you@example.com"
                 required
                 autoComplete="email"
@@ -90,7 +90,7 @@ function Login({ setToken }) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="vt-input px-3.5 py-3 focus:ring-2 focus:ring-[#caa96b]/20"
+                className="vt-input px-3.5 py-3 focus:ring-2 focus:ring-[#10b981]/20"
                 placeholder={mode === 'register' ? 'Choose a password' : 'Your password'}
                 required
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
@@ -109,7 +109,7 @@ function Login({ setToken }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-gradient-to-b from-[#e3c98e] to-[#c4a566] hover:from-[#ecd49d] hover:to-[#d0b06f] shadow-lg shadow-[#b08d57]/30 active:scale-[.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 text-[#2a2317] font-semibold rounded-xl transition-all mt-1"
+              className="w-full py-3 bg-gradient-to-b from-[#6ee7b7] to-[#10b981] hover:from-[#b3f2d2] hover:to-[#34d399] shadow-lg shadow-[#10b981]/30 active:scale-[.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 text-[#064e3b] font-semibold rounded-xl transition-all mt-1"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -128,7 +128,7 @@ function Login({ setToken }) {
         <div className="flex items-center justify-center gap-x-5 gap-y-2 mt-6 flex-wrap">
           {HIGHLIGHTS.map((h) => (
             <span key={h.label} className="flex items-center gap-1.5 text-xs text-slate-500">
-              <svg className="w-3.5 h-3.5 text-[#caa96b]/80" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-3.5 h-3.5 text-[#10b981]/80" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
               {h.label}

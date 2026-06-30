@@ -5,12 +5,12 @@ import { STATUS_CONFIG, PRIORITY_CONFIG } from '../lib/constants'
 import { currency } from '../lib/format'
 
 const TONES = {
-  gold: { text: 'text-[#e0c78f]', rail: 'from-[#e3c98e] to-[#b08d57]', chip: 'bg-[#caa96b]/12 text-[#dcc08a] ring-[#caa96b]/25', spark: '#caa96b' },
+  gold: { text: 'text-[#e0c78f]', rail: 'from-[#6ee7b7] to-[#10b981]', chip: 'bg-[#10b981]/12 text-[#6ee7b7] ring-[#10b981]/25', spark: '#10b981' },
   clay: { text: 'text-[#d4988a]', rail: 'from-[#d4988a] to-[#a5604f]', chip: 'bg-[#c17b6a]/12 text-[#d4988a] ring-[#c17b6a]/25', spark: '#c17b6a' },
   sage: { text: 'text-[#a8c3a3]', rail: 'from-[#a8c3a3] to-[#6f9069]', chip: 'bg-[#8fae8b]/12 text-[#a8c3a3] ring-[#8fae8b]/25', spark: '#8fae8b' },
   stone: { text: 'text-[#c4bdb0]', rail: 'from-[#c4bdb0] to-[#7c766a]', chip: 'bg-[#9a948a]/12 text-[#c4bdb0] ring-[#9a948a]/25', spark: '#a8a194' },
   // legacy aliases → mapped to the luxe set
-  amber: { text: 'text-[#e0c78f]', rail: 'from-[#e3c98e] to-[#b08d57]', chip: 'bg-[#caa96b]/12 text-[#dcc08a] ring-[#caa96b]/25', spark: '#caa96b' },
+  amber: { text: 'text-[#e0c78f]', rail: 'from-[#6ee7b7] to-[#10b981]', chip: 'bg-[#10b981]/12 text-[#6ee7b7] ring-[#10b981]/25', spark: '#10b981' },
   red: { text: 'text-[#d4988a]', rail: 'from-[#d4988a] to-[#a5604f]', chip: 'bg-[#c17b6a]/12 text-[#d4988a] ring-[#c17b6a]/25', spark: '#c17b6a' },
   green: { text: 'text-[#a8c3a3]', rail: 'from-[#a8c3a3] to-[#6f9069]', chip: 'bg-[#8fae8b]/12 text-[#a8c3a3] ring-[#8fae8b]/25', spark: '#8fae8b' },
   blue: { text: 'text-[#c4bdb0]', rail: 'from-[#c4bdb0] to-[#7c766a]', chip: 'bg-[#9a948a]/12 text-[#c4bdb0] ring-[#9a948a]/25', spark: '#a8a194' },
@@ -134,7 +134,7 @@ export default function OverviewTab({ analytics, loading, onOpenResident }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Panel title="Most Common Violation Types" className="anim-rise stagger-3">
-          <BarList data={analytics.by_type || []} color="#caa96b" />
+          <BarList data={analytics.by_type || []} color="#10b981" />
         </Panel>
 
         <Panel title="Repeat Offenders" className="anim-rise stagger-4">
@@ -159,7 +159,7 @@ export default function OverviewTab({ analytics, loading, onOpenResident }) {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {o.open > 0 && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#caa96b]/12 text-[#d8be86] border border-[#caa96b]/25">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#10b981]/12 text-[#6ee7b7] border border-[#10b981]/25">
                         {o.open} active
                       </span>
                     )}

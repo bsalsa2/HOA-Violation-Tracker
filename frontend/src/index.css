@@ -10,8 +10,8 @@
     --bg: #0b0a08;
     --surface-1: 40 14% 9%;     /* warm graphite, hsl parts for layering */
     --line: 255 252 246;        /* warm hairline, rgb parts */
-    --gold: 202 169 107;        /* champagne gold */
-    --gold-soft: 224 203 146;
+    --gold: 16 185 129;        /* champagne gold */
+    --gold-soft: 167 243 208;
     --radius: 14px;
 
     /* Elevation shadows tuned for a near-black canvas */
@@ -44,9 +44,9 @@
     z-index: 0;
     pointer-events: none;
     background:
-      radial-gradient(58rem 38rem at 50% -18%, rgba(202, 169, 107, 0.10), transparent 60%),
-      radial-gradient(42rem 30rem at 100% -6%, rgba(180, 150, 100, 0.07), transparent 58%),
-      radial-gradient(70rem 52rem at 50% 122%, rgba(202, 169, 107, 0.04), transparent 60%);
+      radial-gradient(58rem 38rem at 50% -18%, rgba(16, 185, 129, 0.10), transparent 60%),
+      radial-gradient(42rem 30rem at 100% -6%, rgba(16, 185, 129, 0.07), transparent 58%),
+      radial-gradient(70rem 52rem at 50% 122%, rgba(16, 185, 129, 0.04), transparent 60%);
   }
 
   /* Ultra-fine film grain for a richer, less "flat digital" surface */
@@ -71,7 +71,7 @@
   }
 
   ::selection {
-    background: rgba(202, 169, 107, 0.3);
+    background: rgba(16, 185, 129, 0.3);
     color: #fff;
   }
 
@@ -159,17 +159,17 @@
   .btn-primary {
     position: relative;
     isolation: isolate;
-    color: #2a2317;
+    color: #064e3b;
     @apply font-semibold rounded-xl transition-all duration-200
            active:scale-[.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100;
-    background: linear-gradient(180deg, #e3c98e, #c4a566);
+    background: linear-gradient(180deg, #6ee7b7, #10b981);
     box-shadow:
       inset 0 1px 0 0 rgba(255, 255, 255, 0.45),
       0 6px 18px -4px rgba(180, 150, 95, 0.4),
       0 1px 2px rgba(0, 0, 0, 0.4);
   }
   .btn-primary:hover:not(:disabled) {
-    background: linear-gradient(180deg, #ecd49d, #d0b06f);
+    background: linear-gradient(180deg, #b3f2d2, #34d399);
     box-shadow:
       inset 0 1px 0 0 rgba(255, 255, 255, 0.55),
       0 8px 26px -4px rgba(180, 150, 95, 0.55),
@@ -310,7 +310,7 @@
 
   /* Animated brand gradient text — champagne shimmer */
   .brand-gradient {
-    background: linear-gradient(100deg, #d8be86, #f3e7c6, #d8be86);
+    background: linear-gradient(100deg, #6ee7b7, #f3e7c6, #6ee7b7);
     background-size: 200% auto;
     -webkit-background-clip: text;
     background-clip: text;
@@ -319,8 +319,8 @@
   }
 
   /* Reusable champagne accent helpers */
-  .text-gold { color: #d8be86; }
-  .text-gold-soft { color: #cbb588; }
+  .text-gold { color: #6ee7b7; }
+  .text-gold-soft { color: #5bba99; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
