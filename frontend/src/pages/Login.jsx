@@ -41,29 +41,29 @@ function Login({ setToken }) {
         className="absolute inset-0 -z-10 bg-cover bg-center opacity-70"
         style={{ backgroundImage: "url('/brand/login-backdrop.png')" }}
       />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-indigo-50/40 via-violet-50/70 to-white" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-gray-900 via-gray-800 to-black" />
       <div className="w-full max-w-md anim-rise">
         {/* Brand */}
         <div className="text-center mb-8">
-          <div className="vt-halo inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#e0e7ff] via-[#6366f1] to-[#3730a3] mb-5 ring-1 ring-indigo-300/30" style={{ boxShadow: '0 16px 50px -10px rgba(79, 70, 229,0.3), inset 0 1px 0 0 rgba(255,255,255,0.45)' }}>
-            <svg className="w-8 h-8 text-[#064e3b]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="vt-halo inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#374151] via-[#1f2937] to-[#111827] mb-5 ring-1 ring-gray-700" style={{ boxShadow: '0 16px 50px -10px rgba(0,0,0,0.4), inset 0 1px 0 0 rgba(255,255,255,0.1)' }}>
+            <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight brand-gradient">ViolationTrack</h1>
-          <p className="text-gray-600 text-sm mt-2">Modern violation management for property managers</p>
+          <h1 className="text-3xl font-bold tracking-tight text-white">ViolationTrack</h1>
+          <p className="text-gray-400 text-sm mt-2">Modern violation management for property managers</p>
         </div>
 
         {/* Auth card */}
-        <div className="vt-card p-7" style={{ boxShadow: 'inset 0 1px 0 0 rgba(99,102,241,0.08), var(--shadow-xl)' }}>
-          <div className="flex bg-gray-100/50 ring-1 ring-gray-300/20 rounded-xl p-1 mb-6">
+        <div className="bg-gray-900/60 backdrop-blur p-7 rounded-xl border border-gray-700/50" style={{ boxShadow: '0 16px 50px -10px rgba(0,0,0,0.6)' }}>
+          <div className="flex bg-gray-800/50 ring-1 ring-gray-700/30 rounded-lg p-1 mb-6">
             {['login', 'register'].map((m) => (
               <button
                 key={m}
                 type="button"
                 onClick={() => { setMode(m); setError('') }}
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-                  mode === m ? 'bg-gradient-to-b from-gray-100 to-gray-50 text-gray-900 ring-1 ring-indigo-300/30 shadow-lg shadow-gray-900/10' : 'text-gray-600 hover:text-gray-900'
+                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
+                  mode === m ? 'bg-gray-700 text-white ring-1 ring-gray-600 shadow-lg shadow-black/20' : 'text-gray-400 hover:text-gray-200'
                 }`}
               >
                 {m === 'login' ? 'Sign In' : 'Create Account'}
@@ -73,24 +73,24 @@ function Login({ setToken }) {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1.5">Email address</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">Email address</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="vt-input px-3.5 py-3 focus:ring-2 focus:ring-indigo-300/30"
+                className="w-full px-3.5 py-3 bg-gray-800 border border-gray-700 text-white placeholder-gray-500 rounded-lg transition-all focus:outline-none focus:border-gray-600"
                 placeholder="you@example.com"
                 required
                 autoComplete="email"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1.5">Password</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="vt-input px-3.5 py-3 focus:ring-2 focus:ring-indigo-300/30"
+                className="w-full px-3.5 py-3 bg-gray-800 border border-gray-700 text-white placeholder-gray-500 rounded-lg transition-all focus:outline-none focus:border-gray-600"
                 placeholder={mode === 'register' ? 'Choose a password' : 'Your password'}
                 required
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
@@ -98,7 +98,7 @@ function Login({ setToken }) {
             </div>
 
             {error && (
-              <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-3 anim-fade">
+              <div className="flex items-start gap-2 bg-red-900/30 border border-red-800/50 text-red-200 text-sm rounded-lg p-3 anim-fade">
                 <svg className="w-4 h-4 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
@@ -109,7 +109,7 @@ function Login({ setToken }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-gradient-to-b from-[#818cf8] to-[#4f46e5] hover:from-[#a5b4fc] hover:to-[#6366f1] shadow-lg shadow-[#4f46e5]/30 active:scale-[.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 text-[#064e3b] font-semibold rounded-xl transition-all mt-1"
+              className="w-full py-3 bg-gray-700 hover:bg-gray-600 shadow-lg shadow-black/30 active:scale-[.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 text-white font-semibold rounded-lg transition-all mt-1"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -127,8 +127,8 @@ function Login({ setToken }) {
         {/* Trust row */}
         <div className="flex items-center justify-center gap-x-5 gap-y-2 mt-6 flex-wrap">
           {HIGHLIGHTS.map((h) => (
-            <span key={h.label} className="flex items-center gap-1.5 text-xs text-gray-500">
-              <svg className="w-3.5 h-3.5 text-[#4f46e5]/80" fill="currentColor" viewBox="0 0 20 20">
+            <span key={h.label} className="flex items-center gap-1.5 text-xs text-gray-400">
+              <svg className="w-3.5 h-3.5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
               {h.label}

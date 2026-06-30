@@ -71,7 +71,7 @@ export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onV
                     {r.email ? (
                       <span className="text-xs text-gray-500 truncate">{r.email}</span>
                     ) : (
-                      <span className="text-xs text-[#4f46e5]/80">No email</span>
+                      <span className="text-xs text-[#374151]/80">No email</span>
                     )}
                     {r.phone && <span className="text-xs text-gray-500">{r.phone}</span>}
                   </div>
@@ -85,7 +85,7 @@ export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onV
                       title="View this resident's violations"
                     >
                       {r.open_count > 0 && (
-                        <span className="px-2 py-0.5 rounded-full bg-[#4f46e5]/12 text-[#818cf8] border border-[#4f46e5]/25">{r.open_count} active</span>
+                        <span className="px-2 py-0.5 rounded-full bg-[#374151]/12 text-[#6b7280] border border-[#374151]/25">{r.open_count} active</span>
                       )}
                       <span className="px-2 py-0.5 rounded-full bg-slate-700/50 text-gray-600">{r.violation_count} total</span>
                     </button>

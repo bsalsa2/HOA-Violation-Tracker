@@ -14,7 +14,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
           onClick={() => onOpen(hoa)}
           className="flex items-center gap-3 flex-1 text-left min-w-0"
         >
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#818cf8]/90 to-[#3730a3]/90 ring-1 ring-white/15 flex items-center justify-center text-sm font-bold text-gray-900 shrink-0" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.25)' }}>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6b7280]/90 to-[#3730a3]/90 ring-1 ring-white/15 flex items-center justify-center text-sm font-bold text-gray-900 shrink-0" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.25)' }}>
             {(hoa.name || '?').replace(/[^a-zA-Z ]/g, '').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -29,7 +29,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
             </span>
           )}
           {!isConfigured && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#4f46e5]/12 text-[#818cf8] border border-[#4f46e5]/25 font-medium">
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#374151]/12 text-[#6b7280] border border-[#374151]/25 font-medium">
               Setup needed
             </span>
           )}
@@ -48,7 +48,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
           <p className="text-[10px] text-gray-500 mt-1">Residents</p>
         </div>
         <div className="bg-white/[0.03] ring-1 ring-white/[0.05] rounded-xl p-2.5">
-          <p className="text-lg font-bold text-[#818cf8] leading-none"><CountUp value={hoa.open_violations} /></p>
+          <p className="text-lg font-bold text-[#6b7280] leading-none"><CountUp value={hoa.open_violations} /></p>
           <p className="text-[10px] text-gray-500 mt-1">Open Cases</p>
         </div>
         <div className="bg-white/[0.03] ring-1 ring-white/[0.05] rounded-xl p-2.5">
@@ -56,7 +56,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
           <p className="text-[10px] text-gray-500 mt-1">Fines Due</p>
         </div>
       </div>
-      <button onClick={() => onOpen(hoa)} className="flex items-center gap-1 mt-4 text-xs text-[#5bba99] hover:text-[#818cf8] transition-colors">
+      <button onClick={() => onOpen(hoa)} className="flex items-center gap-1 mt-4 text-xs text-[#5bba99] hover:text-[#6b7280] transition-colors">
         Open dashboard
         <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
       </button>
@@ -81,7 +81,7 @@ export default function PortfolioOverview({ hoas, onOpen, onAddClient, onSignOut
   return (
     <div className="min-h-screen bg-transparent text-gray-900">
       <header className="relative bg-white/85 backdrop-blur-xl border-b border-gray-100 px-6 py-3 sticky top-0 z-20">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#4f46e5]/50 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#374151]/50 to-transparent" />
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-gradient-to-br from-[#e0e7ff] to-[#3730a3] rounded-xl flex items-center justify-center ring-1 ring-white/25" style={{ boxShadow: '0 6px 20px -4px rgba(99,102,241,0.55), inset 0 1px 0 0 rgba(255,255,255,0.4)' }}>
@@ -109,7 +109,7 @@ export default function PortfolioOverview({ hoas, onOpen, onAddClient, onSignOut
             <p className="text-xs text-gray-500 mt-1">Total Residents</p>
           </div>
           <div className="vt-card p-4 anim-rise stagger-2">
-            <p className="text-2xl font-bold text-[#818cf8]"><CountUp value={totals.open} /></p>
+            <p className="text-2xl font-bold text-[#6b7280]"><CountUp value={totals.open} /></p>
             <p className="text-xs text-gray-500 mt-1">Open Cases</p>
           </div>
           <div className="vt-card p-4 anim-rise stagger-3">
@@ -126,9 +126,9 @@ export default function PortfolioOverview({ hoas, onOpen, onAddClient, onSignOut
           {hoas.map((h) => (<ClientCard key={h.id} hoa={h} onOpen={onOpen} onSettings={onOpen} />))}
           <button
             onClick={onAddClient}
-            className="border-2 border-dashed border-gray-200 hover:border-[#4f46e5]/40 hover:bg-[#4f46e5]/[0.04] rounded-2xl p-5 flex flex-col items-center justify-center gap-2 text-gray-500 hover:text-[#818cf8] transition-all min-h-[180px] group"
+            className="border-2 border-dashed border-gray-200 hover:border-[#374151]/40 hover:bg-[#374151]/[0.04] rounded-2xl p-5 flex flex-col items-center justify-center gap-2 text-gray-500 hover:text-[#6b7280] transition-all min-h-[180px] group"
           >
-            <div className="w-11 h-11 rounded-xl bg-white/[0.03] ring-1 ring-white/[0.06] flex items-center justify-center group-hover:ring-[#4f46e5]/40 transition-all">
+            <div className="w-11 h-11 rounded-xl bg-white/[0.03] ring-1 ring-white/[0.06] flex items-center justify-center group-hover:ring-[#374151]/40 transition-all">
               <svg className="w-6 h-6 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" /></svg>
             </div>
             <span className="text-sm font-medium">Add another client</span>

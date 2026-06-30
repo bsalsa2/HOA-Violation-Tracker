@@ -269,7 +269,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
   return (
     <div className="min-h-screen bg-transparent text-gray-900">
       <header className="relative bg-white/85 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-30">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#4f46e5]/50 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#374151]/50 to-transparent" />
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between py-3 gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
@@ -303,13 +303,13 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
               >
                 {t.label}
                 {t.badge !== undefined && t.badge > 0 && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${tab === t.key ? 'bg-[#4f46e5]/15 text-[#818cf8]' : 'bg-white/[0.06] text-gray-600'}`}>{t.badge}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${tab === t.key ? 'bg-[#374151]/15 text-[#6b7280]' : 'bg-white/[0.06] text-gray-600'}`}>{t.badge}</span>
                 )}
                 {t.key === 'violations' && overdueCount > 0 && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20">{overdueCount} overdue</span>
                 )}
                 {tab === t.key && (
-                  <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-[#818cf8] to-[#4f46e5]" style={{ boxShadow: '0 0 10px rgba(99,102,241,0.6)' }} />
+                  <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-[#6b7280] to-[#374151]" style={{ boxShadow: '0 0 10px rgba(99,102,241,0.6)' }} />
                 )}
               </button>
             ))}

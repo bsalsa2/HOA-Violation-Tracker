@@ -4,7 +4,7 @@ import { Badge, Spinner } from './primitives'
 import { STATUS_CONFIG, PRIORITY_CONFIG, NOTICE_LEVELS } from '../lib/constants'
 import { formatDate, formatDateTime, relativeTime, currency, dueLabel, isOverdue } from '../lib/format'
 
-const inputCls = 'px-2.5 py-1.5 bg-slate-900/60 text-gray-900 text-sm rounded-lg border border-gray-200 focus:outline-none focus:border-[#4f46e5]'
+const inputCls = 'px-2.5 py-1.5 bg-slate-900/60 text-gray-900 text-sm rounded-lg border border-gray-200 focus:outline-none focus:border-[#374151]'
 
 export default function ViolationDrawer({ violation, onClose, onUpdate, onEscalate, onSendEmail, onViewLetter, onDelete, sending }) {
   const [notes, setNotes] = useState([])
@@ -163,7 +163,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
                 onChange={(e) => e.target.value && runUpdate({ due_date: e.target.value })}
               />
               {due && (
-                <span className={`text-xs font-medium ${due.tone === 'overdue' ? 'text-[#d4988a]' : due.tone === 'soon' ? 'text-[#818cf8]' : 'text-gray-600'}`}>
+                <span className={`text-xs font-medium ${due.tone === 'overdue' ? 'text-[#d4988a]' : due.tone === 'soon' ? 'text-[#6b7280]' : 'text-gray-600'}`}>
                   {due.text}
                 </span>
               )}
@@ -181,7 +181,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
                   className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
                     violation.fine_paid
                       ? 'bg-[#8fae8b]/12 text-[#a8c3a3] border-[#8fae8b]/25'
-                      : 'bg-[#4f46e5]/12 text-[#818cf8] border-[#4f46e5]/25 hover:bg-[#4f46e5]/18'
+                      : 'bg-[#374151]/12 text-[#6b7280] border-[#374151]/25 hover:bg-[#374151]/18'
                   }`}
                 >
                   {violation.fine_paid ? '✓ Paid' : 'Mark paid'}
@@ -201,7 +201,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
                   onChange={(e) => setFineInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSaveFine()}
                 />
-                <button onClick={handleSaveFine} className="text-xs px-3 py-1.5 bg-gradient-to-b from-[#818cf8] to-[#4f46e5] hover:from-[#a5b4fc] hover:to-[#6366f1] shadow-lg shadow-[#4f46e5]/30 active:scale-[.98] text-[#064e3b] font-semibold rounded-lg">Save</button>
+                <button onClick={handleSaveFine} className="text-xs px-3 py-1.5 bg-gradient-to-b from-[#6b7280] to-[#374151] hover:from-[#9ca3af] hover:to-[#4b5563] shadow-lg shadow-[#374151]/30 active:scale-[.98] text-[#064e3b] font-semibold rounded-lg">Save</button>
                 <button onClick={() => { setEditingFine(false); setFineInput(String(violation.fine_amount || '')) }} className="text-xs px-2 py-1.5 text-gray-600 hover:text-gray-900">Cancel</button>
               </div>
             ) : (
@@ -241,7 +241,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
               </button>
             </div>
             {violation.email_sent_at && (
-              <p className="text-xs text-[#4f46e5]/80 mt-2">Last letter emailed {formatDate(violation.email_sent_at)}</p>
+              <p className="text-xs text-[#374151]/80 mt-2">Last letter emailed {formatDate(violation.email_sent_at)}</p>
             )}
           </div>
 
@@ -255,7 +255,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
                 value={newNote}
                 onChange={(e) => setNewNote(e.target.value)}
               />
-              <button type="submit" disabled={savingNote || !newNote.trim()} className="text-sm px-3 py-1.5 bg-gradient-to-b from-[#818cf8] to-[#4f46e5] hover:from-[#a5b4fc] hover:to-[#6366f1] shadow-lg shadow-[#4f46e5]/30 active:scale-[.98] disabled:opacity-50 text-[#064e3b] font-semibold rounded-lg shrink-0">
+              <button type="submit" disabled={savingNote || !newNote.trim()} className="text-sm px-3 py-1.5 bg-gradient-to-b from-[#6b7280] to-[#374151] hover:from-[#9ca3af] hover:to-[#4b5563] shadow-lg shadow-[#374151]/30 active:scale-[.98] disabled:opacity-50 text-[#064e3b] font-semibold rounded-lg shrink-0">
                 {savingNote ? <Spinner className="w-3.5 h-3.5" /> : 'Add'}
               </button>
             </form>
@@ -269,7 +269,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
                 {[...notes].reverse().map((n) => (
                   <div key={n.id} className="flex gap-3">
                     <div className="flex flex-col items-center pt-1">
-                      <span className={`w-2 h-2 rounded-full ${n.kind === 'system' ? 'bg-slate-500' : 'bg-[#4f46e5]'}`} />
+                      <span className={`w-2 h-2 rounded-full ${n.kind === 'system' ? 'bg-slate-500' : 'bg-[#374151]'}`} />
                       <span className="w-px flex-1 bg-slate-800 mt-1" />
                     </div>
                     <div className="pb-1 min-w-0">

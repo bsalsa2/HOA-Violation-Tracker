@@ -6,19 +6,19 @@
   :root {
     color-scheme: light;
 
-    /* ── Design tokens — clean white canvas, indigo accent ── */
+    /* ── Design tokens — minimalist white, neutral grays ── */
     --bg: #ffffff;
-    --surface-1: 0 0% 97%;     /* light gray surface */
-    --line: 0 0% 20%;          /* dark divider line */
-    --gold: 99 102 241;        /* indigo/violet accent */
-    --gold-soft: 165 180 252;
-    --radius: 14px;
+    --surface-1: 0 0% 96%;     /* light gray surface */
+    --line: 0 0% 85%;          /* subtle divider */
+    --gold: 0 0% 40%;          /* muted charcoal accent */
+    --gold-soft: 0 0% 60%;     /* soft gray */
+    --radius: 8px;
 
-    /* Elevation shadows tuned for white canvas */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
-    --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.12);
-    --shadow-lg: 0 18px 50px -12px rgba(0, 0, 0, 0.15);
-    --shadow-xl: 0 30px 80px -20px rgba(0, 0, 0, 0.2);
+    /* Minimal shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.12);
   }
 
   html {
@@ -36,17 +36,8 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* Subtle background glow for white theme */
   body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background:
-      radial-gradient(58rem 38rem at 50% -18%, rgba(99, 102, 241, 0.04), transparent 60%),
-      radial-gradient(42rem 30rem at 100% -6%, rgba(139, 92, 246, 0.03), transparent 58%),
-      radial-gradient(70rem 52rem at 50% 122%, rgba(99, 102, 241, 0.02), transparent 60%);
+    display: none;
   }
 
   body::after {
@@ -63,7 +54,7 @@
   }
 
   ::selection {
-    background: rgba(99, 102, 241, 0.2);
+    background: rgba(0, 0, 0, 0.1);
     color: #0f0f0f;
   }
 
@@ -90,7 +81,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid rgba(99, 102, 241, 0.65);
+    outline: 2px solid rgba(0, 0, 0, 0.4);
     outline-offset: 2px;
   }
 }
@@ -112,8 +103,8 @@
     transition: border-color 0.22s ease, background 0.22s ease;
   }
   .vt-card-interactive:hover {
-    border-color: rgba(0, 0, 0, 0.12);
-    background: rgba(99, 102, 241, 0.02);
+    border-color: rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.02);
   }
 
   /* Legacy alias kept so existing markup still looks right */
@@ -127,32 +118,26 @@
   /* ── Controls ────────────────────────────────────────────── */
   .vt-input {
     @apply w-full text-gray-900 rounded-lg border placeholder-gray-400 transition-all duration-200 bg-white;
-    border-color: rgba(0, 0, 0, 0.1);
+    border-color: rgba(0, 0, 0, 0.08);
   }
   .vt-input:focus {
     @apply outline-none;
-    border-color: rgba(99, 102, 241, 0.6);
-    background: rgba(99, 102, 241, 0.02);
+    border-color: rgba(0, 0, 0, 0.3);
+    background: #ffffff;
   }
 
   .btn-primary {
     position: relative;
     isolation: isolate;
-    color: #fff;
-    @apply font-semibold rounded-xl transition-all duration-200
+    color: #ffffff;
+    @apply font-semibold rounded-lg transition-all duration-200
            active:scale-[.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100;
-    background: linear-gradient(180deg, #818cf8, #4f46e5);
-    box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.35),
-      0 6px 18px -4px rgba(79, 70, 229, 0.3),
-      0 1px 2px rgba(0, 0, 0, 0.08);
+    background: #1f2937;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
   .btn-primary:hover:not(:disabled) {
-    background: linear-gradient(180deg, #a5b4fc, #6366f1);
-    box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.45),
-      0 8px 26px -4px rgba(99, 102, 241, 0.4),
-      0 1px 2px rgba(0, 0, 0, 0.08);
+    background: #111827;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   }
 
   /* Subtle sheen that sweeps a primary button on hover */
@@ -173,10 +158,10 @@
     @apply px-2.5 py-1 text-xs rounded-full border transition-all duration-200;
   }
 
-  /* Hairline divider with a faint gradient (premium detail) */
+  /* Hairline divider */
   .vt-hairline {
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.08), transparent);
   }
 
   /* Spotlight disabled for cleaner aesthetic */
@@ -189,20 +174,7 @@
     position: relative;
   }
   .vt-halo::after {
-    content: "";
-    position: absolute;
-    inset: -45%;
-    z-index: -1;
-    border-radius: 9999px;
-    background: conic-gradient(from 0deg,
-      rgba(99, 102, 241, 0) 0deg,
-      rgba(99, 102, 241, 0.2) 70deg,
-      rgba(99, 102, 241, 0) 150deg,
-      rgba(99, 102, 241, 0) 210deg,
-      rgba(139, 92, 246, 0.15) 290deg,
-      rgba(99, 102, 241, 0) 360deg);
-    filter: blur(14px);
-    animation: vt-spin 7s linear infinite;
+    display: none;
   }
 }
 
@@ -277,9 +249,9 @@
     animation: vt-pulse-ring 2s infinite;
   }
 
-  /* Animated brand gradient text — indigo shimmer */
+  /* Animated brand gradient text — minimal charcoal */
   .brand-gradient {
-    background: linear-gradient(100deg, #4f46e5, #818cf8, #4f46e5);
+    background: linear-gradient(100deg, #374151, #1f2937, #374151);
     background-size: 200% auto;
     -webkit-background-clip: text;
     background-clip: text;
@@ -288,8 +260,8 @@
   }
 
   /* Reusable accent helpers */
-  .text-gold { color: #4f46e5; }
-  .text-gold-soft { color: #6366f1; }
+  .text-gold { color: #374151; }
+  .text-gold-soft { color: #6b7280; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
