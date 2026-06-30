@@ -14,7 +14,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
           onClick={() => onOpen(hoa)}
           className="flex items-center gap-3 flex-1 text-left min-w-0"
         >
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6b7280]/90 to-[#3730a3]/90 ring-1 ring-white/15 flex items-center justify-center text-sm font-bold text-gray-900 shrink-0" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.25)' }}>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d1d5db] to-[#4b5563] ring-1 ring-gray-300/30 flex items-center justify-center text-sm font-bold text-gray-900 shrink-0" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.25)' }}>
             {(hoa.name || '?').replace(/[^a-zA-Z ]/g, '').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -84,8 +84,8 @@ export default function PortfolioOverview({ hoas, onOpen, onAddClient, onSignOut
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#374151]/50 to-transparent" />
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-[#e0e7ff] to-[#3730a3] rounded-xl flex items-center justify-center ring-1 ring-white/25" style={{ boxShadow: '0 6px 20px -4px rgba(99,102,241,0.55), inset 0 1px 0 0 rgba(255,255,255,0.4)' }}>
-              <svg className="w-4 h-4 text-[#064e3b]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+            <div className="w-8 h-8 bg-gradient-to-br from-[#e5e7eb] to-[#374151] rounded-xl flex items-center justify-center ring-1 ring-gray-300/30" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08), inset 0 1px 0 0 rgba(255,255,255,0.3)' }}>
+              <svg className="w-4 h-4 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
             </div>
             <h1 className="font-semibold text-sm text-gray-900 tracking-tight">ViolationTrack <span className="text-gray-500 font-normal">· Portfolio</span></h1>
           </div>

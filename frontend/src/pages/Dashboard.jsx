@@ -273,8 +273,8 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between py-3 gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 bg-gradient-to-br from-[#e0e7ff] to-[#3730a3] rounded-xl flex items-center justify-center shrink-0 ring-1 ring-white/25" style={{ boxShadow: '0 6px 20px -4px rgba(99,102,241,0.55), inset 0 1px 0 0 rgba(255,255,255,0.4)' }}>
-                <svg className="w-4 h-4 text-[#064e3b]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="w-8 h-8 bg-gradient-to-br from-[#e5e7eb] to-[#374151] rounded-xl flex items-center justify-center shrink-0 ring-1 ring-gray-300/30" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08), inset 0 1px 0 0 rgba(255,255,255,0.3)' }}>
+                <svg className="w-4 h-4 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
               </div>
@@ -309,7 +309,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20">{overdueCount} overdue</span>
                 )}
                 {tab === t.key && (
-                  <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-[#6b7280] to-[#374151]" style={{ boxShadow: '0 0 10px rgba(99,102,241,0.6)' }} />
+                  <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-gray-900" style={{ boxShadow: '0 0 8px rgba(0,0,0,0.15)' }} />
                 )}
               </button>
             ))}
