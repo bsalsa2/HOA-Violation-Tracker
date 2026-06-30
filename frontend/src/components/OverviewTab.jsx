@@ -4,9 +4,9 @@ import { currency } from '../lib/format'
 
 function KpiCard({ label, value, delay = '' }) {
   return (
-    <div className={`border border-white/10 rounded-lg p-5 anim-rise ${delay}`}>
-      <p className="text-slate-400 text-xs font-medium mb-2">{label}</p>
-      <p className="text-3xl leading-none font-bold text-white">
+    <div className={`border border-gray-200 rounded-lg p-5 anim-rise ${delay}`}>
+      <p className="text-gray-600 text-xs font-medium mb-2">{label}</p>
+      <p className="text-3xl leading-none font-bold text-gray-900">
         <CountUp value={value} />
       </p>
     </div>
@@ -18,7 +18,7 @@ function OverviewSkeleton() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="border border-white/10 rounded-lg p-5">
+          <div key={i} className="border border-gray-200 rounded-lg p-5">
             <Skeleton className="w-24 h-3 mb-3" />
             <Skeleton className="w-full h-36 mt-4 rounded-xl" />
           </div>
@@ -46,17 +46,17 @@ export default function OverviewTab({ analytics, loading, onOpenResident }) {
 
       {/* Top Offenders */}
       {(analytics.top_offenders || []).length > 0 && (
-        <div className="border border-white/10 rounded-lg p-5 anim-rise stagger-2">
-          <h3 className="text-sm font-semibold text-slate-200 mb-4">Top Residents</h3>
+        <div className="border border-gray-200 rounded-lg p-5 anim-rise stagger-2">
+          <h3 className="text-sm font-semibold text-gray-700 mb-4">Top Residents</h3>
           <div className="space-y-2">
             {analytics.top_offenders.slice(0, 5).map((o, i) => (
               <button
                 key={o.resident_id}
                 onClick={() => onOpenResident?.(o.resident_id)}
-                className="w-full flex items-center justify-between p-2.5 rounded hover:bg-white/[0.04] transition-colors text-left text-sm"
+                className="w-full flex items-center justify-between p-2.5 rounded hover:bg-gray-100 transition-colors text-left text-sm"
               >
-                <span className="text-slate-200">{o.name}</span>
-                <span className="text-slate-400">{o.total} violations</span>
+                <span className="text-gray-700">{o.name}</span>
+                <span className="text-gray-600">{o.total} violations</span>
               </button>
             ))}
           </div>

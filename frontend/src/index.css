@@ -4,21 +4,21 @@
 
 @layer base {
   :root {
-    color-scheme: dark;
+    color-scheme: light;
 
-    /* ── Design tokens — cool indigo canvas, violet accent ── */
-    --bg: #0a0a14;
-    --surface-1: 250 35% 10%;   /* cool indigo graphite, hsl parts for layering */
-    --line: 226 232 255;        /* cool hairline, rgb parts */
-    --gold: 99 102 241;         /* vivid indigo/violet accent */
+    /* ── Design tokens — clean white canvas, indigo accent ── */
+    --bg: #ffffff;
+    --surface-1: 0 0% 97%;     /* light gray surface */
+    --line: 0 0% 20%;          /* dark divider line */
+    --gold: 99 102 241;        /* indigo/violet accent */
     --gold-soft: 165 180 252;
     --radius: 14px;
 
-    /* Elevation shadows tuned for a near-black canvas */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
-    --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.55);
-    --shadow-lg: 0 18px 50px -12px rgba(0, 0, 0, 0.7);
-    --shadow-xl: 0 30px 80px -20px rgba(0, 0, 0, 0.8);
+    /* Elevation shadows tuned for white canvas */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 18px 50px -12px rgba(0, 0, 0, 0.15);
+    --shadow-xl: 0 30px 80px -20px rgba(0, 0, 0, 0.2);
   }
 
   html {
@@ -28,7 +28,7 @@
   body {
     margin: 0;
     background-color: var(--bg);
-    color: #e8e6f7;
+    color: #0f0f0f;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
     letter-spacing: -0.011em;
     -webkit-font-smoothing: antialiased;
@@ -36,7 +36,7 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* Ambient, atmospheric glow — cool violet wash */
+  /* Subtle background glow for white theme */
   body::before {
     content: "";
     position: fixed;
@@ -44,21 +44,13 @@
     z-index: 0;
     pointer-events: none;
     background:
-      radial-gradient(58rem 38rem at 50% -18%, rgba(99, 102, 241, 0.16), transparent 60%),
-      radial-gradient(42rem 30rem at 100% -6%, rgba(139, 92, 246, 0.10), transparent 58%),
-      radial-gradient(70rem 52rem at 50% 122%, rgba(99, 102, 241, 0.06), transparent 60%);
+      radial-gradient(58rem 38rem at 50% -18%, rgba(99, 102, 241, 0.04), transparent 60%),
+      radial-gradient(42rem 30rem at 100% -6%, rgba(139, 92, 246, 0.03), transparent 58%),
+      radial-gradient(70rem 52rem at 50% 122%, rgba(99, 102, 241, 0.02), transparent 60%);
   }
 
-  /* Ultra-fine film grain for a richer, less "flat digital" surface */
   body::after {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    opacity: 0.022;
-    mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    display: none;
   }
 
   #root {
@@ -71,13 +63,13 @@
   }
 
   ::selection {
-    background: rgba(99, 102, 241, 0.35);
-    color: #fff;
+    background: rgba(99, 102, 241, 0.2);
+    color: #0f0f0f;
   }
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: #2b2a45 transparent;
+    scrollbar-color: #d1d5db transparent;
   }
   ::-webkit-scrollbar {
     width: 10px;
@@ -87,13 +79,13 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #232140;
+    background: #e5e7eb;
     border-radius: 9999px;
     border: 2px solid transparent;
     background-clip: content-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #34315c;
+    background: #d1d5db;
     background-clip: content-box;
   }
 
@@ -111,8 +103,8 @@
   .vt-card {
     position: relative;
     border-radius: 8px;
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
   }
 
   /* Interactive cards brighten on hover */
@@ -120,8 +112,8 @@
     transition: border-color 0.22s ease, background 0.22s ease;
   }
   .vt-card-interactive:hover {
-    border-color: rgba(255, 255, 255, 0.15);
-    background: rgba(255, 255, 255, 0.02);
+    border-color: rgba(0, 0, 0, 0.12);
+    background: rgba(99, 102, 241, 0.02);
   }
 
   /* Legacy alias kept so existing markup still looks right */
@@ -134,13 +126,13 @@
 
   /* ── Controls ────────────────────────────────────────────── */
   .vt-input {
-    @apply w-full text-white rounded-lg border placeholder-slate-500 transition-all duration-200 bg-transparent;
-    border-color: rgba(255, 255, 255, 0.1);
+    @apply w-full text-gray-900 rounded-lg border placeholder-gray-400 transition-all duration-200 bg-white;
+    border-color: rgba(0, 0, 0, 0.1);
   }
   .vt-input:focus {
     @apply outline-none;
-    border-color: rgba(99, 102, 241, 0.5);
-    background: rgba(255, 255, 255, 0.02);
+    border-color: rgba(99, 102, 241, 0.6);
+    background: rgba(99, 102, 241, 0.02);
   }
 
   .btn-primary {
@@ -152,15 +144,15 @@
     background: linear-gradient(180deg, #818cf8, #4f46e5);
     box-shadow:
       inset 0 1px 0 0 rgba(255, 255, 255, 0.35),
-      0 6px 18px -4px rgba(79, 70, 229, 0.5),
-      0 1px 2px rgba(0, 0, 0, 0.4);
+      0 6px 18px -4px rgba(79, 70, 229, 0.3),
+      0 1px 2px rgba(0, 0, 0, 0.08);
   }
   .btn-primary:hover:not(:disabled) {
     background: linear-gradient(180deg, #a5b4fc, #6366f1);
     box-shadow:
       inset 0 1px 0 0 rgba(255, 255, 255, 0.45),
-      0 8px 26px -4px rgba(99, 102, 241, 0.6),
-      0 1px 2px rgba(0, 0, 0, 0.4);
+      0 8px 26px -4px rgba(99, 102, 241, 0.4),
+      0 1px 2px rgba(0, 0, 0, 0.08);
   }
 
   /* Subtle sheen that sweeps a primary button on hover */
@@ -203,12 +195,12 @@
     z-index: -1;
     border-radius: 9999px;
     background: conic-gradient(from 0deg,
-      rgba(129, 140, 248, 0) 0deg,
-      rgba(129, 140, 248, 0.45) 70deg,
-      rgba(129, 140, 248, 0) 150deg,
-      rgba(129, 140, 248, 0) 210deg,
-      rgba(139, 92, 246, 0.32) 290deg,
-      rgba(129, 140, 248, 0) 360deg);
+      rgba(99, 102, 241, 0) 0deg,
+      rgba(99, 102, 241, 0.2) 70deg,
+      rgba(99, 102, 241, 0) 150deg,
+      rgba(99, 102, 241, 0) 210deg,
+      rgba(139, 92, 246, 0.15) 290deg,
+      rgba(99, 102, 241, 0) 360deg);
     filter: blur(14px);
     animation: vt-spin 7s linear infinite;
   }
@@ -285,9 +277,9 @@
     animation: vt-pulse-ring 2s infinite;
   }
 
-  /* Animated brand gradient text — violet shimmer */
+  /* Animated brand gradient text — indigo shimmer */
   .brand-gradient {
-    background: linear-gradient(100deg, #818cf8, #e0e7ff, #818cf8);
+    background: linear-gradient(100deg, #4f46e5, #818cf8, #4f46e5);
     background-size: 200% auto;
     -webkit-background-clip: text;
     background-clip: text;
@@ -296,8 +288,8 @@
   }
 
   /* Reusable accent helpers */
-  .text-gold { color: #818cf8; }
-  .text-gold-soft { color: #a5b4fc; }
+  .text-gold { color: #4f46e5; }
+  .text-gold-soft { color: #6366f1; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {

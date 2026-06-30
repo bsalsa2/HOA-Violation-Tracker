@@ -10,7 +10,7 @@ export function Spinner({ className = 'w-4 h-4' }) {
 }
 
 export function Badge({ config, children, className = '' }) {
-  const cls = config?.badge || 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+  const cls = config?.badge || 'bg-slate-500/10 text-gray-600 border-slate-500/20'
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full border ${cls} ${className}`}>
       {children ?? config?.label}
@@ -104,14 +104,14 @@ export function Modal({ title, subtitle, onClose, children, wide = false }) {
         className={`anim-scale-in vt-card ${wide ? 'max-w-2xl' : 'max-w-lg'} w-full max-h-[90vh] flex flex-col`}
         style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.08), var(--shadow-xl)' }}
       >
-        <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-gray-100">
           <div>
-            <h3 className="text-white font-semibold tracking-tight">{title}</h3>
-            {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+            <h3 className="text-gray-900 font-semibold tracking-tight">{title}</h3>
+            {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 transition-colors text-lg"
+            className="text-gray-600 hover:text-gray-900 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 transition-colors text-lg"
           >
             ×
           </button>
@@ -132,13 +132,13 @@ export function ConfirmDialog({ message, confirmLabel = 'Delete', onConfirm, onC
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
-          <p className="text-slate-200 text-sm leading-relaxed">{message}</p>
+          <p className="text-gray-700 text-sm leading-relaxed">{message}</p>
         </div>
         <div className="flex gap-3">
-          <button onClick={onCancel} className="flex-1 py-2 text-sm border border-white/10 text-slate-300 hover:bg-white/5 rounded-lg transition-colors">
+          <button onClick={onCancel} className="flex-1 py-2 text-sm border border-gray-200 text-gray-600 hover:bg-white/5 rounded-lg transition-colors">
             Cancel
           </button>
-          <button onClick={onConfirm} className="flex-1 py-2 text-sm bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white rounded-lg transition-all active:scale-[.98] font-medium shadow-lg shadow-red-900/40">
+          <button onClick={onConfirm} className="flex-1 py-2 text-sm bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-gray-900 rounded-lg transition-all active:scale-[.98] font-medium shadow-lg shadow-red-900/40">
             {confirmLabel}
           </button>
         </div>
@@ -154,7 +154,7 @@ export function ToastStack({ toasts, onDismiss }) {
         <div
           key={t.id}
           className={`anim-rise flex items-start gap-3 px-4 py-3 rounded-xl shadow-xl shadow-black/50 border max-w-sm text-sm backdrop-blur-xl ${
-            t.type === 'error' ? 'bg-red-950/80 border-red-800/70 text-red-100' : 'bg-slate-900/85 border-white/10 text-slate-100'
+            t.type === 'error' ? 'bg-red-50 border-red-800/70 text-red-100' : 'bg-slate-900/85 border-gray-200 text-slate-100'
           }`}
           style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.06), var(--shadow-lg)' }}
         >
@@ -187,8 +187,8 @@ export function EmptyState({ icon, title, hint }) {
           )}
         </div>
       </div>
-      <p className="text-slate-300 text-sm font-medium">{title}</p>
-      {hint && <p className="text-slate-500 text-xs mt-1">{hint}</p>}
+      <p className="text-gray-600 text-sm font-medium">{title}</p>
+      {hint && <p className="text-gray-500 text-xs mt-1">{hint}</p>}
     </div>
   )
 }

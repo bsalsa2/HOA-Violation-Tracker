@@ -74,12 +74,12 @@ export function DonutChart({ data = [], size = 168, thickness = 20, centerLabel,
             {active ? (
               <>
                 <span className="text-[24px] font-bold leading-none tabular tracking-tight" style={{ color: active.color }}>{activePct}%</span>
-                <span className="text-[10px] uppercase tracking-wider text-slate-400 mt-1 capitalize max-w-[7rem] truncate text-center">{active.label}</span>
+                <span className="text-[10px] uppercase tracking-wider text-gray-600 mt-1 capitalize max-w-[7rem] truncate text-center">{active.label}</span>
               </>
             ) : (
               <>
-                <span className="text-[26px] font-bold text-white leading-none tabular tracking-tight">{centerValue}</span>
-                {centerLabel && <span className="text-[10px] uppercase tracking-wider text-slate-500 mt-1">{centerLabel}</span>}
+                <span className="text-[26px] font-bold text-gray-900 leading-none tabular tracking-tight">{centerValue}</span>
+                {centerLabel && <span className="text-[10px] uppercase tracking-wider text-gray-500 mt-1">{centerLabel}</span>}
               </>
             )}
           </div>
@@ -95,7 +95,7 @@ export function DonutChart({ data = [], size = 168, thickness = 20, centerLabel,
             style={{ background: hover === i ? 'rgba(255,255,255,0.05)' : 'transparent', opacity: hover != null && hover !== i ? 0.5 : 1 }}
           >
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color, boxShadow: `0 0 6px ${d.color}66` }} />
-            <span className="text-slate-400 capitalize truncate">{d.label}</span>
+            <span className="text-gray-600 capitalize truncate">{d.label}</span>
             <span className="text-slate-100 font-semibold ml-auto tabular">{d.value}</span>
           </div>
         ))}
@@ -117,10 +117,10 @@ export function BarList({ data = [], color = '#3b82f6', maxRows = 8 }) {
       {rows.map((d, i) => (
         <div key={i}>
           <div className="flex justify-between text-xs mb-1.5">
-            <span className="text-slate-300 truncate pr-2">{d.label}</span>
-            <span className="text-slate-500 shrink-0 tabular">{d.value}</span>
+            <span className="text-gray-600 truncate pr-2">{d.label}</span>
+            <span className="text-gray-500 shrink-0 tabular">{d.value}</span>
           </div>
-          <div className="h-2 bg-white/[0.04] rounded-full overflow-hidden">
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full"
               style={{
@@ -230,12 +230,12 @@ export function TrendChart({ data = [], height = 150 }) {
       </svg>
       <div className="flex items-center justify-between mt-1 px-1">
         {data.map((d, i) => (
-          <span key={i} className="text-[10px] text-slate-500">{d.month}</span>
+          <span key={i} className="text-[10px] text-gray-500">{d.month}</span>
         ))}
       </div>
       <div className="flex items-center gap-4 mt-2 justify-center">
         {series.map((s) => (
-          <span key={s.key} className="flex items-center gap-1.5 text-xs text-slate-400">
+          <span key={s.key} className="flex items-center gap-1.5 text-xs text-gray-600">
             <span className="w-2.5 h-2.5 rounded-full" style={{ background: s.color, boxShadow: `0 0 6px ${s.color}66` }} /> {s.label}
           </span>
         ))}
