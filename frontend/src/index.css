@@ -110,29 +110,18 @@
      soft drop shadow. This is the core of the premium feel. */
   .vt-card {
     position: relative;
-    border-radius: var(--radius);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.008) 40%, rgba(255, 255, 255, 0) 100%),
-      hsl(var(--surface-1) / 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
-      var(--shadow-md);
-    backdrop-filter: blur(8px);
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  /* Interactive cards lift and brighten on hover */
+  /* Interactive cards brighten on hover */
   .vt-card-interactive {
-    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-      box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-      border-color 0.22s ease;
+    transition: border-color 0.22s ease, background 0.22s ease;
   }
   .vt-card-interactive:hover {
-    transform: translateY(-2px);
-    border-color: rgba(255, 255, 255, 0.14);
-    box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.09),
-      var(--shadow-lg);
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.02);
   }
 
   /* Legacy alias kept so existing markup still looks right */
@@ -145,15 +134,13 @@
 
   /* ── Controls ────────────────────────────────────────────── */
   .vt-input {
-    @apply w-full text-white rounded-xl border placeholder-slate-500 transition-all duration-200;
-    background: rgba(255, 255, 255, 0.025);
-    border-color: rgba(255, 252, 246, 0.1);
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+    @apply w-full text-white rounded-lg border placeholder-slate-500 transition-all duration-200 bg-transparent;
+    border-color: rgba(255, 255, 255, 0.1);
   }
   .vt-input:focus {
     @apply outline-none;
-    border-color: rgba(202, 169, 107, 0.55);
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(202, 169, 107, 0.16);
+    border-color: rgba(194, 108, 15, 0.5);
+    background: rgba(255, 255, 255, 0.02);
   }
 
   .btn-primary {
@@ -200,20 +187,10 @@
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
   }
 
-  /* Cursor-tracking champagne spotlight — a soft light that follows the
-     pointer across a card. Coordinates are fed by a global listener. */
+  /* Spotlight disabled for cleaner aesthetic */
   .vt-spotlight::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    background: radial-gradient(240px circle at var(--mx, 50%) var(--my, -20%),
-      rgba(224, 199, 143, 0.13), transparent 62%);
-    opacity: 0;
-    transition: opacity 0.35s ease;
+    display: none;
   }
-  .vt-spotlight:hover::before { opacity: 1; }
 
   /* A slowly rotating conic halo, e.g. behind the brand mark */
   .vt-halo {
