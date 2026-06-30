@@ -119,7 +119,7 @@ function App() {
         <div className="text-center">
           <p className="text-slate-300 text-sm">Couldn't reach the server.</p>
           <p className="text-slate-500 text-xs mt-1">It may still be deploying — wait a moment and retry.</p>
-          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 text-sm bg-gradient-to-b from-[#f59e0b] to-[#c26c0f] hover:from-[#fbbf24] hover:to-[#d97706] shadow-lg shadow-[#c26c0f]/30 active:scale-[.98] text-[#064e3b] font-semibold rounded-lg">Retry</button>
+          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 text-sm bg-gradient-to-b from-[#818cf8] to-[#4f46e5] hover:from-[#a5b4fc] hover:to-[#6366f1] shadow-lg shadow-[#4f46e5]/30 active:scale-[.98] text-[#064e3b] font-semibold rounded-lg">Retry</button>
         </div>
       </div>
     )

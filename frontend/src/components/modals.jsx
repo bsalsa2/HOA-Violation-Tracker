@@ -50,7 +50,7 @@ export function AddClientModal({ onClose, onCreated }) {
         </div>
         <ErrorBox>{error}</ErrorBox>
         <div className="flex gap-3 pt-2">
-          <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-gradient-to-b from-[#f59e0b] to-[#c26c0f] hover:from-[#fbbf24] hover:to-[#d97706] shadow-lg shadow-[#c26c0f]/30 active:scale-[.98] disabled:opacity-60 text-[#064e3b] font-semibold rounded-lg transition-colors">
+          <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-gradient-to-b from-[#818cf8] to-[#4f46e5] hover:from-[#a5b4fc] hover:to-[#6366f1] shadow-lg shadow-[#4f46e5]/30 active:scale-[.98] disabled:opacity-60 text-[#064e3b] font-semibold rounded-lg transition-colors">
             {loading ? 'Adding…' : 'Add Client'}
           </button>
           <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
@@ -104,7 +104,7 @@ export function AddResidentModal({ hoaId, onClose, onAdded }) {
         </div>
         <ErrorBox>{error}</ErrorBox>
         <div className="flex gap-3 pt-2">
-          <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-gradient-to-b from-[#f59e0b] to-[#c26c0f] hover:from-[#fbbf24] hover:to-[#d97706] shadow-lg shadow-[#c26c0f]/30 active:scale-[.98] disabled:opacity-60 text-[#064e3b] font-semibold rounded-lg transition-colors">
+          <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-gradient-to-b from-[#818cf8] to-[#4f46e5] hover:from-[#a5b4fc] hover:to-[#6366f1] shadow-lg shadow-[#4f46e5]/30 active:scale-[.98] disabled:opacity-60 text-[#064e3b] font-semibold rounded-lg transition-colors">
             {loading ? 'Adding…' : 'Add Resident'}
           </button>
           <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
@@ -155,7 +155,7 @@ export function AddViolationModal({ hoaId, residents, defaultResidentId, onClose
             {residents.map((r) => (<option key={r.id} value={r.id}>{r.name} — {r.unit}</option>))}
           </select>
           {selectedResident && !selectedResident.email && (
-            <p className="mt-1.5 text-xs text-[#f59e0b]">⚠ This resident has no email — you won't be able to send them a letter.</p>
+            <p className="mt-1.5 text-xs text-[#818cf8]">⚠ This resident has no email — you won't be able to send them a letter.</p>
           )}
         </div>
         <div>
@@ -197,7 +197,7 @@ export function AddViolationModal({ hoaId, residents, defaultResidentId, onClose
         </div>
         <ErrorBox>{error}</ErrorBox>
         <div className="flex gap-3 pt-2">
-          <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-gradient-to-b from-[#f59e0b] to-[#c26c0f] hover:from-[#fbbf24] hover:to-[#d97706] shadow-lg shadow-[#c26c0f]/30 active:scale-[.98] disabled:opacity-60 text-[#064e3b] font-semibold rounded-lg transition-colors">
+          <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-gradient-to-b from-[#818cf8] to-[#4f46e5] hover:from-[#a5b4fc] hover:to-[#6366f1] shadow-lg shadow-[#4f46e5]/30 active:scale-[.98] disabled:opacity-60 text-[#064e3b] font-semibold rounded-lg transition-colors">
             {loading ? 'Creating…' : 'Create Violation'}
           </button>
           <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
@@ -240,11 +240,11 @@ export function ImportCSVModal({ hoaId, onClose, onDone, addToast }) {
             <div>
               <p className="text-sm font-medium text-slate-300 mb-2">Rows with issues:</p>
               <div className="bg-slate-800 rounded-xl p-3 max-h-48 overflow-y-auto space-y-1">
-                {result.errors.map((err, i) => (<p key={i} className="text-xs text-[#f59e0b]">{err}</p>))}
+                {result.errors.map((err, i) => (<p key={i} className="text-xs text-[#818cf8]">{err}</p>))}
               </div>
             </div>
           )}
-          <button onClick={() => onDone(result.added, result.errors || [])} className="w-full py-2.5 bg-gradient-to-b from-[#f59e0b] to-[#c26c0f] hover:from-[#fbbf24] hover:to-[#d97706] shadow-lg shadow-[#c26c0f]/30 active:scale-[.98] text-[#064e3b] font-semibold rounded-lg transition-colors">Done</button>
+          <button onClick={() => onDone(result.added, result.errors || [])} className="w-full py-2.5 bg-gradient-to-b from-[#818cf8] to-[#4f46e5] hover:from-[#a5b4fc] hover:to-[#6366f1] shadow-lg shadow-[#4f46e5]/30 active:scale-[.98] text-[#064e3b] font-semibold rounded-lg transition-colors">Done</button>
         </div>
       </Modal>
     )
@@ -255,7 +255,7 @@ export function ImportCSVModal({ hoaId, onClose, onDone, addToast }) {
       <div className="space-y-4">
         <div className="bg-black/30 ring-1 ring-white/[0.06] rounded-xl p-4 text-xs text-slate-400 space-y-1">
           <p className="font-medium text-slate-300">Required CSV format:</p>
-          <p className="font-mono text-[#f59e0b]/90">name,unit,email,phone</p>
+          <p className="font-mono text-[#818cf8]/90">name,unit,email,phone</p>
           <p className="font-mono text-slate-500">Jane Smith,101,jane@example.com,555-1234</p>
           <p className="mt-2">The <span className="text-slate-300">unit</span> column accepts a unit number or a street address. <span className="text-slate-300">email</span> and <span className="text-slate-300">phone</span> are optional.</p>
         </div>
@@ -263,10 +263,10 @@ export function ImportCSVModal({ hoaId, onClose, onDone, addToast }) {
           <div>
             <label className={labelCls}>Select CSV File</label>
             <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files[0])}
-              className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-[#c26c0f]/15 file:text-[#f59e0b] hover:file:bg-[#c26c0f]/25 file:cursor-pointer file:transition-colors" required />
+              className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-[#4f46e5]/15 file:text-[#818cf8] hover:file:bg-[#4f46e5]/25 file:cursor-pointer file:transition-colors" required />
           </div>
           <div className="flex gap-3">
-            <button type="submit" disabled={loading || !file} className="flex-1 py-2.5 bg-gradient-to-b from-[#f59e0b] to-[#c26c0f] hover:from-[#fbbf24] hover:to-[#d97706] shadow-lg shadow-[#c26c0f]/30 active:scale-[.98] disabled:opacity-60 text-[#064e3b] font-semibold rounded-lg transition-colors">
+            <button type="submit" disabled={loading || !file} className="flex-1 py-2.5 bg-gradient-to-b from-[#818cf8] to-[#4f46e5] hover:from-[#a5b4fc] hover:to-[#6366f1] shadow-lg shadow-[#4f46e5]/30 active:scale-[.98] disabled:opacity-60 text-[#064e3b] font-semibold rounded-lg transition-colors">
               {loading ? 'Importing…' : 'Import'}
             </button>
             <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
@@ -319,7 +319,7 @@ export function EditHOAModal({ hoa, onClose, onUpdated, onDelete, onSaveHoaEmail
   return (
     <Modal title="Edit HOA Settings" onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4 max-h-96 overflow-y-auto">
-        <div className="bg-[#c26c0f]/[0.08] border border-[#c26c0f]/20 rounded-lg p-3 text-xs text-[#f59e0b]">
+        <div className="bg-[#4f46e5]/[0.08] border border-[#4f46e5]/20 rounded-lg p-3 text-xs text-[#818cf8]">
           ⓘ Add your HOA contact information so violation notices are sent on behalf of your organization.
         </div>
         <div>
@@ -354,7 +354,7 @@ export function EditHOAModal({ hoa, onClose, onUpdated, onDelete, onSaveHoaEmail
         </div>
         <ErrorBox>{error}</ErrorBox>
         <div className="flex gap-3 pt-2">
-          <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-gradient-to-b from-[#f59e0b] to-[#c26c0f] hover:from-[#fbbf24] hover:to-[#d97706] shadow-lg shadow-[#c26c0f]/30 active:scale-[.98] disabled:opacity-60 text-[#064e3b] font-semibold rounded-lg transition-colors">
+          <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-gradient-to-b from-[#818cf8] to-[#4f46e5] hover:from-[#a5b4fc] hover:to-[#6366f1] shadow-lg shadow-[#4f46e5]/30 active:scale-[.98] disabled:opacity-60 text-[#064e3b] font-semibold rounded-lg transition-colors">
             {loading ? 'Saving…' : 'Save Changes'}
           </button>
           <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-700 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
