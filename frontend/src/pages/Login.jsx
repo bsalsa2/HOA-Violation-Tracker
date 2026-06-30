@@ -38,10 +38,10 @@ function Login({ setToken }) {
   return (
     <div className="relative min-h-screen bg-transparent flex items-center justify-center p-4 overflow-hidden">
       <div
-        className="absolute inset-0 -z-10 bg-cover bg-center opacity-50"
+        className="absolute inset-0 -z-10 bg-cover bg-center opacity-60"
         style={{ backgroundImage: "url('/brand/login-backdrop.png')" }}
       />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#0b0a08]/30 via-[#0b0a08]/75 to-[#0b0a08]" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-slate-950/20 via-slate-950/60 to-slate-950" />
       <div className="w-full max-w-md anim-rise">
         {/* Brand */}
         <div className="text-center mb-8">
