@@ -14,7 +14,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
           onClick={() => onOpen(hoa)}
           className="flex items-center gap-3 flex-1 text-left min-w-0"
         >
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6ee7b7]/90 to-[#059669]/90 ring-1 ring-white/15 flex items-center justify-center text-sm font-bold text-white shrink-0" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.25)' }}>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#f59e0b]/90 to-[#7c2d12]/90 ring-1 ring-white/15 flex items-center justify-center text-sm font-bold text-white shrink-0" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.25)' }}>
             {(hoa.name || '?').replace(/[^a-zA-Z ]/g, '').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -29,7 +29,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
             </span>
           )}
           {!isConfigured && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#10b981]/12 text-[#6ee7b7] border border-[#10b981]/25 font-medium">
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#c26c0f]/12 text-[#f59e0b] border border-[#c26c0f]/25 font-medium">
               Setup needed
             </span>
           )}
@@ -48,7 +48,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
           <p className="text-[10px] text-slate-500 mt-1">Residents</p>
         </div>
         <div className="bg-white/[0.03] ring-1 ring-white/[0.05] rounded-xl p-2.5">
-          <p className="text-lg font-bold text-[#6ee7b7] leading-none"><CountUp value={hoa.open_violations} /></p>
+          <p className="text-lg font-bold text-[#f59e0b] leading-none"><CountUp value={hoa.open_violations} /></p>
           <p className="text-[10px] text-slate-500 mt-1">Open Cases</p>
         </div>
         <div className="bg-white/[0.03] ring-1 ring-white/[0.05] rounded-xl p-2.5">
@@ -56,7 +56,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
           <p className="text-[10px] text-slate-500 mt-1">Fines Due</p>
         </div>
       </div>
-      <button onClick={() => onOpen(hoa)} className="flex items-center gap-1 mt-4 text-xs text-[#5bba99] hover:text-[#6ee7b7] transition-colors">
+      <button onClick={() => onOpen(hoa)} className="flex items-center gap-1 mt-4 text-xs text-[#5bba99] hover:text-[#f59e0b] transition-colors">
         Open dashboard
         <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
       </button>
@@ -81,10 +81,10 @@ export default function PortfolioOverview({ hoas, onOpen, onAddClient, onSignOut
   return (
     <div className="min-h-screen bg-transparent text-white">
       <header className="relative bg-[#0d0b08]/85 backdrop-blur-xl border-b border-white/[0.06] px-6 py-3 sticky top-0 z-20">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#10b981]/50 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#c26c0f]/50 to-transparent" />
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-[#a7f3d0] to-[#059669] rounded-xl flex items-center justify-center ring-1 ring-white/25" style={{ boxShadow: '0 6px 20px -4px rgba(202,169,107,0.55), inset 0 1px 0 0 rgba(255,255,255,0.4)' }}>
+            <div className="w-8 h-8 bg-gradient-to-br from-[#fed7aa] to-[#7c2d12] rounded-xl flex items-center justify-center ring-1 ring-white/25" style={{ boxShadow: '0 6px 20px -4px rgba(202,169,107,0.55), inset 0 1px 0 0 rgba(255,255,255,0.4)' }}>
               <svg className="w-4 h-4 text-[#064e3b]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
             </div>
             <h1 className="font-semibold text-sm text-white tracking-tight">ViolationTrack <span className="text-slate-500 font-normal">· Portfolio</span></h1>
@@ -109,7 +109,7 @@ export default function PortfolioOverview({ hoas, onOpen, onAddClient, onSignOut
             <p className="text-xs text-slate-500 mt-1">Total Residents</p>
           </div>
           <div className="vt-card p-4 anim-rise stagger-2">
-            <p className="text-2xl font-bold text-[#6ee7b7]"><CountUp value={totals.open} /></p>
+            <p className="text-2xl font-bold text-[#f59e0b]"><CountUp value={totals.open} /></p>
             <p className="text-xs text-slate-500 mt-1">Open Cases</p>
           </div>
           <div className="vt-card p-4 anim-rise stagger-3">
@@ -126,9 +126,9 @@ export default function PortfolioOverview({ hoas, onOpen, onAddClient, onSignOut
           {hoas.map((h) => (<ClientCard key={h.id} hoa={h} onOpen={onOpen} onSettings={onOpen} />))}
           <button
             onClick={onAddClient}
-            className="border-2 border-dashed border-white/10 hover:border-[#10b981]/40 hover:bg-[#10b981]/[0.04] rounded-2xl p-5 flex flex-col items-center justify-center gap-2 text-slate-500 hover:text-[#6ee7b7] transition-all min-h-[180px] group"
+            className="border-2 border-dashed border-white/10 hover:border-[#c26c0f]/40 hover:bg-[#c26c0f]/[0.04] rounded-2xl p-5 flex flex-col items-center justify-center gap-2 text-slate-500 hover:text-[#f59e0b] transition-all min-h-[180px] group"
           >
-            <div className="w-11 h-11 rounded-xl bg-white/[0.03] ring-1 ring-white/[0.06] flex items-center justify-center group-hover:ring-[#10b981]/40 transition-all">
+            <div className="w-11 h-11 rounded-xl bg-white/[0.03] ring-1 ring-white/[0.06] flex items-center justify-center group-hover:ring-[#c26c0f]/40 transition-all">
               <svg className="w-6 h-6 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" /></svg>
             </div>
             <span className="text-sm font-medium">Add another client</span>

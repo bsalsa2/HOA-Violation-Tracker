@@ -28,7 +28,7 @@ function ViolationCard({ violation, onOpen }) {
           <div className="flex items-center gap-3 mt-2 flex-wrap">
             <span className="text-xs text-slate-600">{formatDate(violation.created_at)}</span>
             {due && (
-              <span className={`text-xs font-medium ${due.tone === 'overdue' ? 'text-[#d4988a]' : due.tone === 'soon' ? 'text-[#6ee7b7]' : 'text-slate-500'}`}>
+              <span className={`text-xs font-medium ${due.tone === 'overdue' ? 'text-[#d4988a]' : due.tone === 'soon' ? 'text-[#f59e0b]' : 'text-slate-500'}`}>
                 {due.text}
               </span>
             )}
@@ -115,7 +115,7 @@ export default function ViolationsTab({ violations, onOpen, onNew, canAdd, query
             />
           </div>
           <div className="flex items-center gap-2">
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="text-xs bg-slate-900/60 text-slate-300 border border-white/10 rounded-lg px-2 py-2 focus:outline-none focus:border-[#10b981]">
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="text-xs bg-slate-900/60 text-slate-300 border border-white/10 rounded-lg px-2 py-2 focus:outline-none focus:border-[#c26c0f]">
               <option value="recent">Most recent</option>
               <option value="due">Due soonest</option>
               <option value="priority">Priority</option>
@@ -137,7 +137,7 @@ export default function ViolationsTab({ violations, onOpen, onNew, canAdd, query
               onClick={() => setStatusFilter(chip.key)}
               className={`vt-chip ${
                 statusFilter === chip.key
-                  ? chip.danger ? 'bg-red-500/15 text-red-300 border-red-500/30' : 'bg-[#10b981]/15 text-[#6ee7b7] border-[#10b981]/30'
+                  ? chip.danger ? 'bg-red-500/15 text-red-300 border-red-500/30' : 'bg-[#c26c0f]/15 text-[#f59e0b] border-[#c26c0f]/30'
                   : 'text-slate-400 border-white/10 hover:border-white/20 hover:bg-white/[0.03]'
               }`}
             >

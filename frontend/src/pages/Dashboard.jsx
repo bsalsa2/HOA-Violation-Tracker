@@ -269,11 +269,11 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
   return (
     <div className="min-h-screen bg-transparent text-white">
       <header className="relative bg-[#0d0b08]/85 backdrop-blur-xl border-b border-white/[0.06] sticky top-0 z-30">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#10b981]/50 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#c26c0f]/50 to-transparent" />
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between py-3 gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 bg-gradient-to-br from-[#a7f3d0] to-[#059669] rounded-xl flex items-center justify-center shrink-0 ring-1 ring-white/25" style={{ boxShadow: '0 6px 20px -4px rgba(202,169,107,0.55), inset 0 1px 0 0 rgba(255,255,255,0.4)' }}>
+              <div className="w-8 h-8 bg-gradient-to-br from-[#fed7aa] to-[#7c2d12] rounded-xl flex items-center justify-center shrink-0 ring-1 ring-white/25" style={{ boxShadow: '0 6px 20px -4px rgba(202,169,107,0.55), inset 0 1px 0 0 rgba(255,255,255,0.4)' }}>
                 <svg className="w-4 h-4 text-[#064e3b]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
@@ -303,13 +303,13 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
               >
                 {t.label}
                 {t.badge !== undefined && t.badge > 0 && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${tab === t.key ? 'bg-[#10b981]/15 text-[#6ee7b7]' : 'bg-white/[0.06] text-slate-400'}`}>{t.badge}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${tab === t.key ? 'bg-[#c26c0f]/15 text-[#f59e0b]' : 'bg-white/[0.06] text-slate-400'}`}>{t.badge}</span>
                 )}
                 {t.key === 'violations' && overdueCount > 0 && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20">{overdueCount} overdue</span>
                 )}
                 {tab === t.key && (
-                  <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-[#6ee7b7] to-[#10b981]" style={{ boxShadow: '0 0 10px rgba(202,169,107,0.6)' }} />
+                  <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-[#f59e0b] to-[#c26c0f]" style={{ boxShadow: '0 0 10px rgba(202,169,107,0.6)' }} />
                 )}
               </button>
             ))}

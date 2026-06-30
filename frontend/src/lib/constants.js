@@ -15,7 +15,7 @@ export const VIOLATION_TYPES = [
 
 // Restrained, luxe semantic palette: champagne gold · sage · clay · stone
 export const STATUS_CONFIG = {
-  open: { label: 'Open', badge: 'bg-[#10b981]/10 text-[#6ee7b7] border-[#10b981]/25', dot: '#10b981' },
+  open: { label: 'Open', badge: 'bg-[#c26c0f]/10 text-[#f59e0b] border-[#c26c0f]/25', dot: '#c26c0f' },
   noticed: { label: 'Noticed', badge: 'bg-[#9aa1ad]/10 text-[#b6bcc6] border-[#9aa1ad]/25', dot: '#9aa1ad' },
   resolved: { label: 'Resolved', badge: 'bg-[#8fae8b]/10 text-[#a8c3a3] border-[#8fae8b]/25', dot: '#8fae8b' },
   escalated: { label: 'Escalated', badge: 'bg-[#c17b6a]/10 text-[#d4988a] border-[#c17b6a]/25', dot: '#c17b6a' },
@@ -25,7 +25,7 @@ export const STATUS_ORDER = ['open', 'noticed', 'resolved', 'escalated']
 
 export const PRIORITY_CONFIG = {
   low: { label: 'Low', badge: 'bg-[#9a948a]/10 text-[#b8b1a5] border-[#9a948a]/25', dot: '#9a948a' },
-  medium: { label: 'Medium', badge: 'bg-[#10b981]/10 text-[#6ee7b7] border-[#10b981]/25', dot: '#10b981' },
+  medium: { label: 'Medium', badge: 'bg-[#c26c0f]/10 text-[#f59e0b] border-[#c26c0f]/25', dot: '#c26c0f' },
   high: { label: 'High', badge: 'bg-[#c17b6a]/10 text-[#d4988a] border-[#c17b6a]/25', dot: '#c17b6a' },
 }
 
@@ -38,4 +38,4 @@ export const NOTICE_LEVELS = [
   'Hearing / Legal',
 ]
 
-export const CHART_COLORS = ['#10b981', '#8fae8b', '#c17b6a', '#9aa1ad', '#b89b8e', '#a9b18f', '#6ee7b7', '#8c8f9a', '#bfa6a0', '#7e8a7c']
+export const CHART_COLORS = ['#c26c0f', '#8fae8b', '#c17b6a', '#9aa1ad', '#b89b8e', '#a9b18f', '#f59e0b', '#8c8f9a', '#bfa6a0', '#7e8a7c']

@@ -172,7 +172,7 @@ export function TrendChart({ data = [], height = 150 }) {
   const toPoints = (key) => data.map((d, i) => [padX + i * step, padTop + innerH - ((d[key] || 0) / max) * innerH])
 
   const series = [
-    { key: 'new', color: '#10b981', label: 'New' },
+    { key: 'new', color: '#c26c0f', label: 'New' },
     { key: 'resolved', color: '#8fae8b', label: 'Resolved' },
   ]
 

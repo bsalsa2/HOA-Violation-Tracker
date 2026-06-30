@@ -62,7 +62,7 @@ export function CountUp({ value, duration = 900, className = '' }) {
 }
 
 /** Tiny inline sparkline. data: number[] */
-export function Sparkline({ data = [], width = 72, height = 24, color = '#10b981', className = '' }) {
+export function Sparkline({ data = [], width = 72, height = 24, color = '#c26c0f', className = '' }) {
   if (!data.length) return null
   const max = Math.max(...data, 1)
   const min = Math.min(...data, 0)
