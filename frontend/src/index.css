@@ -136,6 +136,17 @@
     background: rgba(59, 130, 246, 0.04);
   }
 
+  /* Native select dropdowns render their popup from the control's own
+     background. Translucent surfaces make the option list unreadable
+     (light text on light), so force a solid dark popup + light options. */
+  select {
+    color-scheme: dark;
+  }
+  select option {
+    background: #12161f;
+    color: #e6e9ef;
+  }
+
   .btn-primary {
     position: relative;
     isolation: isolate;
