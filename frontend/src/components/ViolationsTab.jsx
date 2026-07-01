@@ -43,6 +43,12 @@ function ViolationCard({ violation, onOpen }) {
                 {violation.note_count}
               </span>
             )}
+            {violation.photo_count > 0 && (
+              <span className="text-xs text-slate-600 flex items-center gap-1" title={`${violation.photo_count} photo${violation.photo_count !== 1 ? 's' : ''} on file`}>
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                {violation.photo_count}
+              </span>
+            )}
           </div>
         </div>
         <svg className="w-4 h-4 text-slate-600 shrink-0 mt-1 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -53,9 +59,15 @@ function ViolationCard({ violation, onOpen }) {
   )
 }
 
-export default function ViolationsTab({ violations, onOpen, onNew, onExport, canAdd, query, setQuery }) {
+export default function ViolationsTab({ violations, onOpen, onNew, onExport, onImport, canAdd, query, setQuery }) {
   const [statusFilter, setStatusFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
   const [sortBy, setSortBy] = useState('recent')
+
+  const typeOptions = useMemo(
+    () => [...new Set(violations.map((v) => v.violation_type).filter(Boolean))].sort(),
+    [violations]
+  )
 
   const filtered = useMemo(() => {
     let list = violations
@@ -63,6 +75,9 @@ export default function ViolationsTab({ violations, onOpen, onNew, onExport, can
       list = list.filter((v) => isOverdue(v))
     } else if (statusFilter) {
       list = list.filter((v) => v.status === statusFilter)
+    }
+    if (typeFilter) {
+      list = list.filter((v) => v.violation_type === typeFilter)
     }
     if (query.trim()) {
       const q = query.toLowerCase()
@@ -82,7 +97,7 @@ export default function ViolationsTab({ violations, onOpen, onNew, onExport, can
       sorted.sort((a, b) => (rank[a.priority] ?? 1) - (rank[b.priority] ?? 1))
     }
     return sorted
-  }, [violations, statusFilter, query, sortBy])
+  }, [violations, statusFilter, typeFilter, query, sortBy])
 
   const counts = useMemo(() => {
     const c = { all: violations.length, overdue: violations.filter((v) => isOverdue(v)).length }
@@ -115,11 +130,23 @@ export default function ViolationsTab({ violations, onOpen, onNew, onExport, can
             />
           </div>
           <div className="flex items-center gap-2">
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="text-xs bg-slate-900/60 text-slate-400 border border-white/10 rounded-lg px-2 py-2 focus:outline-none focus:border-[#3b82f6] max-w-[10rem]">
+              <option value="">All types</option>
+              {typeOptions.map((t) => (<option key={t} value={t}>{t}</option>))}
+            </select>
             <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="text-xs bg-slate-900/60 text-slate-400 border border-white/10 rounded-lg px-2 py-2 focus:outline-none focus:border-[#3b82f6]">
               <option value="recent">Most recent</option>
               <option value="due">Due soonest</option>
               <option value="priority">Priority</option>
             </select>
+            <button
+              onClick={onImport}
+              disabled={!canAdd}
+              className="hidden md:block px-3 py-2 text-xs text-slate-400 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap"
+              title={!canAdd ? 'Add residents first' : 'Bulk import violations from a spreadsheet'}
+            >
+              Import CSV
+            </button>
             <button
               onClick={onExport}
               className="px-3 py-2 text-xs text-slate-400 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors whitespace-nowrap"
@@ -157,7 +184,7 @@ export default function ViolationsTab({ violations, onOpen, onNew, onExport, can
       <div className="divide-y divide-white/[0.05] max-h-[calc(100vh-22rem)] overflow-y-auto">
         {filtered.length === 0 ? (
           <EmptyState
-            title={query || statusFilter ? 'No violations match your filters.' : 'No violations yet.'}
+            title={query || statusFilter || typeFilter ? 'No violations match your filters.' : 'No violations yet.'}
             hint={query || statusFilter ? 'Try clearing the search or filter.' : 'Create your first violation to get started.'}
           />
         ) : (

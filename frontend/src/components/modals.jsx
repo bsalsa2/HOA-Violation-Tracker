@@ -212,7 +212,7 @@ export function AddViolationModal({ hoaId, residents, defaultResidentId, onClose
   )
 }
 
-export function ImportCSVModal({ hoaId, onClose, onDone, addToast }) {
+function CsvImportModal({ title, formatExample, formatSample, formatNote, importFn, onClose, onDone, addToast }) {
   const [file, setFile] = useState(null)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
@@ -222,7 +222,7 @@ export function ImportCSVModal({ hoaId, onClose, onDone, addToast }) {
     if (!file) return
     setLoading(true)
     try {
-      const res = await residentAPI.importCSV(hoaId, file)
+      const res = await importFn(file)
       setResult(res.data)
     } catch (err) {
       addToast(parseDetail(err, 'Import failed.'), 'error')
@@ -256,13 +256,13 @@ export function ImportCSVModal({ hoaId, onClose, onDone, addToast }) {
   }
 
   return (
-    <Modal title="Import Residents from CSV" onClose={onClose}>
+    <Modal title={title} onClose={onClose}>
       <div className="space-y-4">
         <div className="bg-white/[0.04] ring-1 ring-white/[0.06] rounded-xl p-4 text-xs text-slate-400 space-y-1">
           <p className="font-medium text-slate-400">Required CSV format:</p>
-          <p className="font-mono text-[#60a5fa]/90">name,unit,email,phone</p>
-          <p className="font-mono text-slate-500">Jane Smith,101,jane@example.com,555-1234</p>
-          <p className="mt-2">The <span className="text-slate-400">unit</span> column accepts a unit number or a street address. <span className="text-slate-400">email</span> and <span className="text-slate-400">phone</span> are optional.</p>
+          <p className="font-mono text-[#60a5fa]/90">{formatExample}</p>
+          <p className="font-mono text-slate-500">{formatSample}</p>
+          <p className="mt-2">{formatNote}</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -279,6 +279,36 @@ export function ImportCSVModal({ hoaId, onClose, onDone, addToast }) {
         </form>
       </div>
     </Modal>
+  )
+}
+
+export function ImportCSVModal({ hoaId, onClose, onDone, addToast }) {
+  return (
+    <CsvImportModal
+      title="Import Residents from CSV"
+      formatExample="name,unit,email,phone"
+      formatSample="Jane Smith,101,jane@example.com,555-1234"
+      formatNote={<>The <span className="text-slate-400">unit</span> column accepts a unit number or a street address. <span className="text-slate-400">email</span> and <span className="text-slate-400">phone</span> are optional.</>}
+      importFn={(file) => residentAPI.importCSV(hoaId, file)}
+      onClose={onClose}
+      onDone={onDone}
+      addToast={addToast}
+    />
+  )
+}
+
+export function ImportViolationsCSVModal({ hoaId, onClose, onDone, addToast }) {
+  return (
+    <CsvImportModal
+      title="Import Violations from CSV"
+      formatExample="unit,type,description,priority,due_in_days,fine_amount"
+      formatSample="101,Parking Violation,Truck in guest spot,high,14,25"
+      formatNote={<>Each row is matched to an existing resident by <span className="text-slate-400">unit</span> — import residents first. Only <span className="text-slate-400">unit</span> and <span className="text-slate-400">type</span> are required; priority defaults to medium and the cure period to 14 days.</>}
+      importFn={(file) => violationAPI.importCSV(hoaId, file)}
+      onClose={onClose}
+      onDone={onDone}
+      addToast={addToast}
+    />
   )
 }
 

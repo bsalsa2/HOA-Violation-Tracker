@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { EmptyState } from './primitives'
 
-export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onViewViolations }) {
+export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onViewViolations, onSeedDemo, seeding }) {
   const [query, setQuery] = useState('')
 
   const filtered = useMemo(() => {
@@ -43,7 +43,8 @@ export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onV
         {filtered.length === 0 ? (
           <EmptyState
             title={query ? 'No residents match your search.' : 'No residents yet.'}
-            hint={query ? 'Try a different search.' : 'Add a resident or import a CSV to get started.'}
+            hint={query ? 'Try a different search.' : 'Add a resident, import a CSV, or explore with sample data.'}
+            action={!query && onSeedDemo ? { label: 'Load sample community', onClick: onSeedDemo, busy: seeding } : undefined}
           />
         ) : (
           filtered.map((r) => {

@@ -7,7 +7,7 @@ import ResidentsTab from '../components/ResidentsTab'
 import ViolationDrawer from '../components/ViolationDrawer'
 import CommandPalette from '../components/CommandPalette'
 import HoaSwitcher from '../components/HoaSwitcher'
-import { AddResidentModal, AddViolationModal, ImportCSVModal } from '../components/modals'
+import { AddResidentModal, AddViolationModal, ImportCSVModal, ImportViolationsCSVModal } from '../components/modals'
 import { Modal, ConfirmDialog, ToastStack, Spinner } from '../components/primitives'
 import { openBoardReport } from '../lib/boardReport'
 import { downloadViolationsCsv, downloadLetterPdf } from '../lib/export'
@@ -42,6 +42,8 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
 
   const [showAddResident, setShowAddResident] = useState(false)
   const [showImportCSV, setShowImportCSV] = useState(false)
+  const [showImportViolations, setShowImportViolations] = useState(false)
+  const [seedingDemo, setSeedingDemo] = useState(false)
   const [showAddViolation, setShowAddViolation] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -215,6 +217,19 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
     addToast(`Exported ${violations.length} violations to CSV.`)
   }, [violations, hoa, addToast])
 
+  const handleSeedDemo = useCallback(async () => {
+    setSeedingDemo(true)
+    try {
+      const res = await hoaAPI.seedDemo(hoaId)
+      await Promise.all([loadResidents(), loadViolations(), loadAnalytics()])
+      addToast(res.data.message)
+    } catch (err) {
+      addToast(err.response?.data?.detail || 'Failed to load demo data.', 'error')
+    } finally {
+      setSeedingDemo(false)
+    }
+  }, [hoaId, loadResidents, loadViolations, loadAnalytics, addToast])
+
   const handleDeleteViolation = useCallback((violationId) => {
     setConfirmDelete({
       message: 'Delete this violation? This cannot be undone.',
@@ -338,7 +353,16 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-6">
-        {tab === 'overview' && <OverviewTab analytics={analytics} loading={analyticsLoading} onOpenResident={goToResidentById} />}
+        {tab === 'overview' && (
+          <OverviewTab
+            analytics={analytics}
+            loading={analyticsLoading}
+            violations={violations}
+            hoaId={hoaId}
+            onOpenResident={goToResidentById}
+            onOpenViolation={(v) => setSelectedId(v.id)}
+          />
+        )}
         {tab === 'violations' && (
           <ViolationsTab
             violations={violations}
@@ -347,6 +371,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
             onOpen={(v) => setSelectedId(v.id)}
             onNew={() => setShowAddViolation(true)}
             onExport={handleExportCsv}
+            onImport={() => setShowImportViolations(true)}
             canAdd={canAdd}
           />
         )}
@@ -357,6 +382,8 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
             onImport={() => setShowImportCSV(true)}
             onDelete={handleDeleteResident}
             onViewViolations={goToResidentViolations}
+            onSeedDemo={handleSeedDemo}
+            seeding={seedingDemo}
           />
         )}
       </main>
@@ -386,6 +413,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
           { id: 'new-violation', label: 'New violation', run: () => { if (canAdd) setShowAddViolation(true); else addToast('Add a resident first.', 'error') } },
           { id: 'new-resident', label: 'New resident', run: () => setShowAddResident(true) },
           { id: 'import-csv', label: 'Import residents from CSV', run: () => setShowImportCSV(true) },
+          { id: 'import-violations-csv', label: 'Import violations from CSV', run: () => { if (canAdd) setShowImportViolations(true); else addToast('Add residents first.', 'error') } },
           { id: 'board-report', label: 'Generate board report', run: handleBoardReport },
           { id: 'export-csv', label: 'Export violations to CSV', run: handleExportCsv },
           { id: 'switch-portfolio', label: 'View all clients (portfolio)', run: onShowPortfolio },
@@ -411,6 +439,21 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
             loadAnalytics()
             if (errors.length > 0) addToast(`Imported ${added} residents. ${errors.length} rows skipped.`, added === 0 ? 'error' : 'success')
             else addToast(`Imported ${added} residents.`)
+          }}
+        />
+      )}
+
+      {showImportViolations && (
+        <ImportViolationsCSVModal
+          hoaId={hoaId}
+          onClose={() => setShowImportViolations(false)}
+          addToast={addToast}
+          onDone={(added, errors) => {
+            setShowImportViolations(false)
+            loadViolations()
+            loadAnalytics()
+            if (errors.length > 0) addToast(`Imported ${added} violations. ${errors.length} rows skipped.`, added === 0 ? 'error' : 'success')
+            else addToast(`Imported ${added} violations.`)
           }}
         />
       )}

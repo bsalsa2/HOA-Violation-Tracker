@@ -175,7 +175,7 @@ export function ToastStack({ toasts, onDismiss }) {
   )
 }
 
-export function EmptyState({ icon, title, hint }) {
+export function EmptyState({ icon, title, hint, action }) {
   return (
     <div className="py-14 text-center anim-fade">
       <div className="flex justify-center mb-3">
@@ -189,6 +189,16 @@ export function EmptyState({ icon, title, hint }) {
       </div>
       <p className="text-slate-400 text-sm font-medium">{title}</p>
       {hint && <p className="text-slate-500 text-xs mt-1">{hint}</p>}
+      {action && (
+        <button
+          onClick={action.onClick}
+          disabled={action.busy}
+          className="mt-4 px-4 py-2 text-xs text-slate-300 border border-white/15 hover:border-white/25 hover:bg-white/[0.06] disabled:opacity-60 rounded-lg transition-colors inline-flex items-center gap-2"
+        >
+          {action.busy && <Spinner className="w-3.5 h-3.5" />}
+          {action.label}
+        </button>
+      )}
     </div>
   )
 }

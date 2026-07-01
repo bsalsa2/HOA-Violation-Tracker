@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { violationAPI } from '../api'
 import { Badge, Spinner } from './primitives'
 import { STATUS_CONFIG, PRIORITY_CONFIG, NOTICE_LEVELS } from '../lib/constants'
@@ -17,6 +17,55 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
   const [busy, setBusy] = useState(false)
   const [resolveOpen, setResolveOpen] = useState(false)
   const [resolveNote, setResolveNote] = useState('')
+  const [sendConfirmOpen, setSendConfirmOpen] = useState(false)
+  const [photos, setPhotos] = useState([])
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [photoError, setPhotoError] = useState('')
+  const [lightbox, setLightbox] = useState(null)
+  const fileInputRef = useRef(null)
+
+  const loadPhotos = useCallback(async () => {
+    try {
+      const res = await violationAPI.getPhotos(violation.id)
+      setPhotos(res.data)
+    } catch {
+      /* ignore */
+    }
+  }, [violation.id])
+
+  useEffect(() => {
+    loadPhotos()
+  }, [loadPhotos])
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setPhotoError('')
+    if (file.size > 4 * 1024 * 1024) {
+      setPhotoError('Photo too large (max 4 MB).')
+      return
+    }
+    setUploadingPhoto(true)
+    try {
+      await violationAPI.addPhoto(violation.id, file)
+      await Promise.all([loadPhotos(), loadNotes()])
+    } catch (err) {
+      setPhotoError(err.response?.data?.detail || 'Upload failed.')
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
+
+  const handleDeletePhoto = async (photoId) => {
+    setLightbox(null)
+    try {
+      await violationAPI.deletePhoto(violation.id, photoId)
+      await Promise.all([loadPhotos(), loadNotes()])
+    } catch {
+      /* ignore */
+    }
+  }
 
   const loadNotes = useCallback(async () => {
     setNotesLoading(true)
@@ -35,10 +84,17 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
   }, [loadNotes])
 
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose()
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      // Close the topmost layer first, not the whole drawer
+      if (lightbox) setLightbox(null)
+      else if (sendConfirmOpen) setSendConfirmOpen(false)
+      else if (resolveOpen) setResolveOpen(false)
+      else onClose()
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, lightbox, sendConfirmOpen, resolveOpen])
 
   const runUpdate = async (fields) => {
     setBusy(true)
@@ -173,6 +229,37 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
             </div>
           </div>
 
+          {/* Photo evidence */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Photo Evidence</p>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingPhoto || photos.length >= 8}
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border border-white/10 text-slate-400 hover:bg-white/[0.06] hover:border-white/20 disabled:opacity-50 transition-colors"
+                title={photos.length >= 8 ? 'Photo limit reached (8)' : 'Attach an inspection photo'}
+              >
+                {uploadingPhoto ? <Spinner className="w-3 h-3" /> : (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                )}
+                Add photo
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handlePhotoUpload} />
+            </div>
+            {photoError && <p className="text-xs text-red-400 mb-2">{photoError}</p>}
+            {photos.length === 0 ? (
+              <p className="text-xs text-slate-600">No photos yet. Photos strengthen enforcement and are cited in the violation letter.</p>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                {photos.map((p) => (
+                  <button key={p.id} onClick={() => setLightbox(p)} className="relative aspect-square rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-[#3b82f6]/50 transition-all group">
+                    <img src={p.data} alt={p.caption || 'Violation evidence'} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Fine ledger */}
           <div className="vt-card p-4">
             <div className="flex items-center justify-between">
@@ -221,7 +308,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
             <div className="grid grid-cols-2 gap-2">
               {violation.resident_email ? (
                 <button
-                  onClick={() => onSendEmail(violation.id)}
+                  onClick={() => setSendConfirmOpen(true)}
                   disabled={sending}
                   className="flex items-center justify-center gap-1.5 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-slate-100 rounded-lg transition-colors"
                 >
@@ -302,6 +389,46 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
           </div>
         </div>
       </div>
+
+      {/* Send-letter confirmation — misfired notices are a real liability */}
+      {sendConfirmOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70" onClick={(e) => { if (e.target === e.currentTarget) setSendConfirmOpen(false) }}>
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+              </div>
+              <div className="min-w-0">
+                <p className="text-slate-100 text-sm font-medium">Send this violation notice?</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {violation.notice_label !== 'None' ? violation.notice_label : 'Notice'} → <span className="text-slate-300">{violation.resident_email}</span>
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">The letter is generated from the current violation details{photos.length > 0 ? ` and cites the ${photos.length} photo${photos.length !== 1 ? 's' : ''} on file` : ''}. Sending records the notice in the audit log.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setSendConfirmOpen(false)} className="flex-1 py-2 text-sm border border-slate-600 text-slate-400 hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
+              <button onClick={() => { setSendConfirmOpen(false); onSendEmail(violation.id) }} className="flex-1 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 text-slate-100 rounded-lg transition-colors font-medium">Send Notice</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Photo lightbox */}
+      {lightbox && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/85 anim-fade" onClick={(e) => { if (e.target === e.currentTarget) setLightbox(null) }}>
+          <div className="max-w-3xl w-full">
+            <img src={lightbox.data} alt={lightbox.caption || 'Violation evidence'} className="w-full max-h-[75vh] object-contain rounded-xl" />
+            <div className="flex items-center justify-between mt-3">
+              <p className="text-xs text-slate-400">{lightbox.caption || `Added ${formatDate(lightbox.created_at)}`}</p>
+              <div className="flex gap-2">
+                <button onClick={() => handleDeletePhoto(lightbox.id)} className="px-3 py-1.5 text-xs text-red-400 border border-red-500/30 hover:bg-red-500/10 rounded-lg transition-colors">Delete photo</button>
+                <button onClick={() => setLightbox(null)} className="px-3 py-1.5 text-xs text-slate-300 border border-white/15 hover:bg-white/[0.06] rounded-lg transition-colors">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Resolve confirmation */}
       {resolveOpen && (

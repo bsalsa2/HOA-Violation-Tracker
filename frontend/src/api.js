@@ -45,6 +45,8 @@ export const hoaAPI = {
   delete: (hoaId) => api.delete(`/hoas/${hoaId}`),
   getStats: (hoaId) => api.get(`/hoas/${hoaId}/stats`),
   getAnalytics: (hoaId) => api.get(`/hoas/${hoaId}/analytics`),
+  getActivity: (hoaId, limit = 15) => api.get(`/hoas/${hoaId}/activity?limit=${limit}`),
+  seedDemo: (hoaId) => api.post(`/hoas/${hoaId}/seed-demo`),
 }
 
 export const residentAPI = {
@@ -83,6 +85,22 @@ export const violationAPI = {
   getNotes: (violationId) => api.get(`/violations/${violationId}/notes`),
   addNote: (violationId, body) => api.post(`/violations/${violationId}/notes`, { body }),
   delete: (violationId) => api.delete(`/violations/${violationId}`),
+  getPhotos: (violationId) => api.get(`/violations/${violationId}/photos`),
+  addPhoto: (violationId, file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post(`/violations/${violationId}/photos`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  deletePhoto: (violationId, photoId) => api.delete(`/violations/${violationId}/photos/${photoId}`),
+  importCSV: (hoaId, file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post(`/violations/import/csv?hoa_id=${hoaId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
 }
 
 export default api
