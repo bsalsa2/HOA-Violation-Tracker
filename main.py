@@ -12,8 +12,10 @@ import re
 import csv
 import io
 from datetime import datetime, timedelta
+import base64
+import random
 from database import engine, SessionLocal, Base
-from models import User, HOA, Resident, Violation, ViolationNote
+from models import User, HOA, Resident, Violation, ViolationNote, ViolationPhoto
 import utils
 
 Base.metadata.create_all(bind=engine)
@@ -181,7 +183,8 @@ def add_system_note(db: Session, violation: Violation, body: str):
     db.add(ViolationNote(violation_id=violation.id, hoa_id=violation.hoa_id, body=body, kind="system"))
 
 
-def serialize_violation(v: Violation, resident: Optional[Resident] = None, note_count: Optional[int] = None):
+def serialize_violation(v: Violation, resident: Optional[Resident] = None, note_count: Optional[int] = None,
+                        photo_count: int = 0, repeat_count: int = 0):
     return {
         "id": v.id,
         "hoa_id": v.hoa_id,
@@ -202,7 +205,25 @@ def serialize_violation(v: Violation, resident: Optional[Resident] = None, note_
         "email_sent_at": v.email_sent_at.isoformat() if v.email_sent_at else None,
         "created_at": v.created_at.isoformat(),
         "note_count": note_count,
+        "photo_count": photo_count,
+        "repeat_count": repeat_count,
     }
+
+
+def count_prior_offenses(db: Session, violation: Violation) -> int:
+    """Prior violations of the same type by the same resident in the last 12
+    months — the industry trigger for skipping straight to a sterner notice."""
+    cutoff = datetime.utcnow() - timedelta(days=365)
+    return (
+        db.query(func.count(Violation.id))
+        .filter(
+            Violation.resident_id == violation.resident_id,
+            Violation.violation_type == violation.violation_type,
+            Violation.id != violation.id,
+            Violation.created_at >= cutoff,
+        )
+        .scalar() or 0
+    )
 
 
 def compute_analytics(hoa: HOA, db: Session):
@@ -458,6 +479,69 @@ def get_analytics(hoa_id: int, current_user: User = Depends(get_current_user), d
     return compute_analytics(hoa, db)
 
 
+# -- Demo data (one-click sample community for demos and evaluation) --
+
+DEMO_RESIDENTS = [
+    ("James Whitfield", "101", "j.whitfield@example.com", "555-0101"),
+    ("Maria Delgado", "102", "maria.delgado@example.com", "555-0102"),
+    ("Robert Chen", "205", "rchen@example.com", None),
+    ("Angela Foster", "208", "angela.foster@example.com", "555-0208"),
+    ("Derek Okafor", "314", "d.okafor@example.com", "555-0314"),
+    ("Susan Marsh", "317", None, "555-0317"),
+    ("Tom Callahan", "402", "tcallahan@example.com", "555-0402"),
+    ("Priya Natarajan", "409", "priya.n@example.com", "555-0409"),
+]
+
+DEMO_VIOLATIONS = [
+    # (unit, type, description, priority, status, days_ago, due_in, fine, paid, notice_level)
+    ("101", "Landscaping / Lawn Care", "Front lawn exceeds 6 inches; edging along walkway overgrown.", "medium", "noticed", 20, 14, 0, False, 1),
+    ("102", "Parking Violation", "Inoperable vehicle (flat tires, expired tags) parked in driveway for over 30 days.", "high", "escalated", 45, 14, 100, False, 2),
+    ("205", "Trash / Debris", "Trash bins left at curb for three consecutive days after pickup.", "low", "resolved", 33, 7, 0, False, 1),
+    ("208", "Exterior Maintenance", "Peeling paint and visible wood rot on street-facing fascia boards.", "medium", "open", 10, 30, 0, False, 0),
+    ("314", "Pet Violation", "Dog repeatedly off-leash in common areas despite prior verbal reminder.", "medium", "noticed", 15, 14, 50, True, 1),
+    ("317", "Architectural Modification", "Storage shed erected in rear yard without ARC approval.", "high", "open", 5, 30, 0, False, 0),
+    ("402", "Holiday Decorations", "Holiday lighting still installed more than 30 days past the season.", "low", "resolved", 60, 14, 0, False, 1),
+    ("101", "Trash / Debris", "Construction debris pile visible beside garage.", "medium", "open", 3, 14, 0, False, 0),
+    ("102", "Parking Violation", "Commercial box truck parked overnight in guest spaces.", "medium", "open", 2, 14, 0, False, 0),
+    ("409", "Pool / Amenity Misuse", "Unaccompanied guests using pool facility after hours.", "low", "resolved", 25, 7, 0, False, 0),
+]
+
+
+@app.post("/hoas/{hoa_id}/seed-demo")
+def seed_demo_data(hoa_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Populate an empty community with realistic sample residents + violations."""
+    hoa = owned_hoa(hoa_id, current_user, db)
+    if db.query(func.count(Resident.id)).filter(Resident.hoa_id == hoa.id).scalar():
+        raise HTTPException(status_code=400, detail="Demo data can only be loaded into an empty community")
+
+    by_unit = {}
+    for name, unit, email, phone in DEMO_RESIDENTS:
+        r = Resident(hoa_id=hoa.id, name=name, unit=unit, email=email, phone=phone)
+        db.add(r)
+        by_unit[unit] = r
+    db.flush()
+
+    now = datetime.utcnow()
+    for unit, vtype, desc, priority, status, days_ago, due_in, fine, paid, notice in DEMO_VIOLATIONS:
+        created = now - timedelta(days=days_ago)
+        v = Violation(
+            hoa_id=hoa.id, resident_id=by_unit[unit].id, violation_type=vtype, description=desc,
+            status=status, priority=priority, notice_level=notice, fine_amount=fine, fine_paid=paid,
+            created_at=created, due_date=created + timedelta(days=due_in),
+            resolved_at=(created + timedelta(days=random.randint(3, due_in))) if status == "resolved" else None,
+            email_sent_at=(created + timedelta(days=1)) if notice > 0 else None,
+        )
+        db.add(v)
+        db.flush()
+        add_system_note(db, v, f"Violation opened — {due_in}-day cure period")
+        if notice > 0:
+            add_system_note(db, v, "Violation notice emailed to resident")
+        if status == "resolved":
+            add_system_note(db, v, "Status changed from noticed to resolved")
+    db.commit()
+    return {"message": f"Loaded {len(DEMO_RESIDENTS)} residents and {len(DEMO_VIOLATIONS)} violations", "residents": len(DEMO_RESIDENTS), "violations": len(DEMO_VIOLATIONS)}
+
+
 # -- Residents --
 
 @app.post("/residents")
@@ -524,6 +608,12 @@ async def import_residents_csv(hoa_id: int, file: UploadFile = File(...), curren
         reader = csv.DictReader(io.StringIO(text))
         added = 0
         errors = []
+        # Seed with existing units so duplicates are caught both against the DB
+        # and within the file itself (uncommitted rows are invisible to queries).
+        seen_units = {
+            (u or "").strip().lower()
+            for (u,) in db.query(Resident.unit).filter(Resident.hoa_id == hoa.id).all()
+        }
         for idx, row in enumerate(reader, 1):
             row = {(k or "").strip().lower(): v for k, v in row.items()}
             name = (row.get("name") or "").strip()
@@ -531,10 +621,10 @@ async def import_residents_csv(hoa_id: int, file: UploadFile = File(...), curren
             if not name or not unit:
                 errors.append(f"Row {idx}: Missing required fields (name, unit/address)")
                 continue
-            existing = db.query(Resident).filter(Resident.hoa_id == hoa.id, Resident.unit == unit).first()
-            if existing:
+            if unit.lower() in seen_units:
                 errors.append(f"Row {idx}: '{unit}' already exists")
                 continue
+            seen_units.add(unit.lower())
             db.add(Resident(hoa_id=hoa.id, name=name, unit=unit,
                             email=(row.get("email") or "").strip() or None,
                             phone=(row.get("phone") or "").strip() or None))
@@ -567,8 +657,16 @@ def add_violation(data: ViolationCreate, current_user: User = Depends(get_curren
     db.commit()
     db.refresh(violation)
     add_system_note(db, violation, f"Violation opened — {due_days}-day cure period (due {due_date.strftime('%b %d, %Y')})")
+
+    # Repeat-offense detection: same resident, same violation type, past 12 months.
+    repeat = count_prior_offenses(db, violation)
+    note_count = 1
+    if repeat > 0:
+        nth = {1: "2nd", 2: "3rd"}.get(repeat, f"{repeat + 1}th")
+        add_system_note(db, violation, f"⚠ Repeat offense — {nth} {violation.violation_type} violation for this resident in the last 12 months. Consider a sterner notice level.")
+        note_count = 2
     db.commit()
-    return serialize_violation(violation, resident, note_count=1)
+    return serialize_violation(violation, resident, note_count=note_count, repeat_count=repeat)
 
 
 @app.get("/violations")
@@ -584,7 +682,15 @@ def get_violations(hoa_id: int, status: str = None, current_user: User = Depends
         db.query(ViolationNote.violation_id, func.count(ViolationNote.id))
         .filter(ViolationNote.hoa_id == hoa.id).group_by(ViolationNote.violation_id).all()
     )
-    return [serialize_violation(v, residents.get(v.resident_id), note_count=int(note_counts.get(v.id, 0))) for v in violations]
+    photo_counts = dict(
+        db.query(ViolationPhoto.violation_id, func.count(ViolationPhoto.id))
+        .filter(ViolationPhoto.hoa_id == hoa.id).group_by(ViolationPhoto.violation_id).all()
+    )
+    return [
+        serialize_violation(v, residents.get(v.resident_id), note_count=int(note_counts.get(v.id, 0)),
+                            photo_count=int(photo_counts.get(v.id, 0)))
+        for v in violations
+    ]
 
 
 @app.get("/violations/{violation_id}/letter")
@@ -592,11 +698,13 @@ def get_violation_letter(violation_id: int, current_user: User = Depends(get_cur
     violation = owned_violation(violation_id, current_user, db)
     resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
     hoa = db.query(HOA).filter(HOA.id == violation.hoa_id).first()
+    photo_count = db.query(func.count(ViolationPhoto.id)).filter(ViolationPhoto.violation_id == violation.id).scalar() or 0
     letter = utils.generate_violation_letter(
         resident_name=resident.name,
         violation_type=violation.violation_type,
         description=violation.description,
         date=violation.created_at.strftime("%Y-%m-%d"),
+        property_address=resident.unit,
         hoa_name=hoa.name if hoa else None,
         hoa_contact_person=hoa.contact_person_name if hoa else None,
         hoa_email=hoa.email if hoa else None,
@@ -605,6 +713,8 @@ def get_violation_letter(violation_id: int, current_user: User = Depends(get_cur
         due_date=violation.due_date.strftime("%B %d, %Y") if violation.due_date else None,
         fine_amount=float(violation.fine_amount or 0),
         notice_label=NOTICE_LEVELS[min(violation.notice_level or 0, len(NOTICE_LEVELS) - 1)],
+        repeat_count=count_prior_offenses(db, violation),
+        photo_count=int(photo_count),
     )
     return {"letter": letter}
 
@@ -705,6 +815,145 @@ def add_violation_note(violation_id: int, data: NoteCreate, current_user: User =
     db.commit()
     db.refresh(note)
     return {"id": note.id, "body": note.body, "kind": note.kind, "created_at": note.created_at.isoformat()}
+
+
+# -- Photo evidence --
+
+MAX_PHOTO_BYTES = 4 * 1024 * 1024  # 4 MB per photo
+MAX_PHOTOS_PER_VIOLATION = 8
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+
+
+@app.post("/violations/{violation_id}/photos")
+async def add_violation_photo(violation_id: int, file: UploadFile = File(...), caption: Optional[str] = None,
+                              current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    violation = owned_violation(violation_id, current_user, db)
+    content_type = (file.content_type or "").lower()
+    if content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG, WebP, or GIF images are supported")
+    existing = db.query(func.count(ViolationPhoto.id)).filter(ViolationPhoto.violation_id == violation.id).scalar() or 0
+    if existing >= MAX_PHOTOS_PER_VIOLATION:
+        raise HTTPException(status_code=400, detail=f"Limit of {MAX_PHOTOS_PER_VIOLATION} photos per violation reached")
+    raw = await file.read()
+    if len(raw) > MAX_PHOTO_BYTES:
+        raise HTTPException(status_code=400, detail="Photo too large (max 4 MB). Resize it and try again.")
+    if not raw:
+        raise HTTPException(status_code=400, detail="Empty file")
+    data_url = f"data:{content_type};base64,{base64.b64encode(raw).decode('ascii')}"
+    photo = ViolationPhoto(violation_id=violation.id, hoa_id=violation.hoa_id, data=data_url,
+                           caption=(caption or "").strip() or None)
+    db.add(photo)
+    add_system_note(db, violation, "Photo evidence added" + (f" — {photo.caption}" if photo.caption else ""))
+    db.commit()
+    db.refresh(photo)
+    return {"id": photo.id, "data": photo.data, "caption": photo.caption, "created_at": photo.created_at.isoformat()}
+
+
+@app.get("/violations/{violation_id}/photos")
+def get_violation_photos(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    owned_violation(violation_id, current_user, db)
+    photos = db.query(ViolationPhoto).filter(ViolationPhoto.violation_id == violation_id).order_by(ViolationPhoto.created_at.asc()).all()
+    return [{"id": p.id, "data": p.data, "caption": p.caption, "created_at": p.created_at.isoformat()} for p in photos]
+
+
+@app.delete("/violations/{violation_id}/photos/{photo_id}")
+def delete_violation_photo(violation_id: int, photo_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    violation = owned_violation(violation_id, current_user, db)
+    photo = db.query(ViolationPhoto).filter(ViolationPhoto.id == photo_id, ViolationPhoto.violation_id == violation.id).first()
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    db.delete(photo)
+    add_system_note(db, violation, "Photo evidence removed")
+    db.commit()
+    return {"message": "Photo deleted"}
+
+
+# -- Bulk import: violations from CSV (spreadsheet migration path) --
+
+@app.post("/violations/import/csv")
+async def import_violations_csv(hoa_id: int, file: UploadFile = File(...), current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Columns: unit (required, matches an existing resident), type (required),
+    description, priority, due_in_days, fine_amount. Extra columns ignored."""
+    hoa = owned_hoa(hoa_id, current_user, db)
+    try:
+        contents = await file.read()
+        text = contents.decode("utf-8-sig")
+        reader = csv.DictReader(io.StringIO(text))
+        residents_by_unit = {
+            (r.unit or "").strip().lower(): r
+            for r in db.query(Resident).filter(Resident.hoa_id == hoa.id).all()
+        }
+        added = 0
+        errors = []
+        for idx, row in enumerate(reader, 1):
+            row = {(k or "").strip().lower(): (v or "").strip() for k, v in row.items()}
+            unit = row.get("unit") or row.get("address") or ""
+            vtype = row.get("type") or row.get("violation_type") or ""
+            if not unit or not vtype:
+                errors.append(f"Row {idx}: missing required fields (unit, type)")
+                continue
+            resident = residents_by_unit.get(unit.lower())
+            if not resident:
+                errors.append(f"Row {idx}: no resident found for unit '{unit}' — import residents first")
+                continue
+            priority = row.get("priority", "").lower()
+            if priority not in VALID_PRIORITIES:
+                priority = "medium"
+            try:
+                due_days = int(float(row.get("due_in_days") or 14))
+            except ValueError:
+                due_days = 14
+            due_days = due_days if due_days > 0 else 14
+            try:
+                fine = max(0.0, float(row.get("fine_amount") or 0))
+            except ValueError:
+                fine = 0.0
+            violation = Violation(
+                hoa_id=hoa.id, resident_id=resident.id, violation_type=vtype,
+                description=row.get("description") or vtype, status="open", priority=priority,
+                due_date=datetime.utcnow() + timedelta(days=due_days), notice_level=0, fine_amount=fine,
+            )
+            db.add(violation)
+            db.flush()
+            add_system_note(db, violation, f"Imported from CSV — {due_days}-day cure period")
+            added += 1
+        db.commit()
+        return {"added": added, "errors": errors, "message": f"Successfully imported {added} violations"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Failed to parse CSV: {str(e)}")
+
+
+# -- Activity feed (recent enforcement activity across the HOA) --
+
+@app.get("/hoas/{hoa_id}/activity")
+def get_hoa_activity(hoa_id: int, limit: int = 15, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    hoa = owned_hoa(hoa_id, current_user, db)
+    limit = max(1, min(limit, 50))
+    rows = (
+        db.query(ViolationNote, Violation, Resident)
+        .join(Violation, ViolationNote.violation_id == Violation.id)
+        .join(Resident, Violation.resident_id == Resident.id)
+        .filter(ViolationNote.hoa_id == hoa.id)
+        .order_by(ViolationNote.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "id": note.id,
+            "violation_id": violation.id,
+            "violation_type": violation.violation_type,
+            "resident_name": resident.name,
+            "resident_unit": resident.unit,
+            "body": note.body,
+            "kind": note.kind,
+            "created_at": note.created_at.isoformat(),
+        }
+        for note, violation, resident in rows
+    ]
 
 
 @app.delete("/violations/{violation_id}")

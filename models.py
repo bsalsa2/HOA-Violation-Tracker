@@ -79,6 +79,7 @@ class Violation(Base):
     resident = relationship("Resident", back_populates="violations")
     hoa = relationship("HOA", back_populates="violations")
     notes = relationship("ViolationNote", back_populates="violation", cascade="all, delete-orphan")
+    photos = relationship("ViolationPhoto", back_populates="violation", cascade="all, delete-orphan")
 
 
 class ViolationNote(Base):
@@ -86,10 +87,29 @@ class ViolationNote(Base):
     __tablename__ = "violation_notes"
 
     id = Column(Integer, primary_key=True, index=True)
-    violation_id = Column(Integer, ForeignKey("violations.id"))
-    hoa_id = Column(Integer, ForeignKey("hoas.id"))
+    violation_id = Column(Integer, ForeignKey("violations.id"), index=True)
+    hoa_id = Column(Integer, ForeignKey("hoas.id"), index=True)
     body = Column(Text)
     kind = Column(String, default="note")   # note | system
     created_at = Column(DateTime, default=datetime.utcnow)
 
     violation = relationship("Violation", back_populates="notes")
+
+
+class ViolationPhoto(Base):
+    """Photo evidence attached to a violation, stored inline as a data URL.
+
+    Inline storage keeps deployment to a single Postgres instance (no object
+    store); uploads are capped small at the API layer, which is plenty for
+    inspection snapshots.
+    """
+    __tablename__ = "violation_photos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    violation_id = Column(Integer, ForeignKey("violations.id"), index=True)
+    hoa_id = Column(Integer, ForeignKey("hoas.id"), index=True)
+    data = Column(Text)                      # data:image/...;base64,....
+    caption = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    violation = relationship("Violation", back_populates="photos")

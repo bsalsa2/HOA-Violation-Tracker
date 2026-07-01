@@ -40,6 +40,7 @@ def generate_violation_letter(
     violation_type: str,
     description: str,
     date: str = None,
+    property_address: str = None,
     hoa_name: str = None,
     hoa_contact_person: str = None,
     hoa_email: str = None,
@@ -48,6 +49,8 @@ def generate_violation_letter(
     due_date: str = None,
     fine_amount: float = 0,
     notice_label: str = None,
+    repeat_count: int = 0,
+    photo_count: int = 0,
 ) -> str:
     if date is None:
         date = datetime.utcnow().strftime("%Y-%m-%d")
@@ -65,6 +68,15 @@ def generate_violation_letter(
     notice_clause = (
         f"This is a {notice_label}."
         if notice_label and notice_label not in ("None",) else ""
+    )
+    property_line = f"\nProperty: {property_address}" if property_address else ""
+    repeat_clause = (
+        "\n\nPlease note that our records indicate this is a repeat violation of the same nature within the past twelve months. Continued non-compliance may result in accelerated enforcement action."
+        if repeat_count and repeat_count > 0 else ""
+    )
+    evidence_clause = (
+        f" Photographic evidence ({photo_count} photo{'s' if photo_count != 1 else ''}) is on file with the association."
+        if photo_count and photo_count > 0 else ""
     )
 
     contact_block = ""
@@ -88,20 +100,24 @@ def generate_violation_letter(
 
 Association: {org}
 Resident: {resident_name}
+Property: {property_address or 'on file'}
 Violation Type: {violation_type}
 Description: {description}
 Date: {date}
 Cure deadline: {due_date or '14 days from notice date'}
 Notice level: {notice_label or 'First Notice'}
 Fine assessed: {f'${fine_amount:,.2f}' if fine_amount and fine_amount > 0 else 'None'}
+Repeat offense: {'Yes — same violation type within the past 12 months' if repeat_count else 'No'}
+Photo evidence on file: {photo_count or 0}
 
 The letter should:
 - Be formal and professional, on behalf of {org}
-- Clearly state the violation and the specific cure deadline
-- Reference the fine if one was assessed
+- Reference the property address and clearly state the violation and the specific cure deadline
+- Reference the fine if one was assessed, and mention photo evidence if any is on file
+- If this is a repeat offense, note that records show a prior violation of the same nature
 - Explain that failure to cure may result in additional fines or escalation
 - Be approximately 160-220 words
-- Include a signature line for the HOA board president
+- Include a signature line for {hoa_contact_person or 'the HOA board president'}
 
 Generate ONLY the letter text, no additional commentary."""
             response = model.generate_content(prompt)
@@ -111,16 +127,16 @@ Generate ONLY the letter text, no additional commentary."""
 
     return f"""Dear {resident_name},
 
-Date: {date}
+Date: {date}{property_line}
 
 {notice_clause}
 
 This letter is to notify you, on behalf of {org}, of a violation recorded on your property within our community.
 
 Violation Type: {violation_type}
-Description: {description}
+Description: {description}{evidence_clause}
 
-{cure_clause} Failure to remedy the violation may result in additional fines or escalated enforcement action as outlined in the HOA governing documents.{fine_clause}
+{cure_clause} Failure to remedy the violation may result in additional fines or escalated enforcement action as outlined in the HOA governing documents.{fine_clause}{repeat_clause}
 
 If you believe this notice was issued in error, or if you have already addressed this matter, please contact {org} immediately.
 
