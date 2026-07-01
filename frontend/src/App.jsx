@@ -146,7 +146,7 @@ function App() {
           key={activeHoa.id}
           hoa={activeHoa}
           hoas={hoas}
-          hoaEmail={getHoaEmail(activeHoa.id)}
+          hoaEmail={getHoaEmail(activeHoa.id) || activeHoa.email}
           onSaveHoaEmail={saveHoaEmail}
           onSwitchHoa={(h) => { setActive(h.id); setView('dashboard') }}
           onShowPortfolio={() => { refreshPortfolio(); setView('portfolio') }}
