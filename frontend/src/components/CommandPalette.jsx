@@ -108,7 +108,7 @@ export default function CommandPalette({ open, onClose, residents, violations, o
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${i === activeIdx ? 'bg-white/[0.06]' : ''}`}
               >
                 <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ring-1 ${
-                  item.type === 'action' ? 'bg-[#3b82f6]/12 text-[#60a5fa] ring-[#3b82f6]/25' : item.type === 'resident' ? 'bg-[#8fae8b]/12 text-[#8fae8b] ring-[#8fae8b]/25' : 'bg-[#c17b6a]/12 text-[#c17b6a] ring-[#c17b6a]/25'
+                  item.type === 'action' ? 'bg-[#3b82f6]/12 text-[#60a5fa] ring-[#3b82f6]/25' : item.type === 'resident' ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/25' : 'bg-amber-500/10 text-amber-400 ring-amber-500/25'
                 }`}>
                   {item.type === 'action' ? (
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>

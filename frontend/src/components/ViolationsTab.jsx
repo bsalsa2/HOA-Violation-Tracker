@@ -20,7 +20,7 @@ function ViolationCard({ violation, onOpen }) {
             <Badge config={STATUS_CONFIG[violation.status]} />
             {violation.priority === 'high' && <Badge config={PRIORITY_CONFIG.high}>High</Badge>}
             {violation.notice_level > 0 && (
-              <Badge className="bg-[#b89b8e]/12 text-[#cdb6aa] border-[#b89b8e]/25">{violation.notice_label}</Badge>
+              <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/25">{violation.notice_label}</Badge>
             )}
           </div>
           <p className="text-xs text-slate-400 mt-1">{violation.resident_name} · {violation.resident_unit}</p>
@@ -28,12 +28,12 @@ function ViolationCard({ violation, onOpen }) {
           <div className="flex items-center gap-3 mt-2 flex-wrap">
             <span className="text-xs text-slate-600">{formatDate(violation.created_at)}</span>
             {due && (
-              <span className={`text-xs font-medium ${due.tone === 'overdue' ? 'text-[#d4988a]' : due.tone === 'soon' ? 'text-[#60a5fa]' : 'text-slate-500'}`}>
+              <span className={`text-xs font-medium ${due.tone === 'overdue' ? 'text-red-400' : due.tone === 'soon' ? 'text-amber-400' : 'text-slate-500'}`}>
                 {due.text}
               </span>
             )}
             {violation.fine_amount > 0 && (
-              <span className={`text-xs font-medium ${violation.fine_paid ? 'text-[#a8c3a3]' : 'text-[#d4988a]'}`}>
+              <span className={`text-xs font-medium ${violation.fine_paid ? 'text-emerald-400' : 'text-red-400'}`}>
                 {currency(violation.fine_amount)} {violation.fine_paid ? 'paid' : 'due'}
               </span>
             )}
@@ -53,7 +53,7 @@ function ViolationCard({ violation, onOpen }) {
   )
 }
 
-export default function ViolationsTab({ violations, onOpen, onNew, canAdd, query, setQuery }) {
+export default function ViolationsTab({ violations, onOpen, onNew, onExport, canAdd, query, setQuery }) {
   const [statusFilter, setStatusFilter] = useState('')
   const [sortBy, setSortBy] = useState('recent')
 
@@ -121,6 +121,13 @@ export default function ViolationsTab({ violations, onOpen, onNew, canAdd, query
               <option value="priority">Priority</option>
             </select>
             <button
+              onClick={onExport}
+              className="px-3 py-2 text-xs text-slate-400 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors whitespace-nowrap"
+              title="Download all violations as a spreadsheet"
+            >
+              Export CSV
+            </button>
+            <button
               onClick={onNew}
               disabled={!canAdd}
               className="btn-primary btn-sheen px-3 py-2 text-xs whitespace-nowrap"
@@ -137,7 +144,7 @@ export default function ViolationsTab({ violations, onOpen, onNew, canAdd, query
               onClick={() => setStatusFilter(chip.key)}
               className={`vt-chip ${
                 statusFilter === chip.key
-                  ? chip.danger ? 'bg-red-500/15 text-red-700 border-red-500/30' : 'bg-[#3b82f6]/15 text-[#60a5fa] border-[#3b82f6]/30'
+                  ? chip.danger ? 'bg-red-500/15 text-red-400 border-red-500/30' : 'bg-[#3b82f6]/15 text-[#60a5fa] border-[#3b82f6]/30'
                   : 'text-slate-400 border-white/10 hover:border-white/20 hover:bg-white/[0.03]'
               }`}
             >

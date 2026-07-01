@@ -2,11 +2,11 @@ import React from 'react'
 import { CountUp, Skeleton } from './primitives'
 import { currency } from '../lib/format'
 
-function KpiCard({ label, value, delay = '' }) {
+function KpiCard({ label, value, tone = '', delay = '' }) {
   return (
     <div className={`border border-white/10 rounded-lg p-5 anim-rise ${delay}`}>
       <p className="text-slate-400 text-xs font-medium mb-2">{label}</p>
-      <p className="text-3xl leading-none font-bold text-slate-100">
+      <p className={`text-3xl leading-none font-bold ${tone || 'text-slate-100'}`}>
         <CountUp value={value} />
       </p>
     </div>
@@ -39,9 +39,9 @@ export default function OverviewTab({ analytics, loading, onOpenResident }) {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <KpiCard label="Open Cases" value={k.open_violations} delay="stagger-1" />
-        <KpiCard label="Overdue" value={k.overdue_violations} delay="stagger-2" />
+        <KpiCard label="Overdue" value={k.overdue_violations} tone={k.overdue_violations > 0 ? 'text-red-400' : ''} delay="stagger-2" />
         <KpiCard label="Resolution Rate" value={`${k.resolution_rate}%`} delay="stagger-3" />
-        <KpiCard label="Outstanding Fines" value={currency(k.outstanding_fines)} delay="stagger-4" />
+        <KpiCard label="Outstanding Fines" value={currency(k.outstanding_fines)} tone={k.outstanding_fines > 0 ? 'text-amber-400' : ''} delay="stagger-4" />
       </div>
 
       {/* Top Offenders */}

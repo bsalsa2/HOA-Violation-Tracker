@@ -13,20 +13,21 @@ export const VIOLATION_TYPES = [
   'Other',
 ]
 
-// Restrained, luxe semantic palette: champagne gold · sage · clay · stone
+// Conventional traffic-light semantics — blue: active, amber: notice served /
+// awaiting cure, green: resolved, red: escalated/problem. Instantly readable.
 export const STATUS_CONFIG = {
-  open: { label: 'Open', badge: 'bg-[#3b82f6]/10 text-[#60a5fa] border-[#3b82f6]/25', dot: '#3b82f6' },
-  noticed: { label: 'Noticed', badge: 'bg-[#9aa1ad]/10 text-[#b6bcc6] border-[#9aa1ad]/25', dot: '#9aa1ad' },
-  resolved: { label: 'Resolved', badge: 'bg-[#8fae8b]/10 text-[#a8c3a3] border-[#8fae8b]/25', dot: '#8fae8b' },
-  escalated: { label: 'Escalated', badge: 'bg-[#c17b6a]/10 text-[#d4988a] border-[#c17b6a]/25', dot: '#c17b6a' },
+  open: { label: 'Open', badge: 'bg-blue-500/10 text-blue-400 border-blue-500/25', dot: '#3b82f6' },
+  noticed: { label: 'Noticed', badge: 'bg-amber-500/10 text-amber-400 border-amber-500/25', dot: '#f59e0b' },
+  resolved: { label: 'Resolved', badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25', dot: '#10b981' },
+  escalated: { label: 'Escalated', badge: 'bg-red-500/10 text-red-400 border-red-500/25', dot: '#ef4444' },
 }
 
 export const STATUS_ORDER = ['open', 'noticed', 'resolved', 'escalated']
 
 export const PRIORITY_CONFIG = {
-  low: { label: 'Low', badge: 'bg-[#9a948a]/10 text-[#b8b1a5] border-[#9a948a]/25', dot: '#9a948a' },
-  medium: { label: 'Medium', badge: 'bg-[#3b82f6]/10 text-[#60a5fa] border-[#3b82f6]/25', dot: '#3b82f6' },
-  high: { label: 'High', badge: 'bg-[#c17b6a]/10 text-[#d4988a] border-[#c17b6a]/25', dot: '#c17b6a' },
+  low: { label: 'Low', badge: 'bg-slate-500/10 text-slate-400 border-slate-500/25', dot: '#64748b' },
+  medium: { label: 'Medium', badge: 'bg-amber-500/10 text-amber-400 border-amber-500/25', dot: '#f59e0b' },
+  high: { label: 'High', badge: 'bg-red-500/10 text-red-400 border-red-500/25', dot: '#ef4444' },
 }
 
 export const NOTICE_LEVELS = [
@@ -37,5 +38,3 @@ export const NOTICE_LEVELS = [
   'Final Notice',
   'Hearing / Legal',
 ]
-
-export const CHART_COLORS = ['#3b82f6', '#8fae8b', '#c17b6a', '#9aa1ad', '#b89b8e', '#a9b18f', '#60a5fa', '#8c8f9a', '#bfa6a0', '#7e8a7c']

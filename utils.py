@@ -6,7 +6,11 @@ from passlib.context import CryptContext
 
 logger = logging.getLogger(__name__)
 
-SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production-use-32-chars-minimum")
+# Accept either name — deploy configs historically used JWT_SECRET while the
+# code read SECRET_KEY, which silently fell back to the default. Never again.
+SECRET_KEY = os.getenv("SECRET_KEY") or os.getenv("JWT_SECRET") or "change-me-in-production-use-32-chars-minimum"
+if SECRET_KEY == "change-me-in-production-use-32-chars-minimum" and os.getenv("ENVIRONMENT", "development") != "development":
+    logger.warning("SECRET_KEY is not set — JWTs are signed with the built-in default. Set SECRET_KEY in the environment.")
 ALGORITHM = "HS256"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -64,10 +68,8 @@ def generate_violation_letter(
     )
 
     contact_block = ""
-    if hoa_contact_person or hoa_email or hoa_phone or hoa_website:
+    if hoa_email or hoa_phone or hoa_website:
         contact_lines = []
-        if hoa_contact_person:
-            contact_lines.append(hoa_contact_person)
         if hoa_email:
             contact_lines.append(f"Email: {hoa_email}")
         if hoa_phone:
@@ -81,7 +83,7 @@ def generate_violation_letter(
         try:
             import google.generativeai as genai
             genai.configure(api_key=gemini_key)
-            model = genai.GenerativeModel("gemini-pro")
+            model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "gemini-2.0-flash"))
             prompt = f"""Generate a professional HOA violation notice letter.
 
 Association: {org}
@@ -127,14 +129,15 @@ We appreciate your cooperation in maintaining the standards of our community.
 Sincerely,
 
 _______________________________
-{org}
-Managed by ViolationTrack
-violationtrack@gmail.com{contact_block}
+{hoa_contact_person or 'Board of Directors'}
+{org}{contact_block}
 """
 
 
 def generate_pdf(letter_text: str, resident_name: str):
+    """Render a violation letter as a printable US-letter PDF (for certified mail)."""
     try:
+        import textwrap
         from io import BytesIO
         from reportlab.lib.pagesizes import letter
         from reportlab.pdfgen import canvas as rl_canvas
@@ -142,14 +145,18 @@ def generate_pdf(letter_text: str, resident_name: str):
         pdf_buffer = BytesIO()
         c = rl_canvas.Canvas(pdf_buffer, pagesize=letter)
         width, height = letter
-        c.setFont("Helvetica", 12)
-        y = height - 60
-        for line in letter_text.split("\n"):
-            if y < 60:
-                c.showPage()
-                y = height - 60
-            c.drawString(60, y, line)
-            y -= 18
+        margin = 72  # 1" margins, standard business letter
+        c.setFont("Times-Roman", 11)
+        y = height - margin
+        for paragraph in letter_text.split("\n"):
+            lines = textwrap.wrap(paragraph, width=92) or [""]
+            for line in lines:
+                if y < margin:
+                    c.showPage()
+                    c.setFont("Times-Roman", 11)
+                    y = height - margin
+                c.drawString(margin, y, line)
+                y -= 15
         c.save()
         pdf_buffer.seek(0)
         return pdf_buffer

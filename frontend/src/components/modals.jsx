@@ -20,6 +20,7 @@ function parseDetail(err, fallback) {
 export function AddClientModal({ onClose, onCreated }) {
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
+  const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -28,7 +29,7 @@ export function AddClientModal({ onClose, onCreated }) {
     setLoading(true)
     setError('')
     try {
-      const res = await hoaAPI.create(name, address)
+      const res = await hoaAPI.create(name, address, email)
       onCreated(res.data)
     } catch (err) {
       setError(parseDetail(err, 'Failed to add client.'))
@@ -47,6 +48,10 @@ export function AddClientModal({ onClose, onCreated }) {
         <div>
           <label className={labelCls}>Address</label>
           <input className={inputCls} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St, Anytown, CA" required />
+        </div>
+        <div>
+          <label className={labelCls}>HOA Email <span className="text-slate-500 font-normal">(reply-to on violation notices)</span></label>
+          <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="board@yourhoa.com" />
         </div>
         <ErrorBox>{error}</ErrorBox>
         <div className="flex gap-3 pt-2">
@@ -155,7 +160,7 @@ export function AddViolationModal({ hoaId, residents, defaultResidentId, onClose
             {residents.map((r) => (<option key={r.id} value={r.id}>{r.name} — {r.unit}</option>))}
           </select>
           {selectedResident && !selectedResident.email && (
-            <p className="mt-1.5 text-xs text-[#60a5fa]">⚠ This resident has no email — you won't be able to send them a letter.</p>
+            <p className="mt-1.5 text-xs text-amber-400">⚠ This resident has no email — you won't be able to send them a letter.</p>
           )}
         </div>
         <div>
@@ -231,7 +236,7 @@ export function ImportCSVModal({ hoaId, onClose, onDone, addToast }) {
       <Modal title="Import Results" onClose={() => onDone(result.added, result.errors || [])}>
         <div className="space-y-4">
           <div className="flex items-center gap-3 bg-green-950 border border-green-800 rounded-xl p-4">
-            <svg className="w-5 h-5 text-[#a8c3a3] shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <svg className="w-5 h-5 text-emerald-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
             <p className="text-green-200 text-sm">{result.message}</p>
@@ -240,7 +245,7 @@ export function ImportCSVModal({ hoaId, onClose, onDone, addToast }) {
             <div>
               <p className="text-sm font-medium text-slate-400 mb-2">Rows with issues:</p>
               <div className="bg-slate-800 rounded-xl p-3 max-h-48 overflow-y-auto space-y-1">
-                {result.errors.map((err, i) => (<p key={i} className="text-xs text-[#60a5fa]">{err}</p>))}
+                {result.errors.map((err, i) => (<p key={i} className="text-xs text-amber-300">{err}</p>))}
               </div>
             </div>
           )}

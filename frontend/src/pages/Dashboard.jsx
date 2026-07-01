@@ -10,6 +10,7 @@ import HoaSwitcher from '../components/HoaSwitcher'
 import { AddResidentModal, AddViolationModal, ImportCSVModal } from '../components/modals'
 import { Modal, ConfirmDialog, ToastStack, Spinner } from '../components/primitives'
 import { openBoardReport } from '../lib/boardReport'
+import { downloadViolationsCsv, downloadLetterPdf } from '../lib/export'
 
 function getEmailJSConfig() {
   return {
@@ -195,6 +196,25 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
     }
   }, [addToast])
 
+  const handleDownloadPdf = useCallback(async (violation) => {
+    try {
+      const res = await violationAPI.getLetterPdf(violation.id)
+      downloadLetterPdf(res.data, violation.resident_name)
+      addToast('Letter PDF downloaded — ready to print for certified mail.')
+    } catch {
+      addToast('Failed to generate the PDF.', 'error')
+    }
+  }, [addToast])
+
+  const handleExportCsv = useCallback(() => {
+    if (!violations.length) {
+      addToast('No violations to export yet.', 'error')
+      return
+    }
+    downloadViolationsCsv(violations, hoa?.name)
+    addToast(`Exported ${violations.length} violations to CSV.`)
+  }, [violations, hoa, addToast])
+
   const handleDeleteViolation = useCallback((violationId) => {
     setConfirmDelete({
       message: 'Delete this violation? This cannot be undone.',
@@ -326,6 +346,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
             setQuery={setViolationQuery}
             onOpen={(v) => setSelectedId(v.id)}
             onNew={() => setShowAddViolation(true)}
+            onExport={handleExportCsv}
             canAdd={canAdd}
           />
         )}
@@ -349,6 +370,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
           onSendEmail={handleSendEmail}
           onViewLetter={handleViewLetter}
           onDelete={handleDeleteViolation}
+          onDownloadPdf={handleDownloadPdf}
           sending={!!sendingEmail[selectedViolation.id]}
         />
       )}
@@ -365,6 +387,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
           { id: 'new-resident', label: 'New resident', run: () => setShowAddResident(true) },
           { id: 'import-csv', label: 'Import residents from CSV', run: () => setShowImportCSV(true) },
           { id: 'board-report', label: 'Generate board report', run: handleBoardReport },
+          { id: 'export-csv', label: 'Export violations to CSV', run: handleExportCsv },
           { id: 'switch-portfolio', label: 'View all clients (portfolio)', run: onShowPortfolio },
         ]}
       />
@@ -406,12 +429,21 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
           <div className="bg-white/[0.04] ring-1 ring-white/[0.06] rounded-xl p-5">
             <pre className="text-sm text-slate-400 whitespace-pre-wrap leading-relaxed font-sans">{letterModal.text}</pre>
           </div>
-          <button
-            onClick={() => { navigator.clipboard?.writeText(letterModal.text); addToast('Letter copied to clipboard.') }}
-            className="mt-4 w-full py-2 text-sm border border-white/10 text-slate-400 hover:bg-white/[0.06] rounded-lg transition-colors"
-          >
-            Copy to Clipboard
-          </button>
+          <div className="flex gap-3 mt-4">
+            <button
+              onClick={() => { navigator.clipboard?.writeText(letterModal.text); addToast('Letter copied to clipboard.') }}
+              className="flex-1 py-2 text-sm border border-white/10 text-slate-400 hover:bg-white/[0.06] rounded-lg transition-colors"
+            >
+              Copy to Clipboard
+            </button>
+            <button
+              onClick={() => handleDownloadPdf(letterModal.violation)}
+              className="flex-1 py-2 text-sm border border-white/10 text-slate-400 hover:bg-white/[0.06] rounded-lg transition-colors"
+              title="Print-ready PDF for certified mail"
+            >
+              Download PDF
+            </button>
+          </div>
         </Modal>
       )}
 

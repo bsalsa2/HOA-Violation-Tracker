@@ -7,7 +7,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
   const isConfigured = hoa.email && hoa.contact_person_name
   return (
     <div
-      className={`group vt-card vt-card-interactive vt-spotlight p-5 ${hasOverdue ? '!border-[#c17b6a]/30' : ''}`}
+      className={`group vt-card vt-card-interactive p-5 ${hasOverdue ? '!border-red-500/30' : ''}`}
     >
       <div className="flex items-start justify-between gap-3">
         <button
@@ -24,7 +24,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
         </button>
         <div className="flex items-center gap-2 shrink-0">
           {hasOverdue && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#c17b6a]/15 text-[#d4988a] border border-[#c17b6a]/25 font-medium">
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/25 font-medium">
               {hoa.overdue_violations} overdue
             </span>
           )}
@@ -52,7 +52,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
           <p className="text-[10px] text-slate-500 mt-1">Open Cases</p>
         </div>
         <div className="bg-white/[0.03] ring-1 ring-white/[0.05] rounded-xl p-2.5">
-          <p className="text-lg font-bold text-[#d4988a] leading-none tabular">{currency(hoa.outstanding_fines)}</p>
+          <p className="text-lg font-bold text-red-400 leading-none tabular">{currency(hoa.outstanding_fines)}</p>
           <p className="text-[10px] text-slate-500 mt-1">Fines Due</p>
         </div>
       </div>
@@ -117,7 +117,7 @@ export default function PortfolioOverview({ hoas, onOpen, onAddClient, onSignOut
             <p className="text-xs text-slate-500 mt-1">Overdue</p>
           </div>
           <div className="vt-card p-4 anim-rise stagger-4">
-            <p className="text-2xl font-bold text-[#d4988a] tabular">{currency(totals.fines)}</p>
+            <p className="text-2xl font-bold text-red-400 tabular">{currency(totals.fines)}</p>
             <p className="text-xs text-slate-500 mt-1">Outstanding Fines</p>
           </div>
         </div>

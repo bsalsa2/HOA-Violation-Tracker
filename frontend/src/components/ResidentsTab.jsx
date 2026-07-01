@@ -58,7 +58,7 @@ export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onV
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-slate-100 truncate">{r.name}</p>
                     {repeat && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#c17b6a]/12 text-[#d4988a] border border-[#c17b6a]/25 font-medium shrink-0">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/25 font-medium shrink-0">
                         Repeat offender
                       </span>
                     )}
@@ -71,7 +71,7 @@ export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onV
                     {r.email ? (
                       <span className="text-xs text-slate-500 truncate">{r.email}</span>
                     ) : (
-                      <span className="text-xs text-[#3b82f6]/80">No email</span>
+                      <span className="text-xs text-amber-400/90">No email</span>
                     )}
                     {r.phone && <span className="text-xs text-slate-500">{r.phone}</span>}
                   </div>

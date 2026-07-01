@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -7,6 +8,7 @@ from pydantic import BaseModel
 from typing import Optional
 import jwt
 import os
+import re
 import csv
 import io
 from datetime import datetime, timedelta
@@ -18,10 +20,13 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="HOA Violation Tracker API")
 
+# Auth uses Bearer tokens (no cookies), so credentials aren't needed and a
+# wildcard origin is safe. Set CORS_ORIGINS to lock down to your frontend URL.
+_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_origins,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -129,20 +134,14 @@ def get_current_user(
     db: Session = Depends(get_db),
 ):
     try:
-        payload = jwt.decode(
-            credentials.credentials,
-            os.getenv("SECRET_KEY", "change-me-in-production-use-32-chars-minimum"),
-            algorithms=["HS256"],
-        )
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        user = db.query(User).filter(User.id == int(user_id)).first()
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        return user
-    except jwt.InvalidTokenError:
+        payload = jwt.decode(credentials.credentials, utils.SECRET_KEY, algorithms=[utils.ALGORITHM])
+        user_id = int(payload.get("sub"))
+    except (jwt.InvalidTokenError, TypeError, ValueError):
         raise HTTPException(status_code=401, detail="Invalid token")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
 
 
 # -- Ownership helpers (every scoped resource is verified to belong to the caller) --
@@ -301,9 +300,14 @@ def health():
 
 @app.post("/auth/register")
 def register(data: UserRegister, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == data.email).first():
+    email = data.email.strip().lower()
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        raise HTTPException(status_code=400, detail="Please enter a valid email address")
+    if len(data.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    user = User(email=data.email, hashed_password=utils.hash_password(data.password))
+    user = User(email=email, hashed_password=utils.hash_password(data.password))
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -312,7 +316,9 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
 
 @app.post("/auth/login")
 def login(data: UserRegister, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == data.email).first()
+    email = data.email.strip()
+    user = (db.query(User).filter(User.email == email).first()
+            or db.query(User).filter(func.lower(User.email) == email.lower()).first())
     if not user or not utils.verify_password(data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     return {"access_token": utils.create_access_token({"sub": str(user.id)}), "token_type": "bearer"}
@@ -601,6 +607,19 @@ def get_violation_letter(violation_id: int, current_user: User = Depends(get_cur
         notice_label=NOTICE_LEVELS[min(violation.notice_level or 0, len(NOTICE_LEVELS) - 1)],
     )
     return {"letter": letter}
+
+
+@app.get("/violations/{violation_id}/letter.pdf")
+def get_violation_letter_pdf(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Printable PDF of the violation letter — for certified mail / hand delivery."""
+    data = get_violation_letter(violation_id, current_user, db)
+    resident = db.query(Resident).join(Violation, Violation.resident_id == Resident.id).filter(Violation.id == violation_id).first()
+    pdf = utils.generate_pdf(data["letter"], resident.name if resident else "resident")
+    if not pdf:
+        raise HTTPException(status_code=500, detail="PDF generation failed")
+    safe_name = re.sub(r"[^A-Za-z0-9_-]+", "_", resident.name if resident else "letter")
+    return StreamingResponse(pdf, media_type="application/pdf",
+                             headers={"Content-Disposition": f'attachment; filename="violation_notice_{safe_name}.pdf"'})
 
 
 @app.patch("/violations/{violation_id}")

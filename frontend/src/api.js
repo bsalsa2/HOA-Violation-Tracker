@@ -16,7 +16,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Expired/invalid session → sign out. But a 401 from login itself just
+    // means wrong credentials — reloading would wipe the error message.
+    const isAuthCall = error.config?.url?.includes('/auth/')
+    if (error.response?.status === 401 && !isAuthCall) {
       localStorage.removeItem('access_token')
       window.location.reload()
     }
@@ -31,7 +34,7 @@ export const authAPI = {
 
 export const hoaAPI = {
   list: () => api.get('/hoas'),
-  create: (name, address) => api.post('/hoas', { name, address }),
+  create: (name, address, email) => api.post('/hoas', { name, address, email: email || null }),
   get: (hoaId) => api.get(`/hoas/${hoaId}`),
   update: (hoaId, name, address, email, phone, contactPersonName, website, businessHours) =>
     api.patch(`/hoas/${hoaId}`, {
@@ -72,6 +75,7 @@ export const violationAPI = {
   getAll: (hoaId, status) =>
     api.get(`/violations?hoa_id=${hoaId}${status ? `&status=${status}` : ''}`),
   getLetter: (violationId) => api.get(`/violations/${violationId}/letter`),
+  getLetterPdf: (violationId) => api.get(`/violations/${violationId}/letter.pdf`, { responseType: 'blob' }),
   markSent: (violationId) => api.post(`/violations/${violationId}/mark-sent`),
   update: (violationId, fields) => api.patch(`/violations/${violationId}`, fields),
   updateStatus: (violationId, status) => api.patch(`/violations/${violationId}`, { status }),

@@ -6,7 +6,8 @@ import { formatDate, formatDateTime, relativeTime, currency, dueLabel, isOverdue
 
 const inputCls = 'px-2.5 py-1.5 bg-slate-900/60 text-slate-100 text-sm rounded-lg border border-white/10 focus:outline-none focus:border-[#3b82f6]'
 
-export default function ViolationDrawer({ violation, onClose, onUpdate, onEscalate, onSendEmail, onViewLetter, onDelete, sending }) {
+export default function ViolationDrawer({ violation, onClose, onUpdate, onEscalate, onSendEmail, onViewLetter, onDelete, onDownloadPdf, sending }) {
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [notes, setNotes] = useState([])
   const [notesLoading, setNotesLoading] = useState(true)
   const [newNote, setNewNote] = useState('')
@@ -95,7 +96,9 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
 
   const overdue = isOverdue(violation)
   const due = dueLabel(violation)
-  const dueDateValue = violation.due_date ? new Date(violation.due_date).toISOString().split('T')[0] : ''
+  // Slice the ISO string directly — round-tripping through Date shifts the
+  // day for users east of UTC (naive timestamp parsed as local, re-emitted as UTC).
+  const dueDateValue = violation.due_date ? violation.due_date.split('T')[0] : ''
   const atMaxNotice = (violation.notice_level || 0) >= NOTICE_LEVELS.length - 1
 
   return (
@@ -116,9 +119,9 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
             <Badge config={STATUS_CONFIG[violation.status]} />
             <Badge config={PRIORITY_CONFIG[violation.priority]}>{PRIORITY_CONFIG[violation.priority]?.label} priority</Badge>
             {violation.notice_level > 0 && (
-              <Badge className="bg-[#b89b8e]/12 text-[#cdb6aa] border-[#b89b8e]/25">{violation.notice_label}</Badge>
+              <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/25">{violation.notice_label}</Badge>
             )}
-            {overdue && <Badge className="bg-[#c17b6a]/12 text-[#d4988a] border-[#c17b6a]/25">Overdue</Badge>}
+            {overdue && <Badge className="bg-red-500/10 text-red-400 border-red-500/25">Overdue</Badge>}
           </div>
         </div>
 
@@ -163,7 +166,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
                 onChange={(e) => e.target.value && runUpdate({ due_date: e.target.value })}
               />
               {due && (
-                <span className={`text-xs font-medium ${due.tone === 'overdue' ? 'text-[#d4988a]' : due.tone === 'soon' ? 'text-[#60a5fa]' : 'text-slate-400'}`}>
+                <span className={`text-xs font-medium ${due.tone === 'overdue' ? 'text-red-400' : due.tone === 'soon' ? 'text-amber-400' : 'text-slate-400'}`}>
                   {due.text}
                 </span>
               )}
@@ -180,7 +183,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
                   disabled={busy}
                   className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
                     violation.fine_paid
-                      ? 'bg-[#8fae8b]/12 text-[#a8c3a3] border-[#8fae8b]/25'
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
                       : 'bg-[#3b82f6]/12 text-[#60a5fa] border-[#3b82f6]/25 hover:bg-[#3b82f6]/18'
                   }`}
                 >
@@ -220,7 +223,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
                 <button
                   onClick={() => onSendEmail(violation.id)}
                   disabled={sending}
-                  className="flex items-center justify-center gap-1.5 py-2 text-sm bg-[#6f9069] hover:bg-[#7da37a] disabled:opacity-60 text-slate-100 rounded-lg transition-colors"
+                  className="flex items-center justify-center gap-1.5 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-slate-100 rounded-lg transition-colors"
                 >
                   {sending ? <Spinner className="w-3.5 h-3.5" /> : null}
                   {violation.email_sent_at ? 'Resend Letter' : 'Email Letter'}
@@ -232,9 +235,18 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
                 View Letter
               </button>
               <button
+                onClick={async () => { setDownloadingPdf(true); try { await onDownloadPdf(violation) } finally { setDownloadingPdf(false) } }}
+                disabled={downloadingPdf}
+                className="col-span-2 flex items-center justify-center gap-1.5 py-2 text-sm border border-slate-700 text-slate-400 hover:bg-slate-800 disabled:opacity-60 rounded-lg transition-colors"
+                title="Print-ready PDF for certified mail or hand delivery"
+              >
+                {downloadingPdf ? <Spinner className="w-3.5 h-3.5" /> : null}
+                Download Letter PDF
+              </button>
+              <button
                 onClick={handleEscalate}
                 disabled={busy || atMaxNotice}
-                className="col-span-2 py-2 text-sm bg-[#a5604f]/90 hover:bg-[#b06d5b] disabled:opacity-50 disabled:cursor-not-allowed text-slate-100 rounded-lg transition-colors"
+                className="col-span-2 py-2 text-sm bg-red-600/90 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-slate-100 rounded-lg transition-colors"
                 title={atMaxNotice ? 'Already at highest level' : ''}
               >
                 {atMaxNotice ? 'Max escalation reached' : `Escalate → ${NOTICE_LEVELS[(violation.notice_level || 0) + 1]}`}
@@ -296,8 +308,8 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70" onClick={(e) => { if (e.target === e.currentTarget) setResolveOpen(false) }}>
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-[#8fae8b]/12 rounded-full flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5 text-[#a8c3a3]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <div className="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               </div>
               <div>
                 <p className="text-slate-100 text-sm font-medium">Mark violation resolved?</p>
@@ -315,7 +327,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
             />
             <div className="flex gap-3 mt-4">
               <button onClick={() => setResolveOpen(false)} className="flex-1 py-2 text-sm border border-slate-600 text-slate-400 hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
-              <button onClick={confirmResolve} className="flex-1 py-2 text-sm bg-[#6f9069] hover:bg-[#7da37a] text-slate-100 rounded-lg transition-colors font-medium">Mark Resolved</button>
+              <button onClick={confirmResolve} className="flex-1 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 text-slate-100 rounded-lg transition-colors font-medium">Mark Resolved</button>
             </div>
           </div>
         </div>

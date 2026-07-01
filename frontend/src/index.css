@@ -191,18 +191,6 @@
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
   }
 
-  /* Spotlight disabled for cleaner aesthetic */
-  .vt-spotlight::before {
-    display: none;
-  }
-
-  /* A slowly rotating conic halo, e.g. behind the brand mark */
-  .vt-halo {
-    position: relative;
-  }
-  .vt-halo::after {
-    display: none;
-  }
 }
 
 @layer utilities {
