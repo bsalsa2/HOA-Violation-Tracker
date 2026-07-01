@@ -267,14 +267,14 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
   ]
 
   return (
-    <div className="min-h-screen bg-transparent text-gray-900">
-      <header className="relative bg-white/85 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-30">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#374151]/50 to-transparent" />
+    <div className="min-h-screen bg-transparent text-slate-100">
+      <header className="relative bg-[#0b0e14]/85 backdrop-blur-xl border-b border-white/[0.06] sticky top-0 z-30">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#3b82f6]/50 to-transparent" />
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between py-3 gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 bg-gradient-to-br from-[#e5e7eb] to-[#374151] rounded-xl flex items-center justify-center shrink-0 ring-1 ring-gray-300/30" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08), inset 0 1px 0 0 rgba(255,255,255,0.3)' }}>
-                <svg className="w-4 h-4 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="w-8 h-8 bg-gradient-to-br from-[#60a5fa] to-[#2563eb] rounded-xl flex items-center justify-center shrink-0 ring-1 ring-white/15" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08), inset 0 1px 0 0 rgba(255,255,255,0.3)' }}>
+                <svg className="w-4 h-4 text-slate-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
               </div>
@@ -282,13 +282,13 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
             </div>
 
             <div className="flex items-center gap-2">
-              <button onClick={() => setPaletteOpen(true)} className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs text-gray-600 bg-gray-100 hover:bg-white/[0.07] border border-gray-200 rounded-lg transition-colors">
+              <button onClick={() => setPaletteOpen(true)} className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 bg-white/[0.05] hover:bg-white/[0.07] border border-white/10 rounded-lg transition-colors">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                Search <kbd className="text-[10px] border border-gray-200 rounded px-1 ml-0.5">⌘K</kbd>
+                Search <kbd className="text-[10px] border border-white/10 rounded px-1 ml-0.5">⌘K</kbd>
               </button>
-              <button onClick={handleBoardReport} className="px-3 py-1.5 text-xs text-gray-600 border border-gray-200 hover:border-white/20 hover:bg-gray-100 rounded-lg transition-colors">Board Report</button>
-              <button onClick={onEditClient} className="hidden md:block px-3 py-1.5 text-xs text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-white/20 hover:bg-gray-100 rounded-lg transition-colors">Edit</button>
-              <button onClick={handleLogout} className="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-white/20 hover:bg-gray-100 rounded-lg transition-colors">Sign Out</button>
+              <button onClick={handleBoardReport} className="px-3 py-1.5 text-xs text-slate-400 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors">Board Report</button>
+              <button onClick={onEditClient} className="hidden md:block px-3 py-1.5 text-xs text-slate-400 hover:text-slate-100 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors">Edit</button>
+              <button onClick={handleLogout} className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-100 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors">Sign Out</button>
             </div>
           </div>
 
@@ -298,18 +298,18 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
                 key={t.key}
                 onClick={() => setTab(t.key)}
                 className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                  tab === t.key ? 'text-gray-900' : 'text-gray-600 hover:text-gray-700'
+                  tab === t.key ? 'text-slate-100' : 'text-slate-400 hover:text-slate-300'
                 }`}
               >
                 {t.label}
                 {t.badge !== undefined && t.badge > 0 && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${tab === t.key ? 'bg-[#374151]/15 text-[#6b7280]' : 'bg-white/[0.06] text-gray-600'}`}>{t.badge}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${tab === t.key ? 'bg-[#3b82f6]/15 text-[#60a5fa]' : 'bg-white/[0.06] text-slate-400'}`}>{t.badge}</span>
                 )}
                 {t.key === 'violations' && overdueCount > 0 && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20">{overdueCount} overdue</span>
                 )}
                 {tab === t.key && (
-                  <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-gray-900" style={{ boxShadow: '0 0 8px rgba(0,0,0,0.15)' }} />
+                  <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-[#3b82f6] to-[#2563eb]" style={{ boxShadow: '0 0 10px rgba(59,130,246,0.6)' }} />
                 )}
               </button>
             ))}
@@ -403,12 +403,12 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
 
       {letterModal && (
         <Modal title={`Violation Letter — ${letterModal.violation.violation_type}`} subtitle={`${letterModal.violation.resident_name} · ${letterModal.violation.resident_unit}`} onClose={() => setLetterModal(null)}>
-          <div className="bg-gray-100/50 ring-1 ring-white/[0.06] rounded-xl p-5">
-            <pre className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-sans">{letterModal.text}</pre>
+          <div className="bg-white/[0.04] ring-1 ring-white/[0.06] rounded-xl p-5">
+            <pre className="text-sm text-slate-400 whitespace-pre-wrap leading-relaxed font-sans">{letterModal.text}</pre>
           </div>
           <button
             onClick={() => { navigator.clipboard?.writeText(letterModal.text); addToast('Letter copied to clipboard.') }}
-            className="mt-4 w-full py-2 text-sm border border-gray-200 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="mt-4 w-full py-2 text-sm border border-white/10 text-slate-400 hover:bg-white/[0.06] rounded-lg transition-colors"
           >
             Copy to Clipboard
           </button>

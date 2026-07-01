@@ -10,7 +10,7 @@ function ViolationCard({ violation, onOpen }) {
     <button
       onClick={() => onOpen(violation)}
       className={`group w-full text-left px-5 py-4 hover:bg-white/[0.03] transition-colors border-l-2 ${
-        overdue ? 'border-red-500' : violation.priority === 'high' ? 'border-rose-500/40' : 'border-transparent hover:border-gray-200'
+        overdue ? 'border-red-500' : violation.priority === 'high' ? 'border-rose-500/40' : 'border-transparent hover:border-white/10'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -23,12 +23,12 @@ function ViolationCard({ violation, onOpen }) {
               <Badge className="bg-[#b89b8e]/12 text-[#cdb6aa] border-[#b89b8e]/25">{violation.notice_label}</Badge>
             )}
           </div>
-          <p className="text-xs text-gray-600 mt-1">{violation.resident_name} · {violation.resident_unit}</p>
-          <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{violation.description}</p>
+          <p className="text-xs text-slate-400 mt-1">{violation.resident_name} · {violation.resident_unit}</p>
+          <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{violation.description}</p>
           <div className="flex items-center gap-3 mt-2 flex-wrap">
             <span className="text-xs text-slate-600">{formatDate(violation.created_at)}</span>
             {due && (
-              <span className={`text-xs font-medium ${due.tone === 'overdue' ? 'text-[#d4988a]' : due.tone === 'soon' ? 'text-[#6b7280]' : 'text-gray-500'}`}>
+              <span className={`text-xs font-medium ${due.tone === 'overdue' ? 'text-[#d4988a]' : due.tone === 'soon' ? 'text-[#60a5fa]' : 'text-slate-500'}`}>
                 {due.text}
               </span>
             )}
@@ -45,7 +45,7 @@ function ViolationCard({ violation, onOpen }) {
             )}
           </div>
         </div>
-        <svg className="w-4 h-4 text-slate-600 shrink-0 mt-1 transition-transform group-hover:translate-x-0.5 group-hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4 text-slate-600 shrink-0 mt-1 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
       </div>
@@ -101,10 +101,10 @@ export default function ViolationsTab({ violations, onOpen, onNew, canAdd, query
 
   return (
     <div className="vt-card overflow-hidden anim-rise">
-      <div className="px-5 py-4 border-b border-gray-100 space-y-3">
+      <div className="px-5 py-4 border-b border-white/[0.06] space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="relative flex-1 max-w-sm">
-            <svg className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
@@ -115,7 +115,7 @@ export default function ViolationsTab({ violations, onOpen, onNew, canAdd, query
             />
           </div>
           <div className="flex items-center gap-2">
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="text-xs bg-slate-900/60 text-gray-600 border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:border-[#374151]">
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="text-xs bg-slate-900/60 text-slate-400 border border-white/10 rounded-lg px-2 py-2 focus:outline-none focus:border-[#3b82f6]">
               <option value="recent">Most recent</option>
               <option value="due">Due soonest</option>
               <option value="priority">Priority</option>
@@ -137,8 +137,8 @@ export default function ViolationsTab({ violations, onOpen, onNew, canAdd, query
               onClick={() => setStatusFilter(chip.key)}
               className={`vt-chip ${
                 statusFilter === chip.key
-                  ? chip.danger ? 'bg-red-500/15 text-red-700 border-red-500/30' : 'bg-[#374151]/15 text-[#6b7280] border-[#374151]/30'
-                  : 'text-gray-600 border-gray-200 hover:border-white/20 hover:bg-white/[0.03]'
+                  ? chip.danger ? 'bg-red-500/15 text-red-700 border-red-500/30' : 'bg-[#3b82f6]/15 text-[#60a5fa] border-[#3b82f6]/30'
+                  : 'text-slate-400 border-white/10 hover:border-white/20 hover:bg-white/[0.03]'
               }`}
             >
               {chip.label} <span className="opacity-60 tabular">{chip.count}</span>

@@ -108,7 +108,7 @@ function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-transparent flex items-center justify-center">
-        <div className="flex items-center gap-3 text-gray-600"><Spinner className="w-5 h-5" /> Loading your portfolio…</div>
+        <div className="flex items-center gap-3 text-slate-400"><Spinner className="w-5 h-5" /> Loading your portfolio…</div>
       </div>
     )
   }
@@ -117,9 +117,9 @@ function App() {
     return (
       <div className="min-h-screen bg-transparent flex items-center justify-center p-4">
         <div className="text-center">
-          <p className="text-gray-600 text-sm">Couldn't reach the server.</p>
-          <p className="text-gray-500 text-xs mt-1">It may still be deploying — wait a moment and retry.</p>
-          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 text-sm bg-gradient-to-b from-[#6b7280] to-[#374151] hover:from-[#9ca3af] hover:to-[#4b5563] shadow-lg shadow-[#374151]/30 active:scale-[.98] text-[#064e3b] font-semibold rounded-lg">Retry</button>
+          <p className="text-slate-400 text-sm">Couldn't reach the server.</p>
+          <p className="text-slate-500 text-xs mt-1">It may still be deploying — wait a moment and retry.</p>
+          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 text-sm bg-gradient-to-b from-[#3b82f6] to-[#2563eb] hover:from-[#60a5fa] hover:to-[#3b82f6] shadow-lg shadow-[#2563eb]/40 active:scale-[.98] text-white font-semibold rounded-lg">Retry</button>
         </div>
       </div>
     )

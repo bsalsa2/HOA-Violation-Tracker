@@ -25,13 +25,13 @@ function HOASetup({ onComplete, onSignOut }) {
     <div className="min-h-screen bg-transparent flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
         <div className="text-center mb-8 anim-rise">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-[#d1d5db] to-[#4b5563] rounded-2xl mb-4 ring-1 ring-gray-300/30" style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.1), inset 0 1px 0 0 rgba(255,255,255,0.3)' }}>
-            <svg className="w-7 h-7 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-[#60a5fa] to-[#2563eb] rounded-2xl mb-4 ring-1 ring-white/15" style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.1), inset 0 1px 0 0 rgba(255,255,255,0.3)' }}>
+            <svg className="w-7 h-7 text-slate-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Add Your First Client</h1>
-          <p className="text-gray-600 mt-2 text-sm leading-relaxed">
+          <h1 className="text-2xl font-bold text-slate-100 tracking-tight">Add Your First Client</h1>
+          <p className="text-slate-400 mt-2 text-sm leading-relaxed">
             Enter the HOA / community you manage. You can add more communities to your portfolio anytime.
           </p>
         </div>
@@ -39,7 +39,7 @@ function HOASetup({ onComplete, onSignOut }) {
         <div className="vt-card p-8 anim-rise stagger-1">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1.5">HOA Name</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1.5">HOA Name</label>
               <input
                 type="text"
                 value={name}
@@ -51,7 +51,7 @@ function HOASetup({ onComplete, onSignOut }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1.5">HOA Address</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1.5">HOA Address</label>
               <input
                 type="text"
                 value={address}
@@ -75,7 +75,7 @@ function HOASetup({ onComplete, onSignOut }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 py-2.5 bg-gradient-to-b from-[#6b7280] to-[#374151] hover:from-[#9ca3af] hover:to-[#4b5563] shadow-lg shadow-[#374151]/30 active:scale-[.98] disabled:opacity-60 disabled:cursor-not-allowed text-[#064e3b] font-semibold rounded-lg transition-colors"
+                className="flex-1 py-2.5 bg-gradient-to-b from-[#3b82f6] to-[#2563eb] hover:from-[#60a5fa] hover:to-[#3b82f6] shadow-lg shadow-[#2563eb]/40 active:scale-[.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -91,7 +91,7 @@ function HOASetup({ onComplete, onSignOut }) {
                 <button
                   type="button"
                   onClick={onSignOut}
-                  className="px-5 py-2.5 text-gray-600 hover:text-gray-900 border border-slate-700 hover:border-slate-500 rounded-lg transition-colors text-sm font-medium"
+                  className="px-5 py-2.5 text-slate-400 hover:text-slate-100 border border-slate-700 hover:border-slate-500 rounded-lg transition-colors text-sm font-medium"
                 >
                   Sign Out
                 </button>
@@ -100,7 +100,7 @@ function HOASetup({ onComplete, onSignOut }) {
           </form>
         </div>
 
-        <p className="text-center text-gray-500 text-xs mt-6">
+        <p className="text-center text-slate-500 text-xs mt-6">
           You can edit or add communities anytime from your portfolio.
         </p>
       </div>

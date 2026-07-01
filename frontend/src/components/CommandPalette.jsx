@@ -81,8 +81,8 @@ export default function CommandPalette({ open, onClose, residents, violations, o
   return (
     <div className="fixed inset-0 z-[80] flex items-start justify-center pt-[15vh] px-4 bg-black/60 backdrop-blur-sm anim-fade" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="anim-scale-in w-full max-w-lg vt-card overflow-hidden" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.08), var(--shadow-xl)' }}>
-        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-gray-100">
-          <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-white/[0.06]">
+          <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -91,14 +91,14 @@ export default function CommandPalette({ open, onClose, residents, violations, o
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search residents, violations, or run an action…"
-            className="flex-1 bg-transparent text-sm text-gray-900 placeholder-slate-500 focus:outline-none"
+            className="flex-1 bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
           />
-          <kbd className="text-[10px] text-gray-500 border border-slate-700 rounded px-1.5 py-0.5">ESC</kbd>
+          <kbd className="text-[10px] text-slate-500 border border-slate-700 rounded px-1.5 py-0.5">ESC</kbd>
         </div>
 
         <div className="max-h-80 overflow-y-auto py-2">
           {results.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-6">No matches.</p>
+            <p className="text-sm text-slate-500 text-center py-6">No matches.</p>
           ) : (
             results.map((item, i) => (
               <button
@@ -108,7 +108,7 @@ export default function CommandPalette({ open, onClose, residents, violations, o
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${i === activeIdx ? 'bg-white/[0.06]' : ''}`}
               >
                 <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ring-1 ${
-                  item.type === 'action' ? 'bg-[#374151]/12 text-[#374151] ring-[#374151]/25' : item.type === 'resident' ? 'bg-[#8fae8b]/12 text-[#8fae8b] ring-[#8fae8b]/25' : 'bg-[#c17b6a]/12 text-[#c17b6a] ring-[#c17b6a]/25'
+                  item.type === 'action' ? 'bg-[#3b82f6]/12 text-[#60a5fa] ring-[#3b82f6]/25' : item.type === 'resident' ? 'bg-[#8fae8b]/12 text-[#8fae8b] ring-[#8fae8b]/25' : 'bg-[#c17b6a]/12 text-[#c17b6a] ring-[#c17b6a]/25'
                 }`}>
                   {item.type === 'action' ? (
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
@@ -119,8 +119,8 @@ export default function CommandPalette({ open, onClose, residents, violations, o
                   )}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-700 truncate">{item.label}</p>
-                  <p className="text-xs text-gray-500 truncate">{item.hint}</p>
+                  <p className="text-sm text-slate-300 truncate">{item.label}</p>
+                  <p className="text-xs text-slate-500 truncate">{item.hint}</p>
                 </div>
                 {item.status && (
                   <span className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${STATUS_CONFIG[item.status]?.badge}`}>

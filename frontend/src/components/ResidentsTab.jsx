@@ -17,9 +17,9 @@ export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onV
 
   return (
     <div className="vt-card overflow-hidden anim-rise">
-      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+      <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between gap-3">
         <div className="relative flex-1 max-w-sm">
-          <svg className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -30,7 +30,7 @@ export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onV
           />
         </div>
         <div className="flex gap-2 shrink-0">
-          <button onClick={onImport} className="px-3 py-2 text-xs text-gray-600 border border-gray-200 hover:border-white/20 hover:bg-gray-100 rounded-lg transition-colors">
+          <button onClick={onImport} className="px-3 py-2 text-xs text-slate-400 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors">
             Import CSV
           </button>
           <button onClick={onAdd} className="btn-primary btn-sheen px-3 py-2 text-xs">
@@ -51,7 +51,7 @@ export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onV
             return (
               <div key={r.id} className="flex items-center justify-between px-5 py-3 hover:bg-white/[0.03] group transition-colors">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-700/60 to-slate-800/60 ring-1 ring-white/[0.06] flex items-center justify-center text-xs font-semibold text-gray-600 shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-700/60 to-slate-800/60 ring-1 ring-white/[0.06] flex items-center justify-center text-xs font-semibold text-slate-400 shrink-0">
                     {(r.name || '?').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()}
                   </div>
                   <div className="min-w-0">
@@ -64,16 +64,16 @@ export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onV
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <span className="text-xs text-slate-500 flex items-center gap-1">
                       <svg className="w-3 h-3 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
                       {r.unit}
                     </span>
                     {r.email ? (
-                      <span className="text-xs text-gray-500 truncate">{r.email}</span>
+                      <span className="text-xs text-slate-500 truncate">{r.email}</span>
                     ) : (
-                      <span className="text-xs text-[#374151]/80">No email</span>
+                      <span className="text-xs text-[#3b82f6]/80">No email</span>
                     )}
-                    {r.phone && <span className="text-xs text-gray-500">{r.phone}</span>}
+                    {r.phone && <span className="text-xs text-slate-500">{r.phone}</span>}
                   </div>
                   </div>
                 </div>
@@ -85,14 +85,14 @@ export default function ResidentsTab({ residents, onAdd, onImport, onDelete, onV
                       title="View this resident's violations"
                     >
                       {r.open_count > 0 && (
-                        <span className="px-2 py-0.5 rounded-full bg-[#374151]/12 text-[#6b7280] border border-[#374151]/25">{r.open_count} active</span>
+                        <span className="px-2 py-0.5 rounded-full bg-[#3b82f6]/12 text-[#60a5fa] border border-[#3b82f6]/25">{r.open_count} active</span>
                       )}
-                      <span className="px-2 py-0.5 rounded-full bg-slate-700/50 text-gray-600">{r.violation_count} total</span>
+                      <span className="px-2 py-0.5 rounded-full bg-slate-700/50 text-slate-400">{r.violation_count} total</span>
                     </button>
                   )}
                   <button
                     onClick={() => onDelete(r.id, r.name)}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-red-400 rounded-lg hover:bg-red-400/10 transition-all"
+                    className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-red-400/10 transition-all"
                     title="Delete resident"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
