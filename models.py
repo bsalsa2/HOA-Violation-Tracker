@@ -47,6 +47,9 @@ class Resident(Base):
     phone = Column(String, nullable=True)
     hoa_id = Column(Integer, ForeignKey("hoas.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
+    # Soft delete: residents with enforcement history are archived, never
+    # erased — boards need records after a move-out.
+    archived_at = Column(DateTime, nullable=True)
 
     hoa = relationship("HOA", back_populates="residents")
     violations = relationship("Violation", back_populates="resident", cascade="all, delete-orphan")
@@ -80,6 +83,7 @@ class Violation(Base):
     hoa = relationship("HOA", back_populates="violations")
     notes = relationship("ViolationNote", back_populates="violation", cascade="all, delete-orphan")
     photos = relationship("ViolationPhoto", back_populates="violation", cascade="all, delete-orphan")
+    fines = relationship("ViolationFine", back_populates="violation", cascade="all, delete-orphan")
 
 
 class ViolationNote(Base):
@@ -94,6 +98,27 @@ class ViolationNote(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     violation = relationship("Violation", back_populates="notes")
+
+
+class ViolationFine(Base):
+    """Fine ledger entry — an assessment or a payment against a violation.
+
+    Real HOAs assess escalating fines and receive partial payments; a single
+    amount + paid flag can't represent that. The violation's legacy
+    fine_amount/fine_paid columns remain as a read fallback for rows created
+    before the ledger existed.
+    """
+    __tablename__ = "violation_fines"
+
+    id = Column(Integer, primary_key=True, index=True)
+    violation_id = Column(Integer, ForeignKey("violations.id"), index=True)
+    hoa_id = Column(Integer, ForeignKey("hoas.id"), index=True)
+    amount = Column(Float)                   # always positive
+    kind = Column(String, default="assessment")   # assessment | payment
+    note = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    violation = relationship("Violation", back_populates="fines")
 
 
 class ViolationPhoto(Base):

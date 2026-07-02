@@ -35,6 +35,42 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
+def send_email_smtp(to: str, subject: str, body: str, reply_to: str = None, from_name: str = None):
+    """Send plain-text mail through the SMTP server configured in the
+    environment. Raises LookupError when SMTP is not configured so callers
+    can fall back to client-side delivery."""
+    host = os.getenv("SMTP_HOST")
+    if not host:
+        raise LookupError("SMTP_HOST is not configured")
+    import smtplib
+    from email.message import EmailMessage
+    from email.utils import formataddr
+
+    port = int(os.getenv("SMTP_PORT", "587"))
+    user = os.getenv("SMTP_USER")
+    password = os.getenv("SMTP_PASS")
+    from_addr = os.getenv("SMTP_FROM") or user
+    if not from_addr:
+        raise LookupError("SMTP_FROM (or SMTP_USER) is not configured")
+
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = formataddr((from_name, from_addr)) if from_name else from_addr
+    msg["To"] = to
+    if reply_to:
+        msg["Reply-To"] = reply_to
+    msg.set_content(body)
+
+    use_ssl = os.getenv("SMTP_SSL", "").lower() in ("1", "true", "yes")
+    smtp_cls = smtplib.SMTP_SSL if use_ssl else smtplib.SMTP
+    with smtp_cls(host, port, timeout=20) as server:
+        if not use_ssl and os.getenv("SMTP_STARTTLS", "true").lower() not in ("0", "false", "no"):
+            server.starttls()
+        if user and password:
+            server.login(user, password)
+        server.send_message(msg)
+
+
 def generate_violation_letter(
     resident_name: str,
     violation_type: str,

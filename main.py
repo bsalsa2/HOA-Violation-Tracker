@@ -14,8 +14,10 @@ import io
 from datetime import datetime, timedelta
 import base64
 import random
+import time
+from collections import defaultdict, deque
 from database import engine, SessionLocal, Base
-from models import User, HOA, Resident, Violation, ViolationNote, ViolationPhoto
+from models import User, HOA, Resident, Violation, ViolationNote, ViolationPhoto, ViolationFine
 import utils
 
 Base.metadata.create_all(bind=engine)
@@ -61,6 +63,9 @@ def startup():
             "ALTER TABLE violations ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMP",
             "ALTER TABLE violations ADD COLUMN IF NOT EXISTS fine_amount DOUBLE PRECISION DEFAULT 0",
             "ALTER TABLE violations ADD COLUMN IF NOT EXISTS fine_paid BOOLEAN DEFAULT FALSE",
+            # Postgres form, then the SQLite-compatible form (each failure is caught)
+            "ALTER TABLE residents ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP",
+            "ALTER TABLE residents ADD COLUMN archived_at TIMESTAMP",
         ]:
             try:
                 db.execute(text(stmt))
@@ -76,6 +81,32 @@ def startup():
 
 
 security = HTTPBearer()
+
+
+# -- Login rate limiting (in-memory; per-process) --
+
+_login_failures = defaultdict(deque)
+RATE_LIMIT_MAX = 10
+RATE_LIMIT_WINDOW = 900  # 15 minutes
+
+
+def check_login_rate(key: str):
+    dq = _login_failures[key]
+    now = time.time()
+    while dq and now - dq[0] > RATE_LIMIT_WINDOW:
+        dq.popleft()
+    if len(dq) >= RATE_LIMIT_MAX:
+        raise HTTPException(status_code=429, detail="Too many failed attempts. Try again in a few minutes.")
+
+
+def record_login_failure(key: str):
+    _login_failures[key].append(time.time())
+
+
+def end_of_day(dt: datetime) -> datetime:
+    """Cure deadlines are end-of-day dates, not instants — a notice that says
+    'correct by July 15' should not flip overdue at midnight UTC the night before."""
+    return dt.replace(hour=23, minute=59, second=59, microsecond=0)
 
 
 class UserRegister(BaseModel):
@@ -113,10 +144,20 @@ class ViolationCreate(BaseModel):
 class ViolationUpdate(BaseModel):
     status: Optional[str] = None
     priority: Optional[str] = None
-    fine_amount: Optional[float] = None
-    fine_paid: Optional[bool] = None
     due_date: Optional[str] = None
     note: Optional[str] = None
+
+
+class FineCreate(BaseModel):
+    amount: float
+    kind: str  # assessment | payment
+    note: Optional[str] = None
+
+
+class MarkSentBody(BaseModel):
+    # The exact letter text that was emailed (AI letters are nondeterministic,
+    # so the server can't reproduce it after the fact)
+    letter: Optional[str] = None
 
 
 class NoteCreate(BaseModel):
@@ -183,8 +224,53 @@ def add_system_note(db: Session, violation: Violation, body: str):
     db.add(ViolationNote(violation_id=violation.id, hoa_id=violation.hoa_id, body=body, kind="system"))
 
 
+def fine_totals(db: Session, v: Violation):
+    """(assessed, paid) from the ledger, falling back to the pre-ledger columns."""
+    rows = db.query(ViolationFine.kind, func.sum(ViolationFine.amount)).filter(
+        ViolationFine.violation_id == v.id).group_by(ViolationFine.kind).all()
+    if rows:
+        sums = {k: float(s or 0) for k, s in rows}
+        return sums.get("assessment", 0.0), sums.get("payment", 0.0)
+    legacy = float(v.fine_amount or 0)
+    return legacy, (legacy if v.fine_paid else 0.0)
+
+
+def fine_totals_batch(db: Session, hoa_id: int):
+    """violation_id -> (assessed, paid) for every ledgered violation in an HOA."""
+    rows = db.query(ViolationFine.violation_id, ViolationFine.kind, func.sum(ViolationFine.amount)).filter(
+        ViolationFine.hoa_id == hoa_id).group_by(ViolationFine.violation_id, ViolationFine.kind).all()
+    out = {}
+    for vid, kind, total in rows:
+        a, p = out.get(vid, (0.0, 0.0))
+        if kind == "assessment":
+            a += float(total or 0)
+        else:
+            p += float(total or 0)
+        out[vid] = (a, p)
+    return out
+
+
+def migrate_legacy_fine(db: Session, v: Violation):
+    """Move a pre-ledger fine into the ledger before the first ledger operation."""
+    if float(v.fine_amount or 0) <= 0:
+        return
+    has_rows = db.query(func.count(ViolationFine.id)).filter(ViolationFine.violation_id == v.id).scalar()
+    if has_rows:
+        return
+    amount = float(v.fine_amount)
+    db.add(ViolationFine(violation_id=v.id, hoa_id=v.hoa_id, amount=amount, kind="assessment", note="Migrated fine"))
+    if v.fine_paid:
+        db.add(ViolationFine(violation_id=v.id, hoa_id=v.hoa_id, amount=amount, kind="payment", note="Migrated payment"))
+    v.fine_amount = 0
+    v.fine_paid = False
+
+
 def serialize_violation(v: Violation, resident: Optional[Resident] = None, note_count: Optional[int] = None,
-                        photo_count: int = 0, repeat_count: int = 0):
+                        photo_count: int = 0, repeat_count: int = 0, fines: Optional[tuple] = None, db: Optional[Session] = None):
+    if fines is None:
+        fines = fine_totals(db, v) if db is not None else (float(v.fine_amount or 0), float(v.fine_amount or 0) if v.fine_paid else 0.0)
+    assessed, paid = fines
+    balance = max(0.0, round(assessed - paid, 2))
     return {
         "id": v.id,
         "hoa_id": v.hoa_id,
@@ -198,11 +284,16 @@ def serialize_violation(v: Violation, resident: Optional[Resident] = None, note_
         "priority": v.priority or "medium",
         "notice_level": v.notice_level or 0,
         "notice_label": NOTICE_LEVELS[min(v.notice_level or 0, len(NOTICE_LEVELS) - 1)],
-        "fine_amount": float(v.fine_amount or 0),
-        "fine_paid": bool(v.fine_paid),
+        # fine_amount/fine_paid keep their historical meaning for existing
+        # consumers: total assessed, and fully-settled.
+        "fine_amount": round(assessed, 2),
+        "fine_paid": bool(assessed > 0 and balance <= 0),
+        "fine_paid_total": round(paid, 2),
+        "fine_balance": balance,
         "due_date": v.due_date.isoformat() if v.due_date else None,
         "resolved_at": v.resolved_at.isoformat() if v.resolved_at else None,
         "email_sent_at": v.email_sent_at.isoformat() if v.email_sent_at else None,
+        "letter_sent_snapshot": bool(v.generated_letter),
         "created_at": v.created_at.isoformat(),
         "note_count": note_count,
         "photo_count": photo_count,
@@ -229,7 +320,16 @@ def count_prior_offenses(db: Session, violation: Violation) -> int:
 def compute_analytics(hoa: HOA, db: Session):
     violations = db.query(Violation).filter(Violation.hoa_id == hoa.id).all()
     residents = db.query(Resident).filter(Resident.hoa_id == hoa.id).all()
-    resident_map = {r.id: r for r in residents}
+    resident_map = {r.id: r for r in residents}          # includes archived, for name lookups
+    active_residents = [r for r in residents if not r.archived_at]
+    fines = fine_totals_batch(db, hoa.id)
+
+    def totals_for(v):
+        if v.id in fines:
+            return fines[v.id]
+        legacy = float(v.fine_amount or 0)
+        return legacy, (legacy if v.fine_paid else 0.0)
+
     now = datetime.utcnow()
 
     total = len(violations)
@@ -292,10 +392,10 @@ def compute_analytics(hoa: HOA, db: Session):
             "overdue_violations": len(overdue),
             "resolution_rate": resolution_rate,
             "avg_days_to_resolve": avg_days,
-            "total_fines": round(sum(float(v.fine_amount or 0) for v in violations), 2),
-            "outstanding_fines": round(sum(float(v.fine_amount or 0) for v in violations if not v.fine_paid), 2),
-            "collected_fines": round(sum(float(v.fine_amount or 0) for v in violations if v.fine_paid), 2),
-            "total_residents": len(residents),
+            "total_fines": round(sum(totals_for(v)[0] for v in violations), 2),
+            "outstanding_fines": round(sum(max(0.0, totals_for(v)[0] - totals_for(v)[1]) for v in violations), 2),
+            "collected_fines": round(sum(totals_for(v)[1] for v in violations), 2),
+            "total_residents": len(active_residents),
         },
         "by_type": [{"label": k, "value": v} for k, v in sorted(by_type.items(), key=lambda x: x[1], reverse=True)],
         "by_status": [{"label": k, "value": v} for k, v in by_status.items()],
@@ -338,11 +438,68 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
 @app.post("/auth/login")
 def login(data: UserRegister, db: Session = Depends(get_db)):
     email = data.email.strip()
+    check_login_rate(email.lower())
     user = (db.query(User).filter(User.email == email).first()
             or db.query(User).filter(func.lower(User.email) == email.lower()).first())
     if not user or not utils.verify_password(data.password, user.hashed_password):
+        record_login_failure(email.lower())
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    _login_failures.pop(email.lower(), None)
     return {"access_token": utils.create_access_token({"sub": str(user.id)}), "token_type": "bearer"}
+
+
+class ForgotPassword(BaseModel):
+    email: str
+
+
+class ResetPassword(BaseModel):
+    token: str
+    password: str
+
+
+@app.post("/auth/forgot")
+def forgot_password(data: ForgotPassword, db: Session = Depends(get_db)):
+    """Issue a 30-minute reset link by email. Responds identically whether or
+    not the account exists, to avoid leaking which emails are registered."""
+    email = data.email.strip().lower()
+    check_login_rate(f"forgot:{email}")
+    record_login_failure(f"forgot:{email}")  # also throttles reset spam
+    user = db.query(User).filter(func.lower(User.email) == email).first()
+    if user:
+        token = utils.create_access_token({"sub": str(user.id), "purpose": "pwreset"}, timedelta(minutes=30))
+        reset_url = f"{os.getenv('FRONTEND_URL', '').rstrip('/')}/reset?token={token}"
+        try:
+            utils.send_email_smtp(
+                to=user.email,
+                subject="Reset your ViolationTrack password",
+                body=f"A password reset was requested for your ViolationTrack account.\n\n"
+                     f"Reset link (valid 30 minutes):\n{reset_url}\n\n"
+                     f"If you didn't request this, you can ignore this email.",
+            )
+        except LookupError:
+            pass  # SMTP not configured — respond generically anyway
+        except Exception:
+            pass
+    return {"message": "If that account exists, a reset link has been sent."}
+
+
+@app.post("/auth/reset")
+def reset_password(data: ResetPassword, db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(data.token, utils.SECRET_KEY, algorithms=[utils.ALGORITHM])
+        if payload.get("purpose") != "pwreset":
+            raise jwt.InvalidTokenError()
+        user_id = int(payload.get("sub"))
+    except (jwt.InvalidTokenError, TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+    if len(data.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+    user.hashed_password = utils.hash_password(data.password)
+    db.commit()
+    return {"message": "Password updated. You can sign in now."}
 
 
 # -- Portfolio (HOAs / clients) --
@@ -356,9 +513,20 @@ def list_hoas(current_user: User = Depends(get_current_user), db: Session = Depe
 
     res_counts = dict(
         db.query(Resident.hoa_id, func.count(Resident.id))
-        .filter(Resident.hoa_id.in_(hoa_ids)).group_by(Resident.hoa_id).all()
+        .filter(Resident.hoa_id.in_(hoa_ids), Resident.archived_at.is_(None)).group_by(Resident.hoa_id).all()
     )
     violations = db.query(Violation).filter(Violation.hoa_id.in_(hoa_ids)).all()
+
+    ledger = {}
+    for vid, kind, total in db.query(ViolationFine.violation_id, ViolationFine.kind, func.sum(ViolationFine.amount)).filter(
+            ViolationFine.hoa_id.in_(hoa_ids)).group_by(ViolationFine.violation_id, ViolationFine.kind).all():
+        a, p = ledger.get(vid, (0.0, 0.0))
+        if kind == "assessment":
+            a += float(total or 0)
+        else:
+            p += float(total or 0)
+        ledger[vid] = (a, p)
+
     now = datetime.utcnow()
     agg = {hid: {"total": 0, "open": 0, "overdue": 0, "fines": 0.0} for hid in hoa_ids}
     for v in violations:
@@ -368,7 +536,10 @@ def list_hoas(current_user: User = Depends(get_current_user), db: Session = Depe
             a["open"] += 1
             if v.due_date and v.due_date < now:
                 a["overdue"] += 1
-        if not v.fine_paid:
+        if v.id in ledger:
+            assessed, paid = ledger[v.id]
+            a["fines"] += max(0.0, assessed - paid)
+        elif not v.fine_paid:
             a["fines"] += float(v.fine_amount or 0)
 
     return [
@@ -526,13 +697,17 @@ def seed_demo_data(hoa_id: int, current_user: User = Depends(get_current_user), 
         created = now - timedelta(days=days_ago)
         v = Violation(
             hoa_id=hoa.id, resident_id=by_unit[unit].id, violation_type=vtype, description=desc,
-            status=status, priority=priority, notice_level=notice, fine_amount=fine, fine_paid=paid,
-            created_at=created, due_date=created + timedelta(days=due_in),
+            status=status, priority=priority, notice_level=notice,
+            created_at=created, due_date=end_of_day(created + timedelta(days=due_in)),
             resolved_at=(created + timedelta(days=random.randint(3, due_in))) if status == "resolved" else None,
             email_sent_at=(created + timedelta(days=1)) if notice > 0 else None,
         )
         db.add(v)
         db.flush()
+        if fine > 0:
+            db.add(ViolationFine(violation_id=v.id, hoa_id=hoa.id, amount=fine, kind="assessment", note="Demo fine"))
+            if paid:
+                db.add(ViolationFine(violation_id=v.id, hoa_id=hoa.id, amount=fine, kind="payment", note="Demo payment"))
         add_system_note(db, v, f"Violation opened — {due_in}-day cure period")
         if notice > 0:
             add_system_note(db, v, "Violation notice emailed to resident")
@@ -544,23 +719,48 @@ def seed_demo_data(hoa_id: int, current_user: User = Depends(get_current_user), 
 
 # -- Residents --
 
+def unit_conflict(db: Session, hoa_id: int, unit: str, exclude_id: Optional[int] = None) -> bool:
+    """Active (non-archived) residents must have unique units — violation CSV
+    import matches rows by unit, so duplicates would make matching ambiguous."""
+    q = db.query(Resident).filter(
+        Resident.hoa_id == hoa_id,
+        func.lower(Resident.unit) == unit.strip().lower(),
+        Resident.archived_at.is_(None),
+    )
+    if exclude_id:
+        q = q.filter(Resident.id != exclude_id)
+    return db.query(q.exists()).scalar()
+
+
+def serialize_resident(r: Resident, violation_count: int = 0, open_count: int = 0):
+    return {
+        "id": r.id, "name": r.name, "unit": r.unit, "email": r.email, "phone": r.phone, "hoa_id": r.hoa_id,
+        "archived_at": r.archived_at.isoformat() if r.archived_at else None,
+        "violation_count": violation_count, "open_count": open_count,
+    }
+
+
 @app.post("/residents")
 def add_resident(data: ResidentCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not data.hoa_id:
         raise HTTPException(status_code=400, detail="hoa_id is required")
     hoa = owned_hoa(data.hoa_id, current_user, db)
+    if unit_conflict(db, hoa.id, data.unit):
+        raise HTTPException(status_code=400, detail=f"A resident already exists for unit '{data.unit}'")
     resident = Resident(hoa_id=hoa.id, name=data.name, unit=data.unit, email=data.email or None, phone=data.phone or None)
     db.add(resident)
     db.commit()
     db.refresh(resident)
-    return {"id": resident.id, "name": resident.name, "unit": resident.unit, "email": resident.email,
-            "phone": resident.phone, "hoa_id": resident.hoa_id, "violation_count": 0, "open_count": 0}
+    return serialize_resident(resident)
 
 
 @app.get("/residents")
-def get_residents(hoa_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_residents(hoa_id: int, include_archived: bool = False, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     hoa = owned_hoa(hoa_id, current_user, db)
-    residents = db.query(Resident).filter(Resident.hoa_id == hoa.id).order_by(Resident.name).all()
+    q = db.query(Resident).filter(Resident.hoa_id == hoa.id)
+    if not include_archived:
+        q = q.filter(Resident.archived_at.is_(None))
+    residents = q.order_by(Resident.name).all()
     total_counts = dict(
         db.query(Violation.resident_id, func.count(Violation.id))
         .filter(Violation.hoa_id == hoa.id).group_by(Violation.resident_id).all()
@@ -570,11 +770,7 @@ def get_residents(hoa_id: int, current_user: User = Depends(get_current_user), d
         .filter(Violation.hoa_id == hoa.id, Violation.status != "resolved").group_by(Violation.resident_id).all()
     )
     return [
-        {
-            "id": r.id, "name": r.name, "unit": r.unit, "email": r.email, "phone": r.phone, "hoa_id": r.hoa_id,
-            "violation_count": int(total_counts.get(r.id, 0)),
-            "open_count": int(open_counts.get(r.id, 0)),
-        }
+        serialize_resident(r, int(total_counts.get(r.id, 0)), int(open_counts.get(r.id, 0)))
         for r in residents
     ]
 
@@ -582,21 +778,46 @@ def get_residents(hoa_id: int, current_user: User = Depends(get_current_user), d
 @app.patch("/residents/{resident_id}")
 def update_resident(resident_id: int, data: ResidentCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     resident = owned_resident(resident_id, current_user, db)
+    if unit_conflict(db, resident.hoa_id, data.unit, exclude_id=resident.id):
+        raise HTTPException(status_code=400, detail=f"A resident already exists for unit '{data.unit}'")
     resident.name = data.name
     resident.unit = data.unit
     resident.email = data.email or None
     resident.phone = data.phone or None
     db.commit()
     db.refresh(resident)
-    return {"id": resident.id, "name": resident.name, "unit": resident.unit, "email": resident.email, "phone": resident.phone}
+    return serialize_resident(resident)
 
 
 @app.delete("/residents/{resident_id}")
 def delete_resident(resident_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Residents with enforcement history are archived, not erased — the
+    violation record must survive a move-out. Residents with no history are
+    deleted outright."""
     resident = owned_resident(resident_id, current_user, db)
+    has_history = db.query(
+        db.query(Violation).filter(Violation.resident_id == resident.id).exists()
+    ).scalar()
+    if has_history:
+        resident.archived_at = datetime.utcnow()
+        db.commit()
+        return {"archived": True, "message": f"{resident.name} archived — violation history preserved"}
     db.delete(resident)
     db.commit()
-    return {"message": "Resident deleted"}
+    return {"archived": False, "message": "Resident deleted"}
+
+
+@app.post("/residents/{resident_id}/restore")
+def restore_resident(resident_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    resident = owned_resident(resident_id, current_user, db)
+    if not resident.archived_at:
+        raise HTTPException(status_code=400, detail="Resident is not archived")
+    if unit_conflict(db, resident.hoa_id, resident.unit):
+        raise HTTPException(status_code=400, detail=f"Unit '{resident.unit}' is now occupied by another resident")
+    resident.archived_at = None
+    db.commit()
+    db.refresh(resident)
+    return serialize_resident(resident)
 
 
 @app.post("/residents/import/csv")
@@ -612,7 +833,7 @@ async def import_residents_csv(hoa_id: int, file: UploadFile = File(...), curren
         # and within the file itself (uncommitted rows are invisible to queries).
         seen_units = {
             (u or "").strip().lower()
-            for (u,) in db.query(Resident.unit).filter(Resident.hoa_id == hoa.id).all()
+            for (u,) in db.query(Resident.unit).filter(Resident.hoa_id == hoa.id, Resident.archived_at.is_(None)).all()
         }
         for idx, row in enumerate(reader, 1):
             row = {(k or "").strip().lower(): v for k, v in row.items()}
@@ -649,7 +870,7 @@ def add_violation(data: ViolationCreate, current_user: User = Depends(get_curren
 
     priority = data.priority if data.priority in VALID_PRIORITIES else "medium"
     due_days = data.due_in_days if (data.due_in_days and data.due_in_days > 0) else 14
-    due_date = datetime.utcnow() + timedelta(days=due_days)
+    due_date = end_of_day(datetime.utcnow() + timedelta(days=due_days))
 
     violation = Violation(hoa_id=hoa.id, resident_id=data.resident_id, violation_type=data.violation_type,
                           description=data.description, status="open", priority=priority, due_date=due_date, notice_level=0)
@@ -670,13 +891,20 @@ def add_violation(data: ViolationCreate, current_user: User = Depends(get_curren
 
 
 @app.get("/violations")
-def get_violations(hoa_id: int, status: str = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_violations(hoa_id: int, status: str = None, limit: Optional[int] = None, offset: int = 0,
+                   current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     hoa = owned_hoa(hoa_id, current_user, db)
     q = db.query(Violation).filter(Violation.hoa_id == hoa.id)
     if status:
         q = q.filter(Violation.status == status)
-    violations = q.order_by(Violation.created_at.desc()).all()
+    q = q.order_by(Violation.created_at.desc())
+    if offset:
+        q = q.offset(max(0, offset))
+    if limit:
+        q = q.limit(max(1, min(limit, 500)))
+    violations = q.all()
 
+    # Includes archived residents so history rows still resolve names
     residents = {r.id: r for r in db.query(Resident).filter(Resident.hoa_id == hoa.id).all()}
     note_counts = dict(
         db.query(ViolationNote.violation_id, func.count(ViolationNote.id))
@@ -686,20 +914,37 @@ def get_violations(hoa_id: int, status: str = None, current_user: User = Depends
         db.query(ViolationPhoto.violation_id, func.count(ViolationPhoto.id))
         .filter(ViolationPhoto.hoa_id == hoa.id).group_by(ViolationPhoto.violation_id).all()
     )
+    fines = fine_totals_batch(db, hoa.id)
+
+    # Repeat pattern: violations sharing (resident, type) within the past year
+    cutoff = datetime.utcnow() - timedelta(days=365)
+    pair_counts = dict(
+        ((rid, vtype), int(c)) for rid, vtype, c in
+        db.query(Violation.resident_id, Violation.violation_type, func.count(Violation.id))
+        .filter(Violation.hoa_id == hoa.id, Violation.created_at >= cutoff)
+        .group_by(Violation.resident_id, Violation.violation_type).all()
+    )
+
+    def repeat_for(v):
+        if not v.created_at or v.created_at < cutoff:
+            return 0
+        return max(0, pair_counts.get((v.resident_id, v.violation_type), 1) - 1)
+
     return [
         serialize_violation(v, residents.get(v.resident_id), note_count=int(note_counts.get(v.id, 0)),
-                            photo_count=int(photo_counts.get(v.id, 0)))
+                            photo_count=int(photo_counts.get(v.id, 0)), repeat_count=repeat_for(v),
+                            fines=fines.get(v.id))
         for v in violations
     ]
 
 
-@app.get("/violations/{violation_id}/letter")
-def get_violation_letter(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    violation = owned_violation(violation_id, current_user, db)
+def build_letter(violation: Violation, db: Session) -> str:
+    """The current draft letter, generated from live violation data."""
     resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
     hoa = db.query(HOA).filter(HOA.id == violation.hoa_id).first()
     photo_count = db.query(func.count(ViolationPhoto.id)).filter(ViolationPhoto.violation_id == violation.id).scalar() or 0
-    letter = utils.generate_violation_letter(
+    assessed, _paid = fine_totals(db, violation)
+    return utils.generate_violation_letter(
         resident_name=resident.name,
         violation_type=violation.violation_type,
         description=violation.description,
@@ -711,20 +956,38 @@ def get_violation_letter(violation_id: int, current_user: User = Depends(get_cur
         hoa_phone=hoa.phone if hoa else None,
         hoa_website=hoa.website if hoa else None,
         due_date=violation.due_date.strftime("%B %d, %Y") if violation.due_date else None,
-        fine_amount=float(violation.fine_amount or 0),
+        fine_amount=assessed,
         notice_label=NOTICE_LEVELS[min(violation.notice_level or 0, len(NOTICE_LEVELS) - 1)],
         repeat_count=count_prior_offenses(db, violation),
         photo_count=int(photo_count),
     )
-    return {"letter": letter}
+
+
+@app.get("/violations/{violation_id}/letter")
+def get_violation_letter(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Returns the current draft plus, if a notice was already sent, the exact
+    letter that went out — the sent snapshot never changes after the fact."""
+    violation = owned_violation(violation_id, current_user, db)
+    return {
+        "letter": build_letter(violation, db),
+        "sent_letter": violation.generated_letter,
+        "sent_at": violation.email_sent_at.isoformat() if violation.email_sent_at else None,
+    }
 
 
 @app.get("/violations/{violation_id}/letter.pdf")
-def get_violation_letter_pdf(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Printable PDF of the violation letter — for certified mail / hand delivery."""
-    data = get_violation_letter(violation_id, current_user, db)
-    resident = db.query(Resident).join(Violation, Violation.resident_id == Resident.id).filter(Violation.id == violation_id).first()
-    pdf = utils.generate_pdf(data["letter"], resident.name if resident else "resident")
+def get_violation_letter_pdf(violation_id: int, version: str = "draft", current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Printable PDF of the violation letter — for certified mail / hand delivery.
+    version=sent downloads the snapshot of the letter as it was sent."""
+    violation = owned_violation(violation_id, current_user, db)
+    if version == "sent":
+        if not violation.generated_letter:
+            raise HTTPException(status_code=404, detail="No sent letter on file for this violation")
+        letter = violation.generated_letter
+    else:
+        letter = build_letter(violation, db)
+    resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
+    pdf = utils.generate_pdf(letter, resident.name if resident else "resident")
     if not pdf:
         raise HTTPException(status_code=500, detail="PDF generation failed")
     safe_name = re.sub(r"[^A-Za-z0-9_-]+", "_", resident.name if resident else "letter")
@@ -753,21 +1016,10 @@ def update_violation(violation_id: int, data: ViolationUpdate, current_user: Use
             add_system_note(db, violation, f"Priority set to {fields['priority']}")
         violation.priority = fields["priority"]
 
-    if fields.get("fine_amount") is not None:
-        amount = max(0.0, float(fields["fine_amount"]))
-        if amount != float(violation.fine_amount or 0):
-            add_system_note(db, violation, f"Fine set to ${amount:,.2f}")
-        violation.fine_amount = amount
-
-    if fields.get("fine_paid") is not None:
-        if bool(fields["fine_paid"]) != bool(violation.fine_paid):
-            add_system_note(db, violation, "Fine marked as paid" if fields["fine_paid"] else "Fine marked as unpaid")
-        violation.fine_paid = bool(fields["fine_paid"])
-
     if fields.get("due_date"):
         try:
             parsed = datetime.fromisoformat(fields["due_date"].replace("Z", "").split("T")[0])
-            violation.due_date = parsed
+            violation.due_date = end_of_day(parsed)
             add_system_note(db, violation, f"Cure deadline updated to {parsed.strftime('%b %d, %Y')}")
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid due_date format (expected YYYY-MM-DD)")
@@ -780,7 +1032,7 @@ def update_violation(violation_id: int, data: ViolationUpdate, current_user: Use
     db.commit()
     db.refresh(violation)
     resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
-    return serialize_violation(violation, resident)
+    return serialize_violation(violation, resident, db=db)
 
 
 @app.post("/violations/{violation_id}/escalate")
@@ -791,11 +1043,54 @@ def escalate_violation(violation_id: int, current_user: User = Depends(get_curre
         raise HTTPException(status_code=400, detail="Violation is already at the highest escalation level.")
     violation.notice_level = current + 1
     violation.status = "escalated"
+    if violation.resolved_at:
+        # Escalating a resolved case implicitly reopens it
+        violation.resolved_at = None
+        add_system_note(db, violation, "Violation reopened by escalation")
     add_system_note(db, violation, f"Escalated to {NOTICE_LEVELS[violation.notice_level]}")
     db.commit()
     db.refresh(violation)
     resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
-    return serialize_violation(violation, resident)
+    return serialize_violation(violation, resident, db=db)
+
+
+# -- Fine ledger --
+
+@app.get("/violations/{violation_id}/fines")
+def get_violation_fines(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    violation = owned_violation(violation_id, current_user, db)
+    migrate_legacy_fine(db, violation)
+    db.commit()
+    entries = db.query(ViolationFine).filter(ViolationFine.violation_id == violation.id).order_by(ViolationFine.created_at.asc()).all()
+    assessed, paid = fine_totals(db, violation)
+    return {
+        "entries": [{"id": f.id, "amount": float(f.amount), "kind": f.kind, "note": f.note, "created_at": f.created_at.isoformat()} for f in entries],
+        "assessed": round(assessed, 2), "paid": round(paid, 2), "balance": max(0.0, round(assessed - paid, 2)),
+    }
+
+
+@app.post("/violations/{violation_id}/fines")
+def add_violation_fine(violation_id: int, data: FineCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    violation = owned_violation(violation_id, current_user, db)
+    if data.kind not in ("assessment", "payment"):
+        raise HTTPException(status_code=400, detail="kind must be 'assessment' or 'payment'")
+    amount = round(float(data.amount), 2)
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than zero")
+
+    migrate_legacy_fine(db, violation)
+    assessed, paid = fine_totals(db, violation)
+    if data.kind == "payment" and amount > round(assessed - paid, 2) + 1e-9:
+        raise HTTPException(status_code=400, detail=f"Payment exceeds the outstanding balance (${max(0.0, assessed - paid):,.2f})")
+
+    note = (data.note or "").strip() or None
+    db.add(ViolationFine(violation_id=violation.id, hoa_id=violation.hoa_id, amount=amount, kind=data.kind, note=note))
+    verb = "Fine assessed" if data.kind == "assessment" else "Payment recorded"
+    add_system_note(db, violation, f"{verb}: ${amount:,.2f}" + (f" — {note}" if note else ""))
+    db.commit()
+    db.refresh(violation)
+    resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
+    return serialize_violation(violation, resident, db=db)
 
 
 @app.get("/violations/{violation_id}/notes")
@@ -881,7 +1176,7 @@ async def import_violations_csv(hoa_id: int, file: UploadFile = File(...), curre
         reader = csv.DictReader(io.StringIO(text))
         residents_by_unit = {
             (r.unit or "").strip().lower(): r
-            for r in db.query(Resident).filter(Resident.hoa_id == hoa.id).all()
+            for r in db.query(Resident).filter(Resident.hoa_id == hoa.id, Resident.archived_at.is_(None)).all()
         }
         added = 0
         errors = []
@@ -911,10 +1206,12 @@ async def import_violations_csv(hoa_id: int, file: UploadFile = File(...), curre
             violation = Violation(
                 hoa_id=hoa.id, resident_id=resident.id, violation_type=vtype,
                 description=row.get("description") or vtype, status="open", priority=priority,
-                due_date=datetime.utcnow() + timedelta(days=due_days), notice_level=0, fine_amount=fine,
+                due_date=end_of_day(datetime.utcnow() + timedelta(days=due_days)), notice_level=0,
             )
             db.add(violation)
             db.flush()
+            if fine > 0:
+                db.add(ViolationFine(violation_id=violation.id, hoa_id=hoa.id, amount=fine, kind="assessment", note="Imported from CSV"))
             add_system_note(db, violation, f"Imported from CSV — {due_days}-day cure period")
             added += 1
         db.commit()
@@ -964,17 +1261,59 @@ def delete_violation(violation_id: int, current_user: User = Depends(get_current
     return {"message": "Violation deleted"}
 
 
-@app.post("/violations/{violation_id}/mark-sent")
-def mark_violation_sent(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Called by the frontend after EmailJS successfully sends the letter."""
-    violation = owned_violation(violation_id, current_user, db)
+def _record_notice_sent(db: Session, violation: Violation, letter: str, via: str):
+    """Snapshot the letter exactly as sent and advance the workflow. The
+    snapshot is the audit record — later edits to the violation must never
+    change what the resident was told."""
+    violation.generated_letter = letter
     violation.email_sent_at = datetime.utcnow()
     if violation.status == "open":
         violation.status = "noticed"
     if (violation.notice_level or 0) == 0:
         violation.notice_level = 1
-    add_system_note(db, violation, "Violation notice emailed to resident")
+    add_system_note(db, violation, f"Violation notice emailed to resident ({via}) — letter archived")
+
+
+@app.post("/violations/{violation_id}/mark-sent")
+def mark_violation_sent(violation_id: int, body: Optional[MarkSentBody] = None,
+                        current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Called by the frontend after EmailJS successfully sends the letter.
+    The frontend passes the exact letter text it emailed so the archived copy
+    matches what went out."""
+    violation = owned_violation(violation_id, current_user, db)
+    letter = (body.letter if body and body.letter else None) or build_letter(violation, db)
+    _record_notice_sent(db, violation, letter, via="email")
     db.commit()
     db.refresh(violation)
     resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
-    return {"email_sent_at": violation.email_sent_at.isoformat(), "violation": serialize_violation(violation, resident)}
+    return {"email_sent_at": violation.email_sent_at.isoformat(), "violation": serialize_violation(violation, resident, db=db)}
+
+
+@app.post("/violations/{violation_id}/send-notice")
+def send_violation_notice(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Server-side notice delivery over SMTP. Preferred over client-side
+    EmailJS when configured: the server generates, sends, and archives the
+    letter in one transaction, so the audit record is authoritative."""
+    violation = owned_violation(violation_id, current_user, db)
+    resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
+    if not resident or not resident.email:
+        raise HTTPException(status_code=400, detail="Resident has no email address")
+    hoa = db.query(HOA).filter(HOA.id == violation.hoa_id).first()
+    letter = build_letter(violation, db)
+    subject = f"{NOTICE_LEVELS[min(violation.notice_level or 0, len(NOTICE_LEVELS) - 1)] if violation.notice_level else 'Violation Notice'} — {violation.violation_type}"
+    try:
+        utils.send_email_smtp(
+            to=resident.email,
+            subject=f"{hoa.name if hoa else 'HOA'}: {subject}",
+            body=letter,
+            reply_to=(hoa.email if hoa else None),
+            from_name=(hoa.name if hoa else None),
+        )
+    except LookupError:
+        raise HTTPException(status_code=501, detail="Server email (SMTP) is not configured")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Email delivery failed: {e}")
+    _record_notice_sent(db, violation, letter, via="server")
+    db.commit()
+    db.refresh(violation)
+    return {"email_sent_at": violation.email_sent_at.isoformat(), "violation": serialize_violation(violation, resident, db=db)}

@@ -127,11 +127,11 @@ def test_violation_lifecycle(client, alice, hoa, resident):
     assert v["status"] == "open" and v["priority"] == "high"
     assert v["due_date"] is not None and v["note_count"] == 1
 
-    # Fine, then mark paid
-    upd = client.patch(f"/violations/{v['id']}", json={"fine_amount": 75}, headers=alice).json()
-    assert upd["fine_amount"] == 75
-    upd = client.patch(f"/violations/{v['id']}", json={"fine_paid": True}, headers=alice).json()
-    assert upd["fine_paid"] is True
+    # Fine ledger: assess, then settle
+    upd = client.post(f"/violations/{v['id']}/fines", json={"amount": 75, "kind": "assessment"}, headers=alice).json()
+    assert upd["fine_amount"] == 75 and upd["fine_balance"] == 75 and upd["fine_paid"] is False
+    upd = client.post(f"/violations/{v['id']}/fines", json={"amount": 75, "kind": "payment"}, headers=alice).json()
+    assert upd["fine_paid"] is True and upd["fine_balance"] == 0
 
     # Email sent → noticed + first notice
     sent = client.post(f"/violations/{v['id']}/mark-sent", headers=alice).json()
@@ -202,7 +202,7 @@ def test_letter_contents(client, alice, hoa, resident):
         "hoa_id": hoa["id"], "resident_id": resident["id"],
         "violation_type": "Trash / Debris", "description": "Bins left out",
     }, headers=alice).json()
-    client.patch(f"/violations/{v['id']}", json={"fine_amount": 50}, headers=alice)
+    client.post(f"/violations/{v['id']}/fines", json={"amount": 50, "kind": "assessment"}, headers=alice)
     letter = client.get(f"/violations/{v['id']}/letter", headers=alice).json()["letter"]
     assert "Jane Smith" in letter
     assert "Property: 101" in letter
@@ -316,6 +316,194 @@ def test_activity_feed(client, alice, hoa):
 def test_demo_seed_requires_empty_community(client, alice, hoa):
     # hoa already has residents → refuse
     assert client.post(f"/hoas/{hoa['id']}/seed-demo", headers=alice).status_code == 400
+
+
+# ---------- Fine ledger ----------
+
+def test_fine_ledger_partial_payments(client, alice, hoa, resident):
+    v = client.post("/violations", json={
+        "hoa_id": hoa["id"], "resident_id": resident["id"],
+        "violation_type": "Commercial Vehicle", "description": "Box truck overnight",
+    }, headers=alice).json()
+
+    client.post(f"/violations/{v['id']}/fines", json={"amount": 100, "kind": "assessment", "note": "First offense"}, headers=alice)
+    upd = client.post(f"/violations/{v['id']}/fines", json={"amount": 40, "kind": "payment"}, headers=alice).json()
+    assert upd["fine_amount"] == 100 and upd["fine_paid_total"] == 40 and upd["fine_balance"] == 60
+    assert upd["fine_paid"] is False
+
+    # Overpayment rejected
+    over = client.post(f"/violations/{v['id']}/fines", json={"amount": 500, "kind": "payment"}, headers=alice)
+    assert over.status_code == 400
+
+    # Escalating fine: second assessment stacks
+    upd = client.post(f"/violations/{v['id']}/fines", json={"amount": 50, "kind": "assessment", "note": "Continued"}, headers=alice).json()
+    assert upd["fine_amount"] == 150 and upd["fine_balance"] == 110
+
+    ledger = client.get(f"/violations/{v['id']}/fines", headers=alice).json()
+    assert len(ledger["entries"]) == 3
+    assert ledger["assessed"] == 150 and ledger["paid"] == 40 and ledger["balance"] == 110
+
+    # Ledger ops are rejected with bad input
+    assert client.post(f"/violations/{v['id']}/fines", json={"amount": -5, "kind": "assessment"}, headers=alice).status_code == 400
+    assert client.post(f"/violations/{v['id']}/fines", json={"amount": 5, "kind": "refund"}, headers=alice).status_code == 400
+    client.delete(f"/violations/{v['id']}", headers=alice)
+
+
+# ---------- Letter snapshot (audit record) ----------
+
+def test_sent_letter_snapshot_is_immutable(client, alice, hoa, resident):
+    v = client.post("/violations", json={
+        "hoa_id": hoa["id"], "resident_id": resident["id"],
+        "violation_type": "Noise Complaint", "description": "Late-night parties",
+    }, headers=alice).json()
+
+    sent_text = "EXACT LETTER AS EMAILED — proof copy"
+    res = client.post(f"/violations/{v['id']}/mark-sent", json={"letter": sent_text}, headers=alice)
+    assert res.status_code == 200
+    assert res.json()["violation"]["letter_sent_snapshot"] is True
+
+    # Mutate the violation after sending
+    client.patch(f"/violations/{v['id']}", json={"note": "edited later"}, headers=alice)
+    client.post(f"/violations/{v['id']}/fines", json={"amount": 500, "kind": "assessment"}, headers=alice)
+
+    data = client.get(f"/violations/{v['id']}/letter", headers=alice).json()
+    assert data["sent_letter"] == sent_text          # snapshot untouched
+    assert data["sent_at"] is not None
+    assert "$500.00" in data["letter"]                # draft reflects new data
+
+    # Sent-version PDF serves the snapshot
+    pdf = client.get(f"/violations/{v['id']}/letter.pdf?version=sent", headers=alice)
+    assert pdf.status_code == 200 and pdf.content[:4] == b"%PDF"
+    client.delete(f"/violations/{v['id']}", headers=alice)
+
+
+def test_sent_pdf_404_without_snapshot(client, alice, hoa, resident):
+    v = client.post("/violations", json={
+        "hoa_id": hoa["id"], "resident_id": resident["id"],
+        "violation_type": "Other", "description": "x",
+    }, headers=alice).json()
+    assert client.get(f"/violations/{v['id']}/letter.pdf?version=sent", headers=alice).status_code == 404
+    client.delete(f"/violations/{v['id']}", headers=alice)
+
+
+# ---------- Archive / restore / unit uniqueness ----------
+
+def test_duplicate_unit_rejected(client, alice, hoa, resident):
+    dup = client.post("/residents", json={
+        "hoa_id": hoa["id"], "name": "Copy Cat", "unit": "101",
+    }, headers=alice)
+    assert dup.status_code == 400
+    dup2 = client.post("/residents", json={
+        "hoa_id": hoa["id"], "name": "Case Cat", "unit": " 101 ",
+    }, headers=alice)
+    assert dup2.status_code == 400
+
+
+def test_archive_preserves_history_and_restore(client, alice, hoa):
+    r = client.post("/residents", json={"hoa_id": hoa["id"], "name": "Mover Out", "unit": "777"}, headers=alice).json()
+    v = client.post("/violations", json={
+        "hoa_id": hoa["id"], "resident_id": r["id"],
+        "violation_type": "Trash / Debris", "description": "history row",
+    }, headers=alice).json()
+
+    # Delete → archived, because history exists
+    res = client.delete(f"/residents/{r['id']}", headers=alice).json()
+    assert res["archived"] is True
+
+    active = client.get(f"/residents?hoa_id={hoa['id']}", headers=alice).json()
+    assert all(x["id"] != r["id"] for x in active)
+    everyone = client.get(f"/residents?hoa_id={hoa['id']}&include_archived=true", headers=alice).json()
+    archived = next(x for x in everyone if x["id"] == r["id"])
+    assert archived["archived_at"] is not None
+
+    # Violation history still resolves the resident's name
+    listed = client.get(f"/violations?hoa_id={hoa['id']}", headers=alice).json()
+    mine = next(x for x in listed if x["id"] == v["id"])
+    assert mine["resident_name"] == "Mover Out"
+
+    # Unit is freed for a new resident; restore then conflicts
+    n = client.post("/residents", json={"hoa_id": hoa["id"], "name": "New Owner", "unit": "777"}, headers=alice)
+    assert n.status_code == 200
+    conflict = client.post(f"/residents/{r['id']}/restore", headers=alice)
+    assert conflict.status_code == 400
+
+    # Free the unit again and restore successfully
+    client.delete(f"/residents/{n.json()['id']}", headers=alice)  # no history → hard delete
+    restored = client.post(f"/residents/{r['id']}/restore", headers=alice)
+    assert restored.status_code == 200 and restored.json()["archived_at"] is None
+    client.delete(f"/violations/{v['id']}", headers=alice)
+
+
+# ---------- Workflow logic ----------
+
+def test_escalating_resolved_violation_reopens_it(client, alice, hoa, resident):
+    v = client.post("/violations", json={
+        "hoa_id": hoa["id"], "resident_id": resident["id"],
+        "violation_type": "Fencing / Walls", "description": "again",
+    }, headers=alice).json()
+    client.patch(f"/violations/{v['id']}", json={"status": "resolved"}, headers=alice)
+    esc = client.post(f"/violations/{v['id']}/escalate", headers=alice).json()
+    assert esc["status"] == "escalated" and esc["resolved_at"] is None
+    client.delete(f"/violations/{v['id']}", headers=alice)
+
+
+def test_repeat_count_in_list(client, alice, hoa, resident):
+    ids = []
+    for i in range(2):
+        v = client.post("/violations", json={
+            "hoa_id": hoa["id"], "resident_id": resident["id"],
+            "violation_type": "Holiday Decorations", "description": f"occurrence {i}",
+        }, headers=alice).json()
+        ids.append(v["id"])
+    listed = client.get(f"/violations?hoa_id={hoa['id']}", headers=alice).json()
+    mine = [x for x in listed if x["id"] in ids]
+    assert all(x["repeat_count"] >= 1 for x in mine)
+    for vid in ids:
+        client.delete(f"/violations/{vid}", headers=alice)
+
+
+def test_violations_pagination(client, alice, hoa):
+    page = client.get(f"/violations?hoa_id={hoa['id']}&limit=1", headers=alice).json()
+    assert len(page) == 1
+
+
+# ---------- Password reset & rate limiting ----------
+
+def test_password_reset_flow(client):
+    register(client, "resetme@example.com", "originalpw123")
+    # Forgot always responds generically (no account enumeration)
+    res = client.post("/auth/forgot", json={"email": "resetme@example.com"})
+    assert res.status_code == 200 and "reset link" in res.json()["message"]
+
+    # Craft the reset token directly (SMTP is not configured in tests)
+    import utils as u
+    from datetime import timedelta as td
+    db_user_token = None
+    login = client.post("/auth/login", json={"email": "resetme@example.com", "password": "originalpw123"})
+    import jwt as pyjwt
+    uid = pyjwt.decode(login.json()["access_token"], u.SECRET_KEY, algorithms=[u.ALGORITHM])["sub"]
+    db_user_token = u.create_access_token({"sub": uid, "purpose": "pwreset"}, td(minutes=5))
+
+    # A normal auth token must NOT work as a reset token
+    bad = client.post("/auth/reset", json={"token": login.json()["access_token"], "password": "hackedpw123"})
+    assert bad.status_code == 400
+
+    ok = client.post("/auth/reset", json={"token": db_user_token, "password": "brandnewpw123"})
+    assert ok.status_code == 200
+    assert client.post("/auth/login", json={"email": "resetme@example.com", "password": "originalpw123"}).status_code == 401
+    assert client.post("/auth/login", json={"email": "resetme@example.com", "password": "brandnewpw123"}).status_code == 200
+
+
+def test_login_rate_limited_after_repeated_failures(client):
+    register(client, "bruteforce@example.com", "correctpw123")
+    for _ in range(10):
+        r = client.post("/auth/login", json={"email": "bruteforce@example.com", "password": "wrong"})
+        assert r.status_code == 401
+    locked = client.post("/auth/login", json={"email": "bruteforce@example.com", "password": "wrong"})
+    assert locked.status_code == 429
+    # Even the correct password is throttled while locked
+    locked2 = client.post("/auth/login", json={"email": "bruteforce@example.com", "password": "correctpw123"})
+    assert locked2.status_code == 429
 
 
 def test_demo_seed_populates_empty_hoa(client, alice):
