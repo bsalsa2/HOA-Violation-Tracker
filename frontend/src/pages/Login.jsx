@@ -13,6 +13,21 @@ function Login({ setToken }) {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [forgotSent, setForgotSent] = useState(false)
+
+  const handleForgot = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      await authAPI.forgot(email)
+      setForgotSent(true)
+    } catch (err) {
+      setError(err.response?.status === 429 ? 'Too many requests — try again in a few minutes.' : 'Something went wrong. Try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -27,7 +42,8 @@ function Login({ setToken }) {
       const detail = err.response?.data?.detail
       const status = err.response?.status
       if (mode === 'login' && status === 401) setError('Invalid email or password.')
-      else if (mode === 'register' && status === 400) setError('An account with this email already exists.')
+      else if (status === 429) setError('Too many failed attempts. Try again in a few minutes.')
+      else if (mode === 'register' && status === 400) setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail || 'Could not create the account.'))
       else if (!err.response) setError('Cannot reach the server. It may still be deploying — wait a moment and try again.')
       else setError(`Error ${status}: ${Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail || err.message || 'Unknown error')}`)
     } finally {
@@ -71,6 +87,43 @@ function Login({ setToken }) {
             ))}
           </div>
 
+          {mode === 'forgot' ? (
+            forgotSent ? (
+              <div className="text-center space-y-3 py-2">
+                <div className="inline-flex w-11 h-11 rounded-full bg-emerald-500/10 ring-1 ring-emerald-500/25 items-center justify-center">
+                  <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                </div>
+                <p className="text-slate-200 text-sm">If that account exists, a reset link is on its way.</p>
+                <p className="text-slate-500 text-xs">The link is valid for 30 minutes.</p>
+                <button onClick={() => { setMode('login'); setForgotSent(false); setError('') }} className="text-[#60a5fa] text-sm hover:underline">Back to sign in</button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgot} className="space-y-4">
+                <p className="text-sm text-slate-400">Enter your account email and we'll send a password reset link.</p>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">Email address</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="vt-input px-3.5 py-3 focus:ring-2 focus:ring-[#3b82f6]/20"
+                    placeholder="you@example.com"
+                    required
+                    autoComplete="email"
+                  />
+                </div>
+                {error && (
+                  <div className="bg-red-900/30 border border-red-800/50 text-red-200 text-sm rounded-lg p-3 anim-fade">{error}</div>
+                )}
+                <button type="submit" disabled={loading} className="btn-primary btn-sheen w-full py-3">
+                  {loading ? 'Sending…' : 'Send Reset Link'}
+                </button>
+                <p className="text-center">
+                  <button type="button" onClick={() => { setMode('login'); setError('') }} className="text-xs text-slate-500 hover:text-slate-300 transition-colors">Back to sign in</button>
+                </p>
+              </form>
+            )
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Email address</label>
@@ -85,13 +138,19 @@ function Login({ setToken }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Password</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-medium text-slate-300">Password</label>
+                {mode === 'login' && (
+                  <button type="button" onClick={() => { setMode('forgot'); setError('') }} className="text-xs text-slate-500 hover:text-[#60a5fa] transition-colors">Forgot password?</button>
+                )}
+              </div>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="vt-input px-3.5 py-3 focus:ring-2 focus:ring-[#3b82f6]/20"
-                placeholder={mode === 'register' ? 'Choose a password' : 'Your password'}
+                placeholder={mode === 'register' ? 'At least 8 characters' : 'Your password'}
+                minLength={mode === 'register' ? 8 : undefined}
                 required
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               />
@@ -122,6 +181,7 @@ function Login({ setToken }) {
               ) : mode === 'login' ? 'Sign In' : 'Create Account'}
             </button>
           </form>
+          )}
         </div>
 
         {/* Trust row */}

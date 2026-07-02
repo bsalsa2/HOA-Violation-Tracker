@@ -30,6 +30,8 @@ api.interceptors.response.use(
 export const authAPI = {
   register: (email, password) => api.post('/auth/register', { email, password }),
   login: (email, password) => api.post('/auth/login', { email, password }),
+  forgot: (email) => api.post('/auth/forgot', { email }),
+  reset: (token, password) => api.post('/auth/reset', { token, password }),
 }
 
 export const hoaAPI = {
@@ -51,7 +53,8 @@ export const hoaAPI = {
 
 export const residentAPI = {
   create: (hoaId, name, unit, email, phone) => api.post('/residents', { hoa_id: hoaId, name, unit, email, phone }),
-  getAll: (hoaId) => api.get(`/residents?hoa_id=${hoaId}`),
+  getAll: (hoaId, includeArchived = false) => api.get(`/residents?hoa_id=${hoaId}${includeArchived ? '&include_archived=true' : ''}`),
+  restore: (residentId) => api.post(`/residents/${residentId}/restore`),
   update: (residentId, name, unit, email, phone) =>
     api.patch(`/residents/${residentId}`, { name, unit, email, phone }),
   delete: (residentId) => api.delete(`/residents/${residentId}`),
@@ -77,8 +80,11 @@ export const violationAPI = {
   getAll: (hoaId, status) =>
     api.get(`/violations?hoa_id=${hoaId}${status ? `&status=${status}` : ''}`),
   getLetter: (violationId) => api.get(`/violations/${violationId}/letter`),
-  getLetterPdf: (violationId) => api.get(`/violations/${violationId}/letter.pdf`, { responseType: 'blob' }),
-  markSent: (violationId) => api.post(`/violations/${violationId}/mark-sent`),
+  getLetterPdf: (violationId, version = 'draft') => api.get(`/violations/${violationId}/letter.pdf?version=${version}`, { responseType: 'blob' }),
+  markSent: (violationId, letter) => api.post(`/violations/${violationId}/mark-sent`, letter ? { letter } : {}),
+  sendNotice: (violationId) => api.post(`/violations/${violationId}/send-notice`),
+  getFines: (violationId) => api.get(`/violations/${violationId}/fines`),
+  addFine: (violationId, amount, kind, note) => api.post(`/violations/${violationId}/fines`, { amount, kind, note: note || null }),
   update: (violationId, fields) => api.patch(`/violations/${violationId}`, fields),
   updateStatus: (violationId, status) => api.patch(`/violations/${violationId}`, { status }),
   escalate: (violationId) => api.post(`/violations/${violationId}/escalate`),

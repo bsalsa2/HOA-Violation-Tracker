@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import emailjs from '@emailjs/browser'
 import { residentAPI, violationAPI, hoaAPI } from '../api'
 import OverviewTab from '../components/OverviewTab'
@@ -12,6 +13,8 @@ import { Modal, ConfirmDialog, ToastStack, Spinner } from '../components/primiti
 import { openBoardReport } from '../lib/boardReport'
 import { downloadViolationsCsv, downloadLetterPdf } from '../lib/export'
 
+const currencyFmt = (n) => Number(n || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+
 function getEmailJSConfig() {
   return {
     service: import.meta.env.VITE_EJS_SERVICE || import.meta.env.VITE_EMAILJS_SERVICE_ID,
@@ -20,7 +23,9 @@ function getEmailJSConfig() {
   }
 }
 
-export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitchHoa, onShowPortfolio, onAddClient, onEditClient, setToken }) {
+const TABS = ['overview', 'violations', 'residents']
+
+export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPortfolio, onAddClient, onEditClient, setToken }) {
   const hoaId = hoa.id
 
   const [residents, setResidents] = useState([])
@@ -29,13 +34,31 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
   const [analyticsLoading, setAnalyticsLoading] = useState(true)
   const [dataLoading, setDataLoading] = useState(true)
 
-  const [tab, setTab] = useState('overview')
+  // Tab and open violation live in the URL — refresh-safe and deep-linkable
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'overview'
+  const setTab = useCallback((t) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (t === 'overview') next.delete('tab')
+      else next.set('tab', t)
+      return next
+    })
+  }, [setSearchParams])
   const [violationQuery, setViolationQuery] = useState('')
 
   const [toasts, setToasts] = useState([])
   const toastCounter = useRef(0)
 
-  const [selectedId, setSelectedId] = useState(null)
+  const selectedId = parseInt(searchParams.get('v'), 10) || null
+  const setSelectedId = useCallback((id) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (id) next.set('v', String(id))
+      else next.delete('v')
+      return next
+    })
+  }, [setSearchParams])
   const [sendingEmail, setSendingEmail] = useState({})
   const [letterModal, setLetterModal] = useState(null)
   const letterCache = useRef({})
@@ -56,9 +79,11 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
   const dismissToast = (id) => setToasts((prev) => prev.filter((t) => t.id !== id))
 
   // ---- Data loading (scoped to active HOA) ----
+  // Archived residents are included so history and the archive view work;
+  // pickers and counts use the active subset.
   const loadResidents = useCallback(async () => {
     try {
-      const res = await residentAPI.getAll(hoaId)
+      const res = await residentAPI.getAll(hoaId, true)
       setResidents(res.data)
     } catch {}
   }, [hoaId])
@@ -83,16 +108,17 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
   useEffect(() => {
     let cancelled = false
     setDataLoading(true)
-    setSelectedId(null)
     setViolationQuery('')
     letterCache.current = {}
     Promise.all([
-      residentAPI.getAll(hoaId).then((r) => !cancelled && setResidents(r.data)).catch(() => {}),
+      residentAPI.getAll(hoaId, true).then((r) => !cancelled && setResidents(r.data)).catch(() => {}),
       violationAPI.getAll(hoaId).then((r) => !cancelled && setViolations(r.data)).catch(() => {}),
       hoaAPI.getAnalytics(hoaId).then((r) => !cancelled && setAnalytics(r.data)).catch(() => {}),
     ]).finally(() => { if (!cancelled) { setDataLoading(false); setAnalyticsLoading(false) } })
     return () => { cancelled = true }
   }, [hoaId])
+
+  const activeResidents = useMemo(() => residents.filter((r) => !r.archived_at), [residents])
 
   // ---- ⌘K ----
   useEffect(() => {
@@ -137,24 +163,52 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
     }
   }, [addToast, loadAnalytics])
 
+  const applySentViolation = useCallback((violationId, updated) => {
+    setViolations((prev) => prev.map((v) => (v.id === violationId ? { ...v, ...updated } : v)))
+    delete letterCache.current[violationId]
+    loadAnalytics()
+  }, [loadAnalytics])
+
   const handleSendEmail = useCallback(async (violationId) => {
-    const cfg = getEmailJSConfig()
-    if (!cfg.service || !cfg.template || !cfg.key) {
-      addToast('EmailJS is not configured. Check your Vercel environment variables.', 'error')
-      return
-    }
-    if (!hoaEmail) {
-      addToast('Please configure your HOA email address in settings before sending letters.', 'error')
-      return
-    }
     const violation = violations.find((v) => v.id === violationId)
     if (!violation?.resident_email) {
       addToast('Resident has no email address.', 'error')
       return
     }
     setSendingEmail((prev) => ({ ...prev, [violationId]: true }))
+
+    // Preferred path: the server sends and archives the letter in one
+    // transaction. 501 means SMTP isn't configured → fall back to EmailJS.
+    try {
+      const res = await violationAPI.sendNotice(violationId)
+      applySentViolation(violationId, res.data.violation)
+      addToast(`Letter sent to ${violation.resident_email}.`)
+      setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
+      return
+    } catch (err) {
+      if (err.response?.status !== 501) {
+        addToast(err.response?.data?.detail || 'Failed to send email.', 'error')
+        setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
+        return
+      }
+    }
+
+    // Fallback: client-side EmailJS. The exact letter text is passed to
+    // mark-sent so the archived copy matches what was emailed.
+    const cfg = getEmailJSConfig()
+    if (!cfg.service || !cfg.template || !cfg.key) {
+      addToast('Email is not configured (neither SMTP nor EmailJS).', 'error')
+      setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
+      return
+    }
+    if (!hoaEmail) {
+      addToast('Add the HOA email address in settings before sending letters.', 'error')
+      setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
+      return
+    }
     try {
       const letterRes = await violationAPI.getLetter(violationId)
+      const letterText = letterRes.data.letter
       await emailjs.send(
         cfg.service, cfg.template,
         {
@@ -163,17 +217,15 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
           hoa_name: hoa?.name || 'HOA',
           hoa_email: hoaEmail,
           violation_type: violation.violation_type,
-          violation_letter: letterRes.data.letter,
+          violation_letter: letterText,
           from_name: hoa?.name || 'ViolationTrack',
           from_email: hoaEmail,
           reply_to: hoaEmail,
         },
         cfg.key
       )
-      const markRes = await violationAPI.markSent(violationId)
-      const updated = markRes.data.violation
-      setViolations((prev) => prev.map((v) => (v.id === violationId ? { ...v, ...updated } : v)))
-      loadAnalytics()
+      const markRes = await violationAPI.markSent(violationId, letterText)
+      applySentViolation(violationId, markRes.data.violation)
       addToast(`Letter sent to ${violation.resident_email}.`)
     } catch (err) {
       const detail = err.response?.data?.detail
@@ -182,27 +234,53 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
     } finally {
       setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
     }
-  }, [violations, hoaEmail, addToast, loadAnalytics])
+  }, [violations, hoa, hoaEmail, addToast, applySentViolation])
 
   const handleViewLetter = useCallback(async (violation) => {
+    const open = (data) => setLetterModal({ violation, data, view: data.sent_letter ? 'sent' : 'draft' })
     if (letterCache.current[violation.id]) {
-      setLetterModal({ violation, text: letterCache.current[violation.id] })
+      open(letterCache.current[violation.id])
       return
     }
     try {
       const res = await violationAPI.getLetter(violation.id)
-      letterCache.current[violation.id] = res.data.letter
-      setLetterModal({ violation, text: res.data.letter })
+      letterCache.current[violation.id] = res.data
+      open(res.data)
     } catch {
       addToast('Failed to generate letter.', 'error')
     }
   }, [addToast])
 
-  const handleDownloadPdf = useCallback(async (violation) => {
+  const handleFine = useCallback(async (violationId, amount, kind, note) => {
     try {
-      const res = await violationAPI.getLetterPdf(violation.id)
+      const res = await violationAPI.addFine(violationId, amount, kind, note)
+      setViolations((prev) => prev.map((v) => (v.id === violationId ? { ...v, ...res.data } : v)))
+      delete letterCache.current[violationId]
+      loadAnalytics()
+      addToast(kind === 'assessment' ? `Fine of ${currencyFmt(amount)} assessed.` : `Payment of ${currencyFmt(amount)} recorded.`)
+      return res.data
+    } catch (err) {
+      addToast(err.response?.data?.detail || 'Fine update failed.', 'error')
+      throw err
+    }
+  }, [addToast, loadAnalytics])
+
+  const handleRestoreResident = useCallback(async (resident) => {
+    try {
+      await residentAPI.restore(resident.id)
+      await loadResidents()
+      loadAnalytics()
+      addToast(`${resident.name} restored.`)
+    } catch (err) {
+      addToast(err.response?.data?.detail || 'Restore failed.', 'error')
+    }
+  }, [loadResidents, loadAnalytics, addToast])
+
+  const handleDownloadPdf = useCallback(async (violation, version = 'draft') => {
+    try {
+      const res = await violationAPI.getLetterPdf(violation.id, version)
       downloadLetterPdf(res.data, violation.resident_name)
-      addToast('Letter PDF downloaded — ready to print for certified mail.')
+      addToast(version === 'sent' ? 'Sent letter PDF downloaded (archived copy).' : 'Letter PDF downloaded — ready to print for certified mail.')
     } catch {
       addToast('Failed to generate the PDF.', 'error')
     }
@@ -248,23 +326,26 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
     })
   }, [addToast, loadAnalytics])
 
-  const handleDeleteResident = useCallback((residentId, residentName) => {
+  const handleDeleteResident = useCallback((residentId, residentName, violationCount = 0) => {
     setConfirmDelete({
-      message: `Delete ${residentName}? All their violations will also be deleted.`,
+      message: violationCount > 0
+        ? `Archive ${residentName}? Their ${violationCount} violation record${violationCount !== 1 ? 's' : ''} will be preserved for the association's history.`
+        : `Delete ${residentName}? They have no violation history.`,
+      confirmLabel: violationCount > 0 ? 'Archive' : 'Delete',
       onConfirm: async () => {
         setConfirmDelete(null)
         try {
-          await residentAPI.delete(residentId)
-          setResidents((prev) => prev.filter((r) => r.id !== residentId))
+          const res = await residentAPI.delete(residentId)
+          await loadResidents()
           loadViolations()
           loadAnalytics()
-          addToast('Resident deleted.')
+          addToast(res.data.message || 'Resident removed.')
         } catch {
-          addToast('Failed to delete resident.', 'error')
+          addToast('Failed to remove resident.', 'error')
         }
       },
     })
-  }, [addToast, loadViolations, loadAnalytics])
+  }, [addToast, loadResidents, loadViolations, loadAnalytics])
 
   const goToResidentViolations = useCallback((resident) => {
     setViolationQuery(resident.name)
@@ -292,13 +373,13 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
   }, [hoa, hoaId, violations, analytics, addToast])
 
   const selectedViolation = violations.find((v) => v.id === selectedId) || null
-  const canAdd = residents.length > 0
+  const canAdd = activeResidents.length > 0
   const overdueCount = analytics?.kpis?.overdue_violations || 0
 
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'violations', label: 'Violations', badge: violations.filter((v) => v.status !== 'resolved').length },
-    { key: 'residents', label: 'Residents', badge: residents.length },
+    { key: 'residents', label: 'Residents', badge: activeResidents.length },
   ]
 
   return (
@@ -322,7 +403,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
                 Search <kbd className="text-[10px] border border-white/10 rounded px-1 ml-0.5">⌘K</kbd>
               </button>
               <button onClick={handleBoardReport} className="px-3 py-1.5 text-xs text-slate-400 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors">Board Report</button>
-              <button onClick={onEditClient} className="hidden md:block px-3 py-1.5 text-xs text-slate-400 hover:text-slate-100 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors">Edit</button>
+              <button onClick={() => onEditClient(hoaId)} className="hidden md:block px-3 py-1.5 text-xs text-slate-400 hover:text-slate-100 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors">Edit</button>
               <button onClick={handleLogout} className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-100 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors">Sign Out</button>
             </div>
           </div>
@@ -381,6 +462,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
             onAdd={() => setShowAddResident(true)}
             onImport={() => setShowImportCSV(true)}
             onDelete={handleDeleteResident}
+            onRestore={handleRestoreResident}
             onViewViolations={goToResidentViolations}
             onSeedDemo={handleSeedDemo}
             seeding={seedingDemo}
@@ -398,6 +480,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
           onViewLetter={handleViewLetter}
           onDelete={handleDeleteViolation}
           onDownloadPdf={handleDownloadPdf}
+          onFine={handleFine}
           sending={!!sendingEmail[selectedViolation.id]}
         />
       )}
@@ -405,7 +488,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
-        residents={residents}
+        residents={activeResidents}
         violations={violations}
         onSelectViolation={(v) => setSelectedId(v.id)}
         onSelectResident={goToResidentViolations}
@@ -461,37 +544,59 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
       {showAddViolation && (
         <AddViolationModal
           hoaId={hoaId}
-          residents={residents}
+          residents={activeResidents}
           onClose={() => setShowAddViolation(false)}
           onAdded={() => { setShowAddViolation(false); loadViolations(); loadAnalytics(); addToast('Violation created.') }}
         />
       )}
 
-      {letterModal && (
-        <Modal title={`Violation Letter — ${letterModal.violation.violation_type}`} subtitle={`${letterModal.violation.resident_name} · ${letterModal.violation.resident_unit}`} onClose={() => setLetterModal(null)}>
-          <div className="bg-white/[0.04] ring-1 ring-white/[0.06] rounded-xl p-5">
-            <pre className="text-sm text-slate-400 whitespace-pre-wrap leading-relaxed font-sans">{letterModal.text}</pre>
-          </div>
-          <div className="flex gap-3 mt-4">
-            <button
-              onClick={() => { navigator.clipboard?.writeText(letterModal.text); addToast('Letter copied to clipboard.') }}
-              className="flex-1 py-2 text-sm border border-white/10 text-slate-400 hover:bg-white/[0.06] rounded-lg transition-colors"
-            >
-              Copy to Clipboard
-            </button>
-            <button
-              onClick={() => handleDownloadPdf(letterModal.violation)}
-              className="flex-1 py-2 text-sm border border-white/10 text-slate-400 hover:bg-white/[0.06] rounded-lg transition-colors"
-              title="Print-ready PDF for certified mail"
-            >
-              Download PDF
-            </button>
-          </div>
-        </Modal>
-      )}
+      {letterModal && (() => {
+        const { violation, data, view } = letterModal
+        const showingSent = view === 'sent' && data.sent_letter
+        const text = showingSent ? data.sent_letter : data.letter
+        return (
+          <Modal title={`Violation Letter — ${violation.violation_type}`} subtitle={`${violation.resident_name} · ${violation.resident_unit}`} onClose={() => setLetterModal(null)}>
+            {data.sent_letter && (
+              <div className="flex items-center gap-1.5 mb-4">
+                <button
+                  onClick={() => setLetterModal({ ...letterModal, view: 'sent' })}
+                  className={`vt-chip ${showingSent ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'text-slate-400 border-white/10 hover:border-white/20'}`}
+                >
+                  As sent {data.sent_at ? `· ${new Date(data.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                </button>
+                <button
+                  onClick={() => setLetterModal({ ...letterModal, view: 'draft' })}
+                  className={`vt-chip ${!showingSent ? 'bg-[#3b82f6]/15 text-[#60a5fa] border-[#3b82f6]/30' : 'text-slate-400 border-white/10 hover:border-white/20'}`}
+                >
+                  Current draft
+                </button>
+                {showingSent && <span className="text-[11px] text-slate-500 ml-1">archived copy — never changes</span>}
+              </div>
+            )}
+            <div className="bg-white/[0.04] ring-1 ring-white/[0.06] rounded-xl p-5">
+              <pre className="text-sm text-slate-400 whitespace-pre-wrap leading-relaxed font-sans">{text}</pre>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => { navigator.clipboard?.writeText(text); addToast('Letter copied to clipboard.') }}
+                className="flex-1 py-2 text-sm border border-white/10 text-slate-400 hover:bg-white/[0.06] rounded-lg transition-colors"
+              >
+                Copy to Clipboard
+              </button>
+              <button
+                onClick={() => handleDownloadPdf(violation, showingSent ? 'sent' : 'draft')}
+                className="flex-1 py-2 text-sm border border-white/10 text-slate-400 hover:bg-white/[0.06] rounded-lg transition-colors"
+                title="Print-ready PDF for certified mail"
+              >
+                Download PDF
+              </button>
+            </div>
+          </Modal>
+        )
+      })()}
 
       {confirmDelete && (
-        <ConfirmDialog message={confirmDelete.message} onConfirm={confirmDelete.onConfirm} onCancel={() => setConfirmDelete(null)} />
+        <ConfirmDialog message={confirmDelete.message} confirmLabel={confirmDelete.confirmLabel || 'Delete'} onConfirm={confirmDelete.onConfirm} onCancel={() => setConfirmDelete(null)} />
       )}
 
       <ToastStack toasts={toasts} onDismiss={dismissToast} />

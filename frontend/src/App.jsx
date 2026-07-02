@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
 import Login from './pages/Login'
+import ResetPassword from './pages/ResetPassword'
 import HOASetup from './pages/HOASetup'
 import Dashboard from './pages/Dashboard'
 import PortfolioOverview from './components/PortfolioOverview'
@@ -8,40 +10,36 @@ import { ConfirmDialog, Spinner } from './components/primitives'
 import { hoaAPI } from './api'
 
 const ACTIVE_KEY = 'active_hoa_id'
-const HOA_EMAIL_KEY = (hoaId) => `hoa_email_${hoaId}`
 
-function App() {
-  const [token, setToken] = useState(localStorage.getItem('access_token'))
+function DashboardRoute({ hoas, onSwitchHoa, onShowPortfolio, onAddClient, onEditClient, setToken }) {
+  const { hoaId } = useParams()
+  const hoa = hoas.find((h) => h.id === parseInt(hoaId, 10))
+  if (!hoa) return <Navigate to="/portfolio" replace />
+  localStorage.setItem(ACTIVE_KEY, String(hoa.id))
+  return (
+    <Dashboard
+      key={hoa.id}
+      hoa={hoa}
+      hoas={hoas}
+      hoaEmail={hoa.email}
+      onSwitchHoa={onSwitchHoa}
+      onShowPortfolio={onShowPortfolio}
+      onAddClient={onAddClient}
+      onEditClient={onEditClient}
+      setToken={setToken}
+    />
+  )
+}
+
+function AuthedApp({ setToken }) {
+  const navigate = useNavigate()
   const [hoas, setHoas] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
-  const [activeHoaId, setActiveHoaId] = useState(() => {
-    const v = localStorage.getItem(ACTIVE_KEY)
-    return v ? parseInt(v, 10) : null
-  })
-  const [hoaEmails, setHoaEmails] = useState({})
-  const [view, setView] = useState('dashboard')
 
   const [showAddClient, setShowAddClient] = useState(false)
-  const [showEditClient, setShowEditClient] = useState(false)
+  const [editClientId, setEditClientId] = useState(null)
   const [confirmDeleteClient, setConfirmDeleteClient] = useState(false)
-
-  const setActive = useCallback((id) => {
-    setActiveHoaId(id)
-    if (id) localStorage.setItem(ACTIVE_KEY, String(id))
-    else localStorage.removeItem(ACTIVE_KEY)
-  }, [])
-
-  const saveHoaEmail = useCallback((hoaId, email) => {
-    if (email) {
-      localStorage.setItem(HOA_EMAIL_KEY(hoaId), email)
-      setHoaEmails(prev => ({ ...prev, [hoaId]: email }))
-    }
-  }, [])
-
-  const getHoaEmail = useCallback((hoaId) => {
-    return hoaEmails[hoaId] || localStorage.getItem(HOA_EMAIL_KEY(hoaId))
-  }, [hoaEmails])
 
   const refreshPortfolio = useCallback(async () => {
     const res = await hoaAPI.list()
@@ -50,7 +48,6 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!token) { setLoading(false); return }
     let cancelled = false
     setLoading(true)
     setLoadError(false)
@@ -59,50 +56,39 @@ function App() {
       .catch((err) => { if (!cancelled && err.response?.status !== 401) setLoadError(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [token])
-
-  // Keep active selection valid as the portfolio changes
-  useEffect(() => {
-    if (hoas.length === 0) return
-    if (!activeHoaId || !hoas.some((h) => h.id === activeHoaId)) {
-      setActive(hoas[0].id)
-    }
-  }, [hoas, activeHoaId, setActive])
+  }, [])
 
   const handleSignOut = () => {
     localStorage.removeItem('access_token')
     setToken(null)
     setHoas([])
+    navigate('/login', { replace: true })
   }
 
   const handleClientCreated = async (newHoa) => {
     setShowAddClient(false)
     await refreshPortfolio()
-    setActive(newHoa.id)
-    setView('dashboard')
+    navigate(`/c/${newHoa.id}`)
   }
 
   const handleClientUpdated = async () => {
-    setShowEditClient(false)
+    setEditClientId(null)
     await refreshPortfolio()
   }
 
-  const handleDeleteClient = async () => {
-    setConfirmDeleteClient(false)
-    setShowEditClient(false)
-    try {
-      await hoaAPI.delete(activeHoaId)
-      const remaining = await refreshPortfolio()
-      if (remaining.length > 0) setActive(remaining[0].id)
-      else setActive(null)
-      setView('dashboard')
-    } catch {
-      /* ignore; portfolio refresh will reflect reality */
-    }
-  }
+  const editHoa = hoas.find((h) => h.id === editClientId) || null
 
-  if (!token) {
-    return <Login setToken={setToken} />
+  const handleDeleteClient = async () => {
+    const id = editClientId
+    setConfirmDeleteClient(false)
+    setEditClientId(null)
+    try {
+      await hoaAPI.delete(id)
+      const remaining = await refreshPortfolio()
+      navigate(remaining.length > 0 ? `/c/${remaining[0].id}` : '/', { replace: true })
+    } catch {
+      /* portfolio refresh will reflect reality */
+    }
   }
 
   if (loading) {
@@ -119,66 +105,83 @@ function App() {
         <div className="text-center">
           <p className="text-slate-400 text-sm">Couldn't reach the server.</p>
           <p className="text-slate-500 text-xs mt-1">It may still be deploying — wait a moment and retry.</p>
-          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 text-sm bg-gradient-to-b from-[#3b82f6] to-[#2563eb] hover:from-[#60a5fa] hover:to-[#3b82f6] shadow-lg shadow-[#2563eb]/40 active:scale-[.98] text-white font-semibold rounded-lg">Retry</button>
+          <button onClick={() => window.location.reload()} className="btn-primary btn-sheen mt-4 px-4 py-2 text-sm">Retry</button>
         </div>
       </div>
     )
   }
 
-  // No clients yet → onboarding
   if (hoas.length === 0) {
     return <HOASetup onComplete={handleClientCreated} onSignOut={handleSignOut} />
   }
 
-  const activeHoa = hoas.find((h) => h.id === activeHoaId) || hoas[0]
+  const storedId = parseInt(localStorage.getItem(ACTIVE_KEY) || '', 10)
+  const defaultHoa = hoas.find((h) => h.id === storedId) || hoas[0]
 
   return (
     <>
-      {view === 'portfolio' ? (
-        <PortfolioOverview
-          hoas={hoas}
-          onOpen={(h) => { setActive(h.id); setView('dashboard') }}
-          onAddClient={() => setShowAddClient(true)}
-          onSignOut={handleSignOut}
+      <Routes>
+        <Route
+          path="/portfolio"
+          element={
+            <PortfolioOverview
+              hoas={hoas}
+              onOpen={(h) => navigate(`/c/${h.id}`)}
+              onAddClient={() => setShowAddClient(true)}
+              onSignOut={handleSignOut}
+            />
+          }
         />
-      ) : (
-        <Dashboard
-          key={activeHoa.id}
-          hoa={activeHoa}
-          hoas={hoas}
-          hoaEmail={getHoaEmail(activeHoa.id) || activeHoa.email}
-          onSaveHoaEmail={saveHoaEmail}
-          onSwitchHoa={(h) => { setActive(h.id); setView('dashboard') }}
-          onShowPortfolio={() => { refreshPortfolio(); setView('portfolio') }}
-          onAddClient={() => setShowAddClient(true)}
-          onEditClient={() => setShowEditClient(true)}
-          setToken={setToken}
+        <Route
+          path="/c/:hoaId"
+          element={
+            <DashboardRoute
+              hoas={hoas}
+              onSwitchHoa={(h) => navigate(`/c/${h.id}`)}
+              onShowPortfolio={() => { refreshPortfolio(); navigate('/portfolio') }}
+              onAddClient={() => setShowAddClient(true)}
+              onEditClient={(hoaId) => setEditClientId(hoaId)}
+              setToken={setToken}
+            />
+          }
         />
-      )}
+        <Route path="*" element={<Navigate to={`/c/${defaultHoa.id}`} replace />} />
+      </Routes>
 
       {showAddClient && (
         <AddClientModal onClose={() => setShowAddClient(false)} onCreated={handleClientCreated} />
       )}
 
-      {showEditClient && activeHoa && (
+      {editHoa && (
         <EditHOAModal
-          hoa={activeHoa}
-          onClose={() => setShowEditClient(false)}
+          hoa={editHoa}
+          onClose={() => setEditClientId(null)}
           onUpdated={handleClientUpdated}
           onDelete={() => setConfirmDeleteClient(true)}
-          onSaveHoaEmail={saveHoaEmail}
         />
       )}
 
-      {confirmDeleteClient && (
+      {confirmDeleteClient && editHoa && (
         <ConfirmDialog
-          message={`Remove ${activeHoa?.name} and ALL its residents and violations? This cannot be undone.`}
+          message={`Remove ${editHoa.name} and ALL its residents and violations? This cannot be undone.`}
           confirmLabel="Delete Client"
           onConfirm={handleDeleteClient}
           onCancel={() => setConfirmDeleteClient(false)}
         />
       )}
     </>
+  )
+}
+
+function App() {
+  const [token, setToken] = useState(localStorage.getItem('access_token'))
+
+  return (
+    <Routes>
+      <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login setToken={setToken} />} />
+      <Route path="/reset" element={<ResetPassword />} />
+      <Route path="/*" element={token ? <AuthedApp setToken={setToken} /> : <Navigate to="/login" replace />} />
+    </Routes>
   )
 }
 

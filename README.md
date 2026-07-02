@@ -5,18 +5,20 @@ Modern violation management for property managers and HOA boards. Track violatio
 ## Features
 
 **Enforcement workflow**
-- Full violation lifecycle: open → noticed → escalated → resolved, with cure-date deadlines and overdue tracking
+- Full violation lifecycle: open → noticed → escalated → resolved, with end-of-day cure deadlines and overdue tracking (escalating a resolved case reopens it)
 - Industry-standard notice ladder: Courtesy Notice → First → Second → Final Notice → Hearing / Legal
-- Repeat-offense detection — a second violation of the same type within 12 months is flagged automatically and cited in the letter
-- Fine ledger per violation (assessed / paid / outstanding)
+- Repeat-offense detection — a second violation of the same type within 12 months is badged in the UI and cited in the letter
+- True fine ledger: stacking assessments and partial payments with a running balance (overpayments rejected), not just a single amount + paid flag
 - Photo evidence: attach inspection photos to any violation; letters cite the evidence on file
-- Immutable audit trail on every case: every status change, fine, escalation, note, and sent notice is logged
+- Residents who move out are **archived, never erased** — their violation history survives for disputes, liens, and resale disclosures (restore anytime; active units are unique per community)
+- Immutable audit trail on every case: every status change, fine, payment, escalation, note, and sent notice is logged
 
 **Letters & notices**
 - Professional violation letters generated per case — property address, cure deadline, notice level, fines, repeat-offense and evidence clauses
+- **Sent letters are archived verbatim**: the exact text emailed to the resident is snapshotted and can never be altered by later edits — view or PDF the "as sent" copy anytime
+- Server-side delivery over SMTP when configured (letter sent + archived in one transaction); automatic fallback to client-side EmailJS otherwise
 - Optional AI drafting via Google Gemini (falls back to a built-in template)
-- Email delivery via EmailJS with the HOA's own name and reply-to
-- Print-ready PDF letters (1" margins, US Letter) for certified mail
+- Print-ready PDF letters (1" margins, US Letter) for certified mail — draft or as-sent version
 - Send confirmation with recipient preview — no accidental notices
 
 **Portfolio & reporting**
@@ -26,6 +28,12 @@ Modern violation management for property managers and HOA boards. Track violatio
 - CSV export of the violation log; CSV import for residents *and* violations (spreadsheet migration path)
 - One-click sample community for evaluating the product
 - ⌘K command palette for everything
+- Deep-linkable URLs — every community, tab, and open violation has an address you can bookmark or paste into board minutes
+
+**Account security**
+- Login rate limiting (10 failed attempts / 15 minutes)
+- Self-service password reset via emailed 30-minute links (requires SMTP)
+- 8-character password minimum, email validation, enumeration-safe responses
 
 ## Stack
 
@@ -77,6 +85,13 @@ pytest tests/ -q
 | `CORS_ORIGINS` | no | Comma-separated allowed origins (default `*`) |
 | `GEMINI_API_KEY` | no | Enables AI-drafted letters |
 | `GEMINI_MODEL` | no | Override letter model (default `gemini-2.0-flash`) |
+| `SMTP_HOST` / `SMTP_PORT` | no | Enables server-side notice delivery + password reset emails |
+| `SMTP_USER` / `SMTP_PASS` | no | SMTP credentials |
+| `SMTP_FROM` | no | From address (defaults to `SMTP_USER`) |
+| `SMTP_SSL` / `SMTP_STARTTLS` | no | TLS mode (STARTTLS on port 587 by default) |
+| `FRONTEND_URL` | no | Base URL used in password-reset links |
+
+> Without SMTP configured, notice sending falls back to EmailJS (client-side) and password-reset emails can't be delivered.
 
 Frontend (Vite):
 

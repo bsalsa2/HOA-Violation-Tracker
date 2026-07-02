@@ -6,14 +6,15 @@ import { formatDate, formatDateTime, relativeTime, currency, dueLabel, isOverdue
 
 const inputCls = 'px-2.5 py-1.5 bg-slate-900/60 text-slate-100 text-sm rounded-lg border border-white/10 focus:outline-none focus:border-[#3b82f6]'
 
-export default function ViolationDrawer({ violation, onClose, onUpdate, onEscalate, onSendEmail, onViewLetter, onDelete, onDownloadPdf, sending }) {
+export default function ViolationDrawer({ violation, onClose, onUpdate, onEscalate, onSendEmail, onViewLetter, onDelete, onDownloadPdf, onFine, sending }) {
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [notes, setNotes] = useState([])
   const [notesLoading, setNotesLoading] = useState(true)
   const [newNote, setNewNote] = useState('')
   const [savingNote, setSavingNote] = useState(false)
-  const [fineInput, setFineInput] = useState(String(violation.fine_amount || ''))
-  const [editingFine, setEditingFine] = useState(false)
+  const [fineForm, setFineForm] = useState(null)   // { kind: 'assessment'|'payment' }
+  const [fineAmount, setFineAmount] = useState('')
+  const [fineNote, setFineNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [resolveOpen, setResolveOpen] = useState(false)
   const [resolveNote, setResolveNote] = useState('')
@@ -119,10 +120,22 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
     }
   }
 
-  const handleSaveFine = async () => {
-    const amount = parseFloat(fineInput) || 0
-    setEditingFine(false)
-    await runUpdate({ fine_amount: amount })
+  const submitFine = async (e) => {
+    e.preventDefault()
+    const amount = parseFloat(fineAmount)
+    if (!amount || amount <= 0) return
+    setBusy(true)
+    try {
+      await onFine(violation.id, amount, fineForm.kind, fineNote.trim() || null)
+      setFineForm(null)
+      setFineAmount('')
+      setFineNote('')
+      await loadNotes()
+    } catch {
+      /* toast handled upstream */
+    } finally {
+      setBusy(false)
+    }
   }
 
   const handleEscalate = async () => {
@@ -185,6 +198,9 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
               <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/25">{violation.notice_label}</Badge>
             )}
             {overdue && <Badge className="bg-red-500/10 text-red-400 border-red-500/25">Overdue</Badge>}
+            {violation.repeat_count > 0 && (
+              <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/25" title="Same violation type for this resident within 12 months">Repeat offense</Badge>
+            )}
           </div>
         </div>
 
@@ -270,43 +286,66 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
 
           {/* Fine ledger */}
           <div className="vt-card p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Fine</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Fines</p>
               {violation.fine_amount > 0 && (
-                <button
-                  onClick={() => runUpdate({ fine_paid: !violation.fine_paid })}
-                  disabled={busy}
-                  className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
-                    violation.fine_paid
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
-                      : 'bg-[#3b82f6]/12 text-[#60a5fa] border-[#3b82f6]/25 hover:bg-[#3b82f6]/18'
-                  }`}
-                >
-                  {violation.fine_paid ? '✓ Paid' : 'Mark paid'}
-                </button>
+                <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                  violation.fine_paid
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
+                    : 'bg-amber-500/10 text-amber-400 border-amber-500/25'
+                }`}>
+                  {violation.fine_paid ? '✓ Settled' : `${currency(violation.fine_balance ?? violation.fine_amount)} due`}
+                </span>
               )}
             </div>
-            {editingFine ? (
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-slate-400">$</span>
+            <div className="flex items-baseline gap-3">
+              <span className="text-2xl font-bold text-slate-100">{currency(violation.fine_amount)}</span>
+              <span className="text-xs text-slate-500">assessed</span>
+              {violation.fine_paid_total > 0 && (
+                <span className="text-xs text-emerald-400">{currency(violation.fine_paid_total)} paid</span>
+              )}
+            </div>
+
+            {fineForm ? (
+              <form onSubmit={submitFine} className="mt-3 space-y-2">
+                <p className="text-xs text-slate-400">{fineForm.kind === 'assessment' ? 'Assess a fine' : 'Record a payment'}</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400">$</span>
+                  <input
+                    type="number" step="0.01" min="0.01" autoFocus required
+                    className={`${inputCls} flex-1`}
+                    placeholder="0.00"
+                    value={fineAmount}
+                    onChange={(e) => setFineAmount(e.target.value)}
+                  />
+                </div>
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  autoFocus
-                  className={`${inputCls} flex-1`}
-                  value={fineInput}
-                  onChange={(e) => setFineInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSaveFine()}
+                  className={`${inputCls} w-full`}
+                  placeholder={fineForm.kind === 'assessment' ? 'Reason (e.g. second offense)' : 'Reference (e.g. check #1042)'}
+                  value={fineNote}
+                  onChange={(e) => setFineNote(e.target.value)}
                 />
-                <button onClick={handleSaveFine} className="text-xs px-3 py-1.5 bg-gradient-to-b from-[#3b82f6] to-[#2563eb] hover:from-[#60a5fa] hover:to-[#3b82f6] shadow-lg shadow-[#2563eb]/40 active:scale-[.98] text-white font-semibold rounded-lg">Save</button>
-                <button onClick={() => { setEditingFine(false); setFineInput(String(violation.fine_amount || '')) }} className="text-xs px-2 py-1.5 text-slate-400 hover:text-slate-100">Cancel</button>
-              </div>
+                <div className="flex gap-2">
+                  <button type="submit" disabled={busy} className="flex-1 py-1.5 text-xs bg-gradient-to-b from-[#3b82f6] to-[#2563eb] hover:from-[#60a5fa] hover:to-[#3b82f6] disabled:opacity-60 text-white font-semibold rounded-lg">
+                    {fineForm.kind === 'assessment' ? 'Assess' : 'Record'}
+                  </button>
+                  <button type="button" onClick={() => setFineForm(null)} className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-100">Cancel</button>
+                </div>
+              </form>
             ) : (
-              <button onClick={() => setEditingFine(true)} className="flex items-baseline gap-2 mt-1 group">
-                <span className="text-2xl font-bold text-slate-100">{currency(violation.fine_amount)}</span>
-                <span className="text-xs text-[#60a5fa] opacity-0 group-hover:opacity-100 transition-opacity">edit</span>
-              </button>
+              <div className="flex gap-2 mt-3">
+                <button onClick={() => setFineForm({ kind: 'assessment' })} disabled={busy} className="flex-1 py-1.5 text-xs border border-white/10 text-slate-400 hover:bg-white/[0.06] hover:border-white/20 rounded-lg transition-colors">
+                  + Assess fine
+                </button>
+                <button
+                  onClick={() => setFineForm({ kind: 'payment' })}
+                  disabled={busy || (violation.fine_balance ?? 0) <= 0}
+                  className="flex-1 py-1.5 text-xs border border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
+                  title={(violation.fine_balance ?? 0) <= 0 ? 'Nothing outstanding' : ''}
+                >
+                  Record payment
+                </button>
+              </div>
             )}
           </div>
 
