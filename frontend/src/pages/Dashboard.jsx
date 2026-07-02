@@ -303,7 +303,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSaveHoaEmail, onSwitc
 
   return (
     <div className="min-h-screen bg-transparent text-slate-100">
-      <header className="relative bg-[#0b0e14]/85 backdrop-blur-xl border-b border-white/[0.06] sticky top-0 z-30">
+      <header className="relative bg-[#0b0e14]/85 backdrop-blur-xl border-b border-white/[0.06] sticky top-0 z-30 shadow-[0_10px_36px_-18px_rgba(0,0,0,0.7)]">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#3b82f6]/50 to-transparent" />
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between py-3 gap-3">

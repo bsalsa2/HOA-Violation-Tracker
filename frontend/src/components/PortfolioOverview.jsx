@@ -7,7 +7,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
   const isConfigured = hoa.email && hoa.contact_person_name
   return (
     <div
-      className={`group vt-card vt-card-interactive p-5 ${hasOverdue ? '!border-red-500/30' : ''}`}
+      className={`group vt-card vt-card-interactive vt-spotlight p-5 ${hasOverdue ? '!border-red-500/30' : ''}`}
     >
       <div className="flex items-start justify-between gap-3">
         <button
@@ -80,7 +80,7 @@ export default function PortfolioOverview({ hoas, onOpen, onAddClient, onSignOut
 
   return (
     <div className="min-h-screen bg-transparent text-slate-100">
-      <header className="relative bg-[#0b0e14]/85 backdrop-blur-xl border-b border-white/[0.06] px-6 py-3 sticky top-0 z-20">
+      <header className="relative bg-[#0b0e14]/85 backdrop-blur-xl border-b border-white/[0.06] px-6 py-3 sticky top-0 z-20 shadow-[0_10px_36px_-18px_rgba(0,0,0,0.7)]">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#3b82f6]/50 to-transparent" />
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -104,19 +104,19 @@ export default function PortfolioOverview({ hoas, onOpen, onAddClient, onSignOut
 
         {/* Portfolio totals */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-          <div className="vt-card p-4 anim-rise stagger-1">
-            <p className="text-2xl font-bold text-slate-100"><CountUp value={totals.residents} /></p>
+          <div className="vt-card vt-card-interactive vt-spotlight p-4 anim-rise stagger-1">
+            <p className="text-2xl font-bold stat-number"><CountUp value={totals.residents} /></p>
             <p className="text-xs text-slate-500 mt-1">Total Residents</p>
           </div>
-          <div className="vt-card p-4 anim-rise stagger-2">
+          <div className="vt-card vt-card-interactive vt-spotlight p-4 anim-rise stagger-2">
             <p className="text-2xl font-bold text-[#60a5fa]"><CountUp value={totals.open} /></p>
             <p className="text-xs text-slate-500 mt-1">Open Cases</p>
           </div>
-          <div className="vt-card p-4 anim-rise stagger-3">
-            <p className={`text-2xl font-bold ${totals.overdue > 0 ? 'text-red-400' : 'text-slate-400'}`}><CountUp value={totals.overdue} /></p>
+          <div className="vt-card vt-card-interactive vt-spotlight p-4 anim-rise stagger-3">
+            <p className={`text-2xl font-bold ${totals.overdue > 0 ? 'text-red-400' : 'stat-number'}`}><CountUp value={totals.overdue} /></p>
             <p className="text-xs text-slate-500 mt-1">Overdue</p>
           </div>
-          <div className="vt-card p-4 anim-rise stagger-4">
+          <div className="vt-card vt-card-interactive vt-spotlight p-4 anim-rise stagger-4">
             <p className="text-2xl font-bold text-red-400 tabular">{currency(totals.fines)}</p>
             <p className="text-xs text-slate-500 mt-1">Outstanding Fines</p>
           </div>

@@ -160,6 +160,13 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm anim-fade" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="anim-slide-right relative w-full max-w-md bg-[#0b1020] border-l border-white/10 h-full overflow-y-auto shadow-2xl shadow-black/60">
+        {/* Status accent rail */}
+        <span className={`absolute inset-y-0 left-0 w-[2px] z-20 ${
+          isOverdue(violation) || violation.status === 'escalated' ? 'bg-gradient-to-b from-red-500/80 via-red-500/30 to-transparent'
+          : violation.status === 'resolved' ? 'bg-gradient-to-b from-emerald-500/80 via-emerald-500/30 to-transparent'
+          : violation.status === 'noticed' ? 'bg-gradient-to-b from-amber-500/80 via-amber-500/30 to-transparent'
+          : 'bg-gradient-to-b from-blue-500/80 via-blue-500/30 to-transparent'
+        }`} />
         {/* Header */}
         <div className="sticky top-0 bg-[#0b1020]/90 backdrop-blur-xl border-b border-white/[0.06] px-5 py-4 z-10">
           <div className="flex items-start justify-between gap-3">
@@ -252,8 +259,9 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
             ) : (
               <div className="grid grid-cols-4 gap-2">
                 {photos.map((p) => (
-                  <button key={p.id} onClick={() => setLightbox(p)} className="relative aspect-square rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-[#3b82f6]/50 transition-all group">
-                    <img src={p.data} alt={p.caption || 'Violation evidence'} className="w-full h-full object-cover" />
+                  <button key={p.id} onClick={() => setLightbox(p)} className="relative aspect-square rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-[#3b82f6]/60 transition-all group">
+                    <img src={p.data} alt={p.caption || 'Violation evidence'} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
+                    <span className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                 ))}
               </div>

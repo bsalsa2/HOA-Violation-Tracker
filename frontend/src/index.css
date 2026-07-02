@@ -36,7 +36,7 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* Subtle cool depth wash */
+  /* Ambient aurora — layered cool washes that give the canvas depth */
   body::before {
     content: "";
     position: fixed;
@@ -44,12 +44,23 @@
     z-index: 0;
     pointer-events: none;
     background:
-      radial-gradient(60rem 40rem at 50% -20%, rgba(59, 130, 246, 0.10), transparent 60%),
-      radial-gradient(50rem 34rem at 100% 0%, rgba(37, 99, 235, 0.06), transparent 58%);
+      radial-gradient(62rem 42rem at 50% -22%, rgba(59, 130, 246, 0.15), transparent 62%),
+      radial-gradient(48rem 34rem at 102% -4%, rgba(99, 102, 241, 0.09), transparent 58%),
+      radial-gradient(44rem 30rem at -6% 30%, rgba(37, 99, 235, 0.06), transparent 55%),
+      radial-gradient(70rem 50rem at 50% 125%, rgba(59, 130, 246, 0.05), transparent 60%);
   }
 
+  /* Fine dot grid — the "engineered surface" texture, fading with depth */
   body::after {
-    display: none;
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: radial-gradient(rgba(148, 163, 184, 0.13) 1px, transparent 1px);
+    background-size: 26px 26px;
+    mask-image: radial-gradient(80rem 55rem at 50% 0%, black 0%, transparent 75%);
+    -webkit-mask-image: radial-gradient(80rem 55rem at 50% 0%, black 0%, transparent 75%);
   }
 
   #root {
@@ -96,24 +107,54 @@
 
 @layer components {
   /* ── Materials ───────────────────────────────────────────────
-     A "card" is a layered surface: a subtle top-lit gradient fill,
-     a hairline border, an inset highlight on the top edge, and a
-     soft drop shadow. This is the core of the premium feel. */
+     A card is a layered surface: a top-lit gradient fill over a
+     translucent slate base, a hairline border, an inset highlight
+     on the top edge, and depth shadow. */
   .vt-card {
     position: relative;
     border-radius: var(--radius);
-    background: rgba(255, 255, 255, 0.025);
+    background:
+      linear-gradient(180deg, rgba(148, 163, 184, 0.055), rgba(148, 163, 184, 0.015) 38%, rgba(148, 163, 184, 0) 100%),
+      rgba(13, 18, 30, 0.55);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(8px);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+      var(--shadow-md);
+    backdrop-filter: blur(14px);
   }
 
-  /* Interactive cards brighten on hover */
+  /* Interactive cards lift and glow on hover */
   .vt-card-interactive {
-    transition: border-color 0.22s ease, background 0.22s ease;
+    transition: border-color 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, background 0.25s ease;
   }
   .vt-card-interactive:hover {
     border-color: rgba(59, 130, 246, 0.35);
-    background: rgba(255, 255, 255, 0.045);
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
+      0 14px 44px -14px rgba(59, 130, 246, 0.28),
+      var(--shadow-lg);
+  }
+
+  /* Cursor-tracking spotlight — a soft glow that follows the pointer.
+     --mx/--my are fed by a single passive listener in main.jsx. */
+  .vt-spotlight::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    background: radial-gradient(300px circle at var(--mx, 50%) var(--my, 50%), rgba(59, 130, 246, 0.12), transparent 65%);
+  }
+  .vt-spotlight:hover::before {
+    opacity: 1;
+  }
+  .vt-spotlight > * {
+    position: relative;
+    z-index: 1;
   }
 
   /* Legacy alias kept so existing markup still looks right */
@@ -277,6 +318,53 @@
   /* Reusable accent helpers */
   .text-gold { color: #3b82f6; }
   .text-gold-soft { color: #60a5fa; }
+
+  /* Polished-metal numerals for KPI values */
+  .stat-number {
+    background: linear-gradient(180deg, #f8fafc 20%, #b6c2d4 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Slow rotating conic halo behind a brand mark */
+  .vt-ring {
+    position: relative;
+  }
+  .vt-ring::after {
+    content: "";
+    position: absolute;
+    inset: -40%;
+    z-index: -1;
+    border-radius: 9999px;
+    background: conic-gradient(from 0deg,
+      rgba(59, 130, 246, 0) 0deg,
+      rgba(59, 130, 246, 0.5) 70deg,
+      rgba(59, 130, 246, 0) 150deg,
+      rgba(59, 130, 246, 0) 210deg,
+      rgba(96, 165, 250, 0.35) 290deg,
+      rgba(59, 130, 246, 0) 360deg);
+    filter: blur(16px);
+    animation: vt-spin 8s linear infinite;
+  }
+
+  /* Drifting aurora orbs (login backdrop) */
+  @keyframes vt-drift-a {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(3rem, -2rem) scale(1.12); }
+  }
+  @keyframes vt-drift-b {
+    0%, 100% { transform: translate(0, 0) scale(1.08); }
+    50% { transform: translate(-2.5rem, 2rem) scale(0.95); }
+  }
+  .vt-orb {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(70px);
+    pointer-events: none;
+  }
+  .vt-orb-a { animation: vt-drift-a 14s ease-in-out infinite; }
+  .vt-orb-b { animation: vt-drift-b 18s ease-in-out infinite; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {

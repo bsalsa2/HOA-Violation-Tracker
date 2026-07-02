@@ -38,10 +38,14 @@ function Login({ setToken }) {
   return (
     <div className="relative min-h-screen bg-transparent flex items-center justify-center p-4 overflow-hidden">
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#0d1017] via-[#0b0e14] to-black" />
+      {/* Drifting aurora orbs */}
+      <div className="vt-orb vt-orb-a -z-10 w-[34rem] h-[34rem] -top-40 left-1/2 -translate-x-[60%]" style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.22), transparent 70%)' }} />
+      <div className="vt-orb vt-orb-b -z-10 w-[26rem] h-[26rem] top-1/3 -right-24" style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.16), transparent 70%)' }} />
+      <div className="vt-orb vt-orb-b -z-10 w-[22rem] h-[22rem] bottom-0 -left-20" style={{ background: 'radial-gradient(circle, rgba(37,99,235,0.12), transparent 70%)' }} />
       <div className="w-full max-w-md anim-rise">
         {/* Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#60a5fa] to-[#2563eb] mb-5 ring-1 ring-white/15" style={{ boxShadow: '0 16px 50px -10px rgba(37,99,235,0.5), inset 0 1px 0 0 rgba(255,255,255,0.2)' }}>
+          <div className="vt-ring inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#60a5fa] to-[#2563eb] mb-5 ring-1 ring-white/15" style={{ boxShadow: '0 16px 50px -10px rgba(37,99,235,0.5), inset 0 1px 0 0 rgba(255,255,255,0.2)' }}>
             <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
@@ -51,7 +55,7 @@ function Login({ setToken }) {
         </div>
 
         {/* Auth card */}
-        <div className="vt-card p-7" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.06), var(--shadow-xl)' }}>
+        <div className="vt-card vt-spotlight p-7" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.06), var(--shadow-xl)' }}>
           <div className="flex bg-black/30 ring-1 ring-white/[0.06] rounded-lg p-1 mb-6">
             {['login', 'register'].map((m) => (
               <button
