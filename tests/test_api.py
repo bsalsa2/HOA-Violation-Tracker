@@ -506,6 +506,107 @@ def test_login_rate_limited_after_repeated_failures(client):
     assert locked2.status_code == 429
 
 
+# ---------- Resident portal ----------
+
+def test_resident_portal_flow(client, alice, hoa, resident):
+    v = client.post("/violations", json={
+        "hoa_id": hoa["id"], "resident_id": resident["id"],
+        "violation_type": "Landscaping / Lawn Care", "description": "Portal test case",
+    }, headers=alice).json()
+    client.post(f"/violations/{v['id']}/fines", json={"amount": 30, "kind": "assessment"}, headers=alice)
+
+    # Manager mints the shareable link
+    link = client.get(f"/violations/{v['id']}/portal-link", headers=alice).json()
+    token = link["token"]
+    assert token and link["expires_days"] == 90
+
+    # Resident views the case with NO auth
+    case = client.get(f"/portal/{token}").json()
+    assert case["violation_type"] == "Landscaping / Lawn Care"
+    assert case["resident_name"] == "Jane Smith"
+    assert case["fine_assessed"] == 30 and case["fine_balance"] == 30
+    assert case["hoa"]["name"] == "Sunridge Estates"
+
+    # Resident responds — lands in the audit trail as a resident entry
+    res = client.post(f"/portal/{token}/respond", json={"kind": "fixed", "message": "Mowed the lawn this morning."})
+    assert res.status_code == 200
+    notes = client.get(f"/violations/{v['id']}/notes", headers=alice).json()
+    resident_notes = [n for n in notes if n["kind"] == "resident"]
+    assert len(resident_notes) == 1
+    assert "Mowed the lawn" in resident_notes[0]["body"]
+    assert "corrected" in resident_notes[0]["body"]
+
+    # Response count surfaces on the manager's list
+    listed = client.get(f"/violations?hoa_id={hoa['id']}", headers=alice).json()
+    mine = next(x for x in listed if x["id"] == v["id"])
+    assert mine["resident_response_count"] == 1
+
+    # Responses echo back on the portal
+    case2 = client.get(f"/portal/{token}").json()
+    assert len(case2["responses"]) == 1
+
+    # Bad input rejected
+    assert client.post(f"/portal/{token}/respond", json={"kind": "rant", "message": "x"}).status_code == 400
+    assert client.post(f"/portal/{token}/respond", json={"kind": "question", "message": "  "}).status_code == 400
+    client.delete(f"/violations/{v['id']}", headers=alice)
+
+
+def test_portal_rejects_invalid_and_wrong_purpose_tokens(client, alice):
+    assert client.get("/portal/not-a-token").status_code == 404
+    # A normal auth token must not open the portal
+    login = client.post("/auth/login", json={"email": "alice@example.com", "password": "password123"}).json()
+    assert client.get(f"/portal/{login['access_token']}").status_code == 404
+
+
+# ---------- Case file export ----------
+
+def test_case_file_pdf(client, alice, hoa, resident):
+    v = client.post("/violations", json={
+        "hoa_id": hoa["id"], "resident_id": resident["id"],
+        "violation_type": "Exterior Maintenance", "description": "Case file test",
+    }, headers=alice).json()
+    client.post(f"/violations/{v['id']}/fines", json={"amount": 120, "kind": "assessment", "note": "board approved"}, headers=alice)
+    client.post(f"/violations/{v['id']}/notes", json={"body": "Spoke with resident on site"}, headers=alice)
+    client.post(f"/violations/{v['id']}/photos",
+                files={"file": ("ev.png", io.BytesIO(PNG_BYTES), "image/png")}, headers=alice)
+    client.post(f"/violations/{v['id']}/mark-sent", json={"letter": "Sent letter body"}, headers=alice)
+
+    pdf = client.get(f"/violations/{v['id']}/case-file.pdf", headers=alice)
+    assert pdf.status_code == 200
+    assert pdf.headers["content-type"].startswith("application/pdf")
+    assert pdf.content[:4] == b"%PDF"
+    assert len(pdf.content) > 1500  # summary + timeline + letter + image pages
+
+    # Tenant isolation holds for case files too
+    bob_hdr = {"Authorization": client.post("/auth/login", json={"email": "bob@example.com", "password": "password123"}).json()["access_token"]}
+    bob_hdr = {"Authorization": f"Bearer {bob_hdr['Authorization']}"}
+    assert client.get(f"/violations/{v['id']}/case-file.pdf", headers=bob_hdr).status_code == 404
+    client.delete(f"/violations/{v['id']}", headers=alice)
+
+
+# ---------- Compliance score ----------
+
+def test_compliance_score_in_analytics_and_portfolio(client, alice, hoa):
+    a = client.get(f"/hoas/{hoa['id']}/analytics", headers=alice).json()
+    comp = a["compliance"]
+    assert comp is not None
+    assert 0 <= comp["score"] <= 100
+    assert comp["grade"] in ("A", "B", "C", "D", "F")
+    f = comp["factors"]
+    assert set(f.keys()) == {"resolution_rate", "on_time_rate", "first_time_rate"}
+
+    hoas = client.get("/hoas", headers=alice).json()
+    mine = next(h for h in hoas if h["id"] == hoa["id"])
+    assert mine["compliance"]["grade"] == comp["grade"]
+
+
+def test_compliance_none_for_empty_community(client, alice):
+    empty = client.post("/hoas", json={"name": "Quiet Pines", "address": "9 Calm St"}, headers=alice).json()
+    a = client.get(f"/hoas/{empty['id']}/analytics", headers=alice).json()
+    assert a["compliance"] is None
+    client.delete(f"/hoas/{empty['id']}", headers=alice)
+
+
 def test_demo_seed_populates_empty_hoa(client, alice):
     new_hoa = client.post("/hoas", json={"name": "Demo Meadows", "address": "2 Demo Ln"}, headers=alice).json()
     res = client.post(f"/hoas/{new_hoa['id']}/seed-demo", headers=alice)

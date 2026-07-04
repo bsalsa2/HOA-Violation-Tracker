@@ -265,6 +265,27 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
     }
   }, [addToast, loadAnalytics])
 
+  const handleCopyPortalLink = useCallback(async (violation) => {
+    try {
+      const res = await violationAPI.getPortalLink(violation.id)
+      const url = res.data.url || `${window.location.origin}/v/${res.data.token}`
+      await navigator.clipboard?.writeText(url)
+      addToast(`Resident link copied — valid ${res.data.expires_days} days. Share it with ${violation.resident_name}.`)
+    } catch {
+      addToast('Could not create the resident link.', 'error')
+    }
+  }, [addToast])
+
+  const handleCaseFile = useCallback(async (violation) => {
+    try {
+      const res = await violationAPI.getCaseFile(violation.id)
+      downloadLetterPdf(res.data, `case_file_${violation.resident_name}`)
+      addToast('Case file exported — summary, timeline, letter, and evidence in one PDF.')
+    } catch {
+      addToast('Case file export failed.', 'error')
+    }
+  }, [addToast])
+
   const handleRestoreResident = useCallback(async (resident) => {
     try {
       await residentAPI.restore(resident.id)
@@ -481,6 +502,8 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
           onDelete={handleDeleteViolation}
           onDownloadPdf={handleDownloadPdf}
           onFine={handleFine}
+          onCopyPortalLink={handleCopyPortalLink}
+          onCaseFile={handleCaseFile}
           sending={!!sendingEmail[selectedViolation.id]}
         />
       )}

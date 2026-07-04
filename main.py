@@ -109,6 +109,31 @@ def end_of_day(dt: datetime) -> datetime:
     return dt.replace(hour=23, minute=59, second=59, microsecond=0)
 
 
+# -- Resident portal tokens --
+# A notice can carry a secure link that lets the resident view their case and
+# respond — no account needed. Tokens are purpose-scoped and violation-scoped.
+
+PORTAL_TOKEN_DAYS = 90
+
+
+def create_portal_token(violation_id: int) -> str:
+    return utils.create_access_token({"vid": violation_id, "purpose": "portal"}, timedelta(days=PORTAL_TOKEN_DAYS))
+
+
+def portal_violation(token: str, db: Session) -> Violation:
+    try:
+        payload = jwt.decode(token, utils.SECRET_KEY, algorithms=[utils.ALGORITHM])
+        if payload.get("purpose") != "portal":
+            raise jwt.InvalidTokenError()
+        vid = int(payload.get("vid"))
+    except (jwt.InvalidTokenError, TypeError, ValueError):
+        raise HTTPException(status_code=404, detail="This link is invalid or has expired")
+    violation = db.query(Violation).filter(Violation.id == vid).first()
+    if not violation:
+        raise HTTPException(status_code=404, detail="This link is invalid or has expired")
+    return violation
+
+
 class UserRegister(BaseModel):
     email: str
     password: str
@@ -266,7 +291,8 @@ def migrate_legacy_fine(db: Session, v: Violation):
 
 
 def serialize_violation(v: Violation, resident: Optional[Resident] = None, note_count: Optional[int] = None,
-                        photo_count: int = 0, repeat_count: int = 0, fines: Optional[tuple] = None, db: Optional[Session] = None):
+                        photo_count: int = 0, repeat_count: int = 0, fines: Optional[tuple] = None,
+                        resident_response_count: int = 0, db: Optional[Session] = None):
     if fines is None:
         fines = fine_totals(db, v) if db is not None else (float(v.fine_amount or 0), float(v.fine_amount or 0) if v.fine_paid else 0.0)
     assessed, paid = fines
@@ -298,6 +324,7 @@ def serialize_violation(v: Violation, resident: Optional[Resident] = None, note_
         "note_count": note_count,
         "photo_count": photo_count,
         "repeat_count": repeat_count,
+        "resident_response_count": resident_response_count,
     }
 
 
@@ -315,6 +342,46 @@ def count_prior_offenses(db: Session, violation: Violation) -> int:
         )
         .scalar() or 0
     )
+
+
+def compute_compliance(violations, now: Optional[datetime] = None):
+    """Community Compliance Score, 0–100 with a letter grade.
+
+    Three explainable factors:
+      40% resolution rate · 35% deadline performance (share of active cases
+      not past their cure date) · 25% first-time compliance (share of cases
+      that aren't repeat offenses).
+    Returns None when there's no enforcement history to grade.
+    """
+    now = now or datetime.utcnow()
+    total = len(violations)
+    if total == 0:
+        return None
+
+    resolved = sum(1 for v in violations if v.status == "resolved")
+    active = [v for v in violations if v.status != "resolved"]
+    overdue = sum(1 for v in active if v.due_date and v.due_date < now)
+
+    pairs = {}
+    for v in violations:
+        pairs[(v.resident_id, v.violation_type)] = pairs.get((v.resident_id, v.violation_type), 0) + 1
+    repeats = sum(c - 1 for c in pairs.values() if c > 1)
+
+    resolution = resolved / total
+    on_time = 1 - (overdue / len(active)) if active else 1.0
+    first_time = 1 - (repeats / total)
+
+    score = round(100 * (0.40 * resolution + 0.35 * on_time + 0.25 * first_time))
+    grade = "A" if score >= 90 else "B" if score >= 80 else "C" if score >= 70 else "D" if score >= 60 else "F"
+    return {
+        "score": score,
+        "grade": grade,
+        "factors": {
+            "resolution_rate": round(resolution * 100),
+            "on_time_rate": round(on_time * 100),
+            "first_time_rate": round(first_time * 100),
+        },
+    }
 
 
 def compute_analytics(hoa: HOA, db: Session):
@@ -402,6 +469,7 @@ def compute_analytics(hoa: HOA, db: Session):
         "by_priority": [{"label": k, "value": v} for k, v in by_priority.items()],
         "timeline": timeline,
         "top_offenders": top_offenders,
+        "compliance": compute_compliance(violations, now),
     }
 
 
@@ -542,6 +610,10 @@ def list_hoas(current_user: User = Depends(get_current_user), db: Session = Depe
         elif not v.fine_paid:
             a["fines"] += float(v.fine_amount or 0)
 
+    by_hoa = {hid: [] for hid in hoa_ids}
+    for v in violations:
+        by_hoa[v.hoa_id].append(v)
+
     return [
         {
             "id": h.id, "name": h.name, "address": h.address,
@@ -555,6 +627,7 @@ def list_hoas(current_user: User = Depends(get_current_user), db: Session = Depe
             "open_violations": agg[h.id]["open"],
             "overdue_violations": agg[h.id]["overdue"],
             "outstanding_fines": round(agg[h.id]["fines"], 2),
+            "compliance": compute_compliance(by_hoa[h.id], now),
         }
         for h in hoas
     ]
@@ -914,6 +987,11 @@ def get_violations(hoa_id: int, status: str = None, limit: Optional[int] = None,
         db.query(ViolationPhoto.violation_id, func.count(ViolationPhoto.id))
         .filter(ViolationPhoto.hoa_id == hoa.id).group_by(ViolationPhoto.violation_id).all()
     )
+    response_counts = dict(
+        db.query(ViolationNote.violation_id, func.count(ViolationNote.id))
+        .filter(ViolationNote.hoa_id == hoa.id, ViolationNote.kind == "resident")
+        .group_by(ViolationNote.violation_id).all()
+    )
     fines = fine_totals_batch(db, hoa.id)
 
     # Repeat pattern: violations sharing (resident, type) within the past year
@@ -933,7 +1011,7 @@ def get_violations(hoa_id: int, status: str = None, limit: Optional[int] = None,
     return [
         serialize_violation(v, residents.get(v.resident_id), note_count=int(note_counts.get(v.id, 0)),
                             photo_count=int(photo_counts.get(v.id, 0)), repeat_count=repeat_for(v),
-                            fines=fines.get(v.id))
+                            fines=fines.get(v.id), resident_response_count=int(response_counts.get(v.id, 0)))
         for v in violations
     ]
 
@@ -963,13 +1041,22 @@ def build_letter(violation: Violation, db: Session) -> str:
     )
 
 
+def build_letter_with_portal(violation: Violation, db: Session) -> str:
+    """Letter plus the resident's self-service link (when a frontend URL is set)."""
+    letter = build_letter(violation, db)
+    base = os.getenv("FRONTEND_URL", "").rstrip("/")
+    if base:
+        letter += f"\n\nView your case, see the evidence on file, and respond online:\n{base}/v/{create_portal_token(violation.id)}\n"
+    return letter
+
+
 @app.get("/violations/{violation_id}/letter")
 def get_violation_letter(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Returns the current draft plus, if a notice was already sent, the exact
     letter that went out — the sent snapshot never changes after the fact."""
     violation = owned_violation(violation_id, current_user, db)
     return {
-        "letter": build_letter(violation, db),
+        "letter": build_letter_with_portal(violation, db),
         "sent_letter": violation.generated_letter,
         "sent_at": violation.email_sent_at.isoformat() if violation.email_sent_at else None,
     }
@@ -993,6 +1080,48 @@ def get_violation_letter_pdf(violation_id: int, version: str = "draft", current_
     safe_name = re.sub(r"[^A-Za-z0-9_-]+", "_", resident.name if resident else "letter")
     return StreamingResponse(pdf, media_type="application/pdf",
                              headers={"Content-Disposition": f'attachment; filename="violation_notice_{safe_name}.pdf"'})
+
+
+@app.get("/violations/{violation_id}/case-file.pdf")
+def get_case_file_pdf(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """The complete evidence package for a hearing or attorney handoff."""
+    violation = owned_violation(violation_id, current_user, db)
+    resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
+    hoa = db.query(HOA).filter(HOA.id == violation.hoa_id).first()
+    migrate_legacy_fine(db, violation)
+    db.commit()
+    assessed, paid = fine_totals(db, violation)
+    entries = db.query(ViolationFine).filter(ViolationFine.violation_id == violation.id).order_by(ViolationFine.created_at.asc()).all()
+    notes = db.query(ViolationNote).filter(ViolationNote.violation_id == violation.id).order_by(ViolationNote.created_at.asc()).all()
+    photos = db.query(ViolationPhoto).filter(ViolationPhoto.violation_id == violation.id).order_by(ViolationPhoto.created_at.asc()).all()
+
+    fmt = lambda d: d.strftime("%b %d, %Y") if d else None
+    case = {
+        "case_id": violation.id,
+        "hoa_name": hoa.name if hoa else "Homeowners Association",
+        "resident_name": resident.name if resident else None,
+        "property": resident.unit if resident else None,
+        "violation_type": violation.violation_type,
+        "description": violation.description,
+        "status": violation.status,
+        "notice_label": NOTICE_LEVELS[min(violation.notice_level or 0, len(NOTICE_LEVELS) - 1)],
+        "priority": violation.priority,
+        "created_at": fmt(violation.created_at),
+        "due_date": fmt(violation.due_date),
+        "resolved_at": fmt(violation.resolved_at),
+        "fine": {"assessed": assessed, "paid": paid, "balance": max(0.0, assessed - paid)},
+        "ledger": [(fmt(f.created_at), f.kind, float(f.amount), f.note) for f in entries],
+        "timeline": [(n.created_at.strftime("%b %d, %Y %H:%M"), n.kind, n.body) for n in notes],
+        "sent_letter": violation.generated_letter,
+        "sent_at": fmt(violation.email_sent_at),
+        "photos": [p.data for p in photos],
+    }
+    pdf = utils.generate_case_file_pdf(case)
+    if not pdf:
+        raise HTTPException(status_code=500, detail="Case file generation failed")
+    safe_name = re.sub(r"[^A-Za-z0-9_-]+", "_", resident.name if resident else "case")
+    return StreamingResponse(pdf, media_type="application/pdf",
+                             headers={"Content-Disposition": f'attachment; filename="case_file_{violation.id}_{safe_name}.pdf"'})
 
 
 @app.patch("/violations/{violation_id}")
@@ -1110,6 +1239,84 @@ def add_violation_note(violation_id: int, data: NoteCreate, current_user: User =
     db.commit()
     db.refresh(note)
     return {"id": note.id, "body": note.body, "kind": note.kind, "created_at": note.created_at.isoformat()}
+
+
+# -- Resident portal (public, token-authenticated) --
+
+class PortalResponse(BaseModel):
+    kind: str            # fixed | dispute | question
+    message: str
+
+
+PORTAL_RESPONSE_LABELS = {
+    "fixed": "Resident reports the violation corrected",
+    "dispute": "Resident disputes this violation",
+    "question": "Resident question",
+}
+
+
+@app.get("/portal/{token}")
+def portal_case(token: str, db: Session = Depends(get_db)):
+    """Everything a resident needs to understand and act on their notice."""
+    v = portal_violation(token, db)
+    resident = db.query(Resident).filter(Resident.id == v.resident_id).first()
+    hoa = db.query(HOA).filter(HOA.id == v.hoa_id).first()
+    photos = db.query(ViolationPhoto).filter(ViolationPhoto.violation_id == v.id).order_by(ViolationPhoto.created_at.asc()).all()
+    assessed, paid = fine_totals(db, v)
+    responses = (
+        db.query(ViolationNote)
+        .filter(ViolationNote.violation_id == v.id, ViolationNote.kind == "resident")
+        .order_by(ViolationNote.created_at.asc()).all()
+    )
+    return {
+        "hoa": {
+            "name": hoa.name if hoa else "Homeowners Association",
+            "email": getattr(hoa, "email", None),
+            "phone": getattr(hoa, "phone", None),
+        },
+        "resident_name": resident.name if resident else None,
+        "property": resident.unit if resident else None,
+        "violation_type": v.violation_type,
+        "description": v.description,
+        "status": v.status,
+        "notice_label": NOTICE_LEVELS[min(v.notice_level or 0, len(NOTICE_LEVELS) - 1)],
+        "due_date": v.due_date.isoformat() if v.due_date else None,
+        "created_at": v.created_at.isoformat(),
+        "resolved_at": v.resolved_at.isoformat() if v.resolved_at else None,
+        "fine_assessed": round(assessed, 2),
+        "fine_balance": max(0.0, round(assessed - paid, 2)),
+        "letter_sent_at": v.email_sent_at.isoformat() if v.email_sent_at else None,
+        "sent_letter": v.generated_letter,
+        "photos": [{"data": p.data, "created_at": p.created_at.isoformat()} for p in photos],
+        "responses": [{"body": n.body, "created_at": n.created_at.isoformat()} for n in responses],
+    }
+
+
+@app.post("/portal/{token}/respond")
+def portal_respond(token: str, data: PortalResponse, db: Session = Depends(get_db)):
+    v = portal_violation(token, db)
+    check_login_rate(f"portal:{v.id}")   # throttle public writes per case
+    record_login_failure(f"portal:{v.id}")
+    if data.kind not in PORTAL_RESPONSE_LABELS:
+        raise HTTPException(status_code=400, detail="Invalid response type")
+    message = (data.message or "").strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+    if len(message) > 2000:
+        raise HTTPException(status_code=400, detail="Message is too long (2000 characters max)")
+    body = f"{PORTAL_RESPONSE_LABELS[data.kind]}: {message}"
+    db.add(ViolationNote(violation_id=v.id, hoa_id=v.hoa_id, body=body, kind="resident"))
+    db.commit()
+    return {"message": "Your response has been recorded and shared with the association."}
+
+
+@app.get("/violations/{violation_id}/portal-link")
+def get_portal_link(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Manager-side: mint the shareable resident link for this case."""
+    violation = owned_violation(violation_id, current_user, db)
+    token = create_portal_token(violation.id)
+    base = os.getenv("FRONTEND_URL", "").rstrip("/")
+    return {"token": token, "url": f"{base}/v/{token}" if base else None, "expires_days": PORTAL_TOKEN_DAYS}
 
 
 # -- Photo evidence --
@@ -1281,7 +1488,7 @@ def mark_violation_sent(violation_id: int, body: Optional[MarkSentBody] = None,
     The frontend passes the exact letter text it emailed so the archived copy
     matches what went out."""
     violation = owned_violation(violation_id, current_user, db)
-    letter = (body.letter if body and body.letter else None) or build_letter(violation, db)
+    letter = (body.letter if body and body.letter else None) or build_letter_with_portal(violation, db)
     _record_notice_sent(db, violation, letter, via="email")
     db.commit()
     db.refresh(violation)
@@ -1299,7 +1506,7 @@ def send_violation_notice(violation_id: int, current_user: User = Depends(get_cu
     if not resident or not resident.email:
         raise HTTPException(status_code=400, detail="Resident has no email address")
     hoa = db.query(HOA).filter(HOA.id == violation.hoa_id).first()
-    letter = build_letter(violation, db)
+    letter = build_letter_with_portal(violation, db)
     subject = f"{NOTICE_LEVELS[min(violation.notice_level or 0, len(NOTICE_LEVELS) - 1)] if violation.notice_level else 'Violation Notice'} — {violation.violation_type}"
     try:
         utils.send_email_smtp(

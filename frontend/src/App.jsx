@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
 import Login from './pages/Login'
 import ResetPassword from './pages/ResetPassword'
+import ResidentPortal from './pages/ResidentPortal'
 import HOASetup from './pages/HOASetup'
 import Dashboard from './pages/Dashboard'
 import PortfolioOverview from './components/PortfolioOverview'
@@ -127,6 +128,7 @@ function AuthedApp({ setToken }) {
             <PortfolioOverview
               hoas={hoas}
               onOpen={(h) => navigate(`/c/${h.id}`)}
+              onEditClient={(h) => setEditClientId(h.id)}
               onAddClient={() => setShowAddClient(true)}
               onSignOut={handleSignOut}
             />
@@ -180,6 +182,7 @@ function App() {
     <Routes>
       <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login setToken={setToken} />} />
       <Route path="/reset" element={<ResetPassword />} />
+      <Route path="/v/:token" element={<ResidentPortal />} />
       <Route path="/*" element={token ? <AuthedApp setToken={setToken} /> : <Navigate to="/login" replace />} />
     </Routes>
   )

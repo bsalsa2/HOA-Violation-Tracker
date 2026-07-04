@@ -186,6 +186,138 @@ _______________________________
 """
 
 
+def generate_case_file_pdf(case: dict):
+    """Hearing-ready case file: summary, fine ledger, full audit timeline,
+    the as-sent letter, and embedded photo evidence — one PDF for the board
+    packet or the association's attorney.
+
+    `case` keys: hoa_name, case_id, resident_name, property, violation_type,
+    description, status, notice_label, priority, created_at, due_date,
+    resolved_at, fine (assessed/paid/balance), ledger [(date, kind, amount, note)],
+    timeline [(date, kind, body)], sent_letter, sent_at, photos [data_url].
+    """
+    try:
+        import base64 as b64
+        import textwrap
+        from io import BytesIO
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.utils import ImageReader
+        from reportlab.pdfgen import canvas as rl_canvas
+
+        buf = BytesIO()
+        c = rl_canvas.Canvas(buf, pagesize=letter)
+        width, height = letter
+        margin = 54
+        y = height - margin
+
+        def ensure(space):
+            nonlocal y
+            if y - space < margin:
+                c.showPage()
+                y = height - margin
+
+        def heading(text, size=13):
+            nonlocal y
+            ensure(30)
+            c.setFont("Helvetica-Bold", size)
+            c.drawString(margin, y, text)
+            y -= 6
+            c.setLineWidth(0.5)
+            c.line(margin, y, width - margin, y)
+            y -= 14
+
+        def line(text, font="Helvetica", size=10, indent=0, gap=13):
+            nonlocal y
+            for chunk in textwrap.wrap(text, width=100 - indent // 4) or [""]:
+                ensure(gap + 4)
+                c.setFont(font, size)
+                c.drawString(margin + indent, y, chunk)
+                y -= gap
+
+        def field(label, value):
+            nonlocal y
+            ensure(15)
+            c.setFont("Helvetica-Bold", 10)
+            c.drawString(margin, y, f"{label}:")
+            c.setFont("Helvetica", 10)
+            c.drawString(margin + 110, y, str(value if value not in (None, "") else "—"))
+            y -= 14
+
+        # Header
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(margin, y, f"Violation Case File — #{case.get('case_id')}")
+        y -= 18
+        c.setFont("Helvetica", 10)
+        c.drawString(margin, y, f"{case.get('hoa_name', 'Homeowners Association')} · Generated {datetime.utcnow().strftime('%B %d, %Y')}")
+        y -= 26
+
+        heading("Case Summary")
+        field("Resident", case.get("resident_name"))
+        field("Property", case.get("property"))
+        field("Violation Type", case.get("violation_type"))
+        field("Status", (case.get("status") or "").capitalize())
+        field("Notice Level", case.get("notice_label"))
+        field("Priority", (case.get("priority") or "").capitalize())
+        field("Opened", case.get("created_at"))
+        field("Cure Deadline", case.get("due_date"))
+        field("Resolved", case.get("resolved_at"))
+        y -= 4
+        line("Description:", font="Helvetica-Bold")
+        line(case.get("description") or "—", indent=10)
+        y -= 8
+
+        fine = case.get("fine") or {}
+        heading("Fine Ledger")
+        field("Total Assessed", f"${fine.get('assessed', 0):,.2f}")
+        field("Total Paid", f"${fine.get('paid', 0):,.2f}")
+        field("Balance Due", f"${fine.get('balance', 0):,.2f}")
+        for date, kind, amount, note in case.get("ledger", []):
+            line(f"{date}  ·  {kind.capitalize():<11}  ${amount:,.2f}" + (f"  —  {note}" if note else ""), indent=10, size=9, gap=12)
+        y -= 8
+
+        heading("Case Timeline (complete audit record)")
+        for date, kind, body in case.get("timeline", []):
+            tag = {"system": "SYSTEM", "resident": "RESIDENT", "note": "MANAGER"}.get(kind, kind.upper())
+            line(f"{date}  [{tag}]", font="Helvetica-Bold", size=9, gap=12)
+            line(body, indent=14, size=9, gap=12)
+            y -= 2
+        y -= 8
+
+        if case.get("sent_letter"):
+            c.showPage()
+            y = height - margin
+            heading(f"Official Notice — as sent {case.get('sent_at') or ''}")
+            for paragraph in case["sent_letter"].split("\n"):
+                line(paragraph, size=9.5, gap=12)
+
+        photos = case.get("photos") or []
+        if photos:
+            c.showPage()
+            y = height - margin
+            heading(f"Photo Evidence ({len(photos)})")
+            for i, data_url in enumerate(photos, 1):
+                try:
+                    raw = b64.b64decode(data_url.split(",", 1)[1])
+                    img = ImageReader(BytesIO(raw))
+                    iw, ih = img.getSize()
+                    max_w, max_h = width - 2 * margin, 300
+                    scale = min(max_w / iw, max_h / ih, 1.0)
+                    w, h = iw * scale, ih * scale
+                    ensure(h + 26)
+                    c.drawImage(img, margin, y - h, width=w, height=h, preserveAspectRatio=True, anchor='nw')
+                    y -= h + 6
+                    line(f"Exhibit {i}", font="Helvetica-Bold", size=9, gap=16)
+                except Exception as photo_err:
+                    line(f"Exhibit {i}: could not render image ({photo_err})", size=9)
+
+        c.save()
+        buf.seek(0)
+        return buf
+    except Exception as e:
+        logger.error(f"Case file PDF generation failed: {e}")
+        return None
+
+
 def generate_pdf(letter_text: str, resident_name: str):
     """Render a violation letter as a printable US-letter PDF (for certified mail)."""
     try:

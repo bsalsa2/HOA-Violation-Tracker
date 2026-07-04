@@ -25,6 +25,9 @@ function ViolationCard({ violation, onOpen }) {
             {violation.repeat_count > 0 && (
               <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/25">Repeat</Badge>
             )}
+            {violation.resident_response_count > 0 && (
+              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/25">Resident replied</Badge>
+            )}
           </div>
           <p className="text-xs text-slate-400 mt-1">{violation.resident_name} · {violation.resident_unit}</p>
           <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{violation.description}</p>

@@ -63,6 +63,40 @@ function needsAttention(violations) {
   return [...overdue, ...dueSoon].slice(0, 6)
 }
 
+const GRADE_STYLE = {
+  A: 'text-emerald-400 ring-emerald-500/30 bg-emerald-500/10',
+  B: 'text-blue-400 ring-blue-500/30 bg-blue-500/10',
+  C: 'text-amber-400 ring-amber-500/30 bg-amber-500/10',
+  D: 'text-orange-400 ring-orange-500/30 bg-orange-500/10',
+  F: 'text-red-400 ring-red-500/30 bg-red-500/10',
+}
+
+function ComplianceCard({ compliance, delay = '' }) {
+  return (
+    <div className={`vt-card vt-card-interactive vt-spotlight overflow-hidden p-5 anim-rise ${delay}`}>
+      <span className="absolute inset-x-0 top-0 h-[2px] rounded-t-[inherit] bg-gradient-to-r from-blue-500/70 via-emerald-400/25 to-transparent" />
+      <div className="flex items-center gap-2.5 mb-4">
+        <span className={`w-8 h-8 rounded-lg flex items-center justify-center ring-1 text-sm font-bold ${compliance ? GRADE_STYLE[compliance.grade] : 'text-slate-500 ring-slate-500/25 bg-slate-500/10'}`}>
+          {compliance ? compliance.grade : '—'}
+        </span>
+        <p className="text-slate-400 text-xs font-medium tracking-wide uppercase">Compliance Score</p>
+      </div>
+      {compliance ? (
+        <div>
+          <p className="text-[2rem] leading-none font-bold tracking-tight stat-number">
+            <CountUp value={compliance.score} /><span className="text-base text-slate-500 font-medium"> / 100</span>
+          </p>
+          <p className="text-[11px] text-slate-500 mt-2">
+            {compliance.factors.resolution_rate}% resolved · {compliance.factors.on_time_rate}% on-time · {compliance.factors.first_time_rate}% first-time
+          </p>
+        </div>
+      ) : (
+        <p className="text-sm text-slate-500">No enforcement history yet.</p>
+      )}
+    </div>
+  )
+}
+
 export default function OverviewTab({ analytics, loading, violations = [], hoaId, onOpenResident, onOpenViolation }) {
   const [activity, setActivity] = useState(null)
 
@@ -85,9 +119,10 @@ export default function OverviewTab({ analytics, loading, violations = [], hoaId
   return (
     <div className="space-y-6">
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+        <ComplianceCard compliance={analytics.compliance} delay="stagger-1" />
         <KpiCard
-          icon="open" label="Open Cases" value={k.open_violations} delay="stagger-1"
+          icon="open" label="Open Cases" value={k.open_violations} delay="stagger-2"
           chip="bg-blue-500/10 ring-blue-500/25 text-blue-400" rail="from-blue-500/70 via-blue-400/25 to-transparent"
         />
         <KpiCard

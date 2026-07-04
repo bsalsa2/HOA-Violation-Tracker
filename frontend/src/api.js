@@ -85,6 +85,8 @@ export const violationAPI = {
   sendNotice: (violationId) => api.post(`/violations/${violationId}/send-notice`),
   getFines: (violationId) => api.get(`/violations/${violationId}/fines`),
   addFine: (violationId, amount, kind, note) => api.post(`/violations/${violationId}/fines`, { amount, kind, note: note || null }),
+  getPortalLink: (violationId) => api.get(`/violations/${violationId}/portal-link`),
+  getCaseFile: (violationId) => api.get(`/violations/${violationId}/case-file.pdf`, { responseType: 'blob' }),
   update: (violationId, fields) => api.patch(`/violations/${violationId}`, fields),
   updateStatus: (violationId, status) => api.patch(`/violations/${violationId}`, { status }),
   escalate: (violationId) => api.post(`/violations/${violationId}/escalate`),
@@ -107,6 +109,12 @@ export const violationAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
+}
+
+// Public, token-authenticated resident portal (no account required)
+export const portalAPI = {
+  getCase: (token) => api.get(`/portal/${token}`),
+  respond: (token, kind, message) => api.post(`/portal/${token}/respond`, { kind, message }),
 }
 
 export default api

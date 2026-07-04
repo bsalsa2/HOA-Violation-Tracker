@@ -2,6 +2,12 @@
 
 Modern violation management for property managers and HOA boards. Track violations across a portfolio of communities, send professional notice letters, escalate through a formal notice ladder, and keep a defensible audit trail — without spreadsheets.
 
+## What sets it apart
+
+- **Resident Response Portal** — every notice carries a secure link (no account needed) where the resident sees their case, the evidence on file, the deadline countdown, and the fine balance — and can respond: *"I've corrected it"*, *"I dispute this"*, or ask a question. Responses land directly on the case's official record and are flagged for the manager. Enforcement becomes a documented two-way conversation instead of a one-way letter.
+- **Hearing-Ready Case Files** — one click exports the complete case as a single PDF: summary, fine ledger, the full audit timeline (including resident responses), the notice exactly as it was sent, and every photo as a numbered exhibit. Built for board packets and attorney handoffs.
+- **Community Compliance Score** — a transparent 0–100 grade per community (40% resolution rate, 35% on-time performance, 25% first-time compliance), shown on every portfolio card with a portfolio-wide average. The number a manager brings to the board meeting.
+
 ## Features
 
 **Enforcement workflow**
