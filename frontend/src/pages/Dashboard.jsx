@@ -337,7 +337,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
         try {
           await violationAPI.delete(violationId)
           setViolations((prev) => prev.filter((v) => v.id !== violationId))
-          setSelectedId((id) => (id === violationId ? null : id))
+          setSelectedId(null)
           loadAnalytics()
           addToast('Violation deleted.')
         } catch {
@@ -345,7 +345,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
         }
       },
     })
-  }, [addToast, loadAnalytics])
+  }, [addToast, loadAnalytics, setSelectedId])
 
   const handleDeleteResident = useCallback((residentId, residentName, violationCount = 0) => {
     setConfirmDelete({
@@ -372,11 +372,6 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
     setViolationQuery(resident.name)
     setTab('violations')
   }, [])
-
-  const goToResidentById = useCallback((residentId) => {
-    const r = residents.find((x) => x.id === residentId)
-    if (r) goToResidentViolations(r)
-  }, [residents, goToResidentViolations])
 
   // ---- Board report (open window in-gesture, then fetch fresh analytics) ----
   const handleBoardReport = useCallback(() => {
@@ -461,7 +456,6 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
             loading={analyticsLoading}
             violations={violations}
             hoaId={hoaId}
-            onOpenResident={goToResidentById}
             onOpenViolation={(v) => setSelectedId(v.id)}
           />
         )}
