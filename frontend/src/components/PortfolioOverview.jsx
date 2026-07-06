@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import { currency } from '../lib/format'
 import { CountUp } from './primitives'
+import useDocumentTitle from '../lib/useDocumentTitle'
 
 const GRADE_STYLE = {
   A: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
@@ -81,6 +82,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
 }
 
 export default function PortfolioOverview({ hoas, onOpen, onEditClient, onAddClient, onSignOut }) {
+  useDocumentTitle('Portfolio — ViolationTrack')
   const totals = useMemo(() => {
     const base = hoas.reduce(
       (acc, h) => ({

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { portalAPI } from '../api'
 import { Spinner } from '../components/primitives'
 import { formatDate, currency, daysUntil } from '../lib/format'
+import useDocumentTitle from '../lib/useDocumentTitle'
 
 const STATUS_STYLE = {
   open: 'bg-blue-500/10 text-blue-400 border-blue-500/25',
@@ -26,6 +27,7 @@ export default function ResidentPortal() {
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [lightbox, setLightbox] = useState(null)
+  useDocumentTitle(caseData ? `${caseData.hoa.name} · Violation Notice` : 'Violation Notice Portal')
 
   useEffect(() => {
     portalAPI.getCase(token)

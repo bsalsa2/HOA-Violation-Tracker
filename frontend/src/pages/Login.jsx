@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { authAPI } from '../api'
+import useDocumentTitle from '../lib/useDocumentTitle'
 
 const HIGHLIGHTS = [
   { label: 'AI violation letters' },
@@ -8,6 +9,7 @@ const HIGHLIGHTS = [
 ]
 
 function Login({ setToken }) {
+  useDocumentTitle('Sign in — ViolationTrack')
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

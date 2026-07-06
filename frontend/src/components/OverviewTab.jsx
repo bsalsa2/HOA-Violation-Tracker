@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { CountUp, Skeleton } from './primitives'
+import { CountUp, Skeleton, Spinner } from './primitives'
 import { currency, dueLabel, isOverdue, relativeTime } from '../lib/format'
 import { hoaAPI } from '../api'
 
@@ -67,6 +67,97 @@ const GRADE_STYLE = {
   F: 'text-red-400 ring-red-500/30 bg-red-500/10',
 }
 
+/** First-run home: a guided checklist instead of four zero stat cards. */
+function GettingStarted({ hoa, residentCount, onAddResident, onImportResidents, onNewViolation, onEditClient, onSeedDemo, seeding }) {
+  const steps = [
+    {
+      title: 'Add your residents',
+      hint: 'Enter them one at a time, or import your whole roster from a CSV.',
+      done: residentCount > 0,
+      actions: [
+        { label: '+ Add resident', onClick: onAddResident, primary: true },
+        { label: 'Import CSV', onClick: onImportResidents },
+      ],
+    },
+    {
+      title: 'Set your association details',
+      hint: 'Your contact info appears on every violation notice as the reply-to.',
+      done: !!(hoa?.email && hoa?.contact_person_name),
+      actions: [{ label: 'Edit settings', onClick: onEditClient }],
+    },
+    {
+      title: 'Log your first violation',
+      hint: 'Generate the letter, set the cure deadline, and track it to resolution.',
+      done: false,
+      disabled: residentCount === 0,
+      disabledHint: 'Add a resident first',
+      actions: [{ label: '+ New violation', onClick: onNewViolation, primary: true }],
+    },
+  ]
+
+  return (
+    <div className="max-w-2xl mx-auto anim-rise">
+      <div className="vt-card vt-spotlight overflow-hidden p-6 sm:p-8">
+        <span className="absolute inset-x-0 top-0 h-[2px] rounded-t-[inherit] bg-gradient-to-r from-blue-500/70 via-blue-400/25 to-transparent" />
+        <h2 className="text-lg font-bold text-slate-100 tracking-tight">Set up {hoa?.name || 'your community'}</h2>
+        <p className="text-sm text-slate-500 mt-1 mb-6">Three steps to your first enforcement letter.</p>
+
+        <div className="space-y-5">
+          {steps.map((step, i) => (
+            <div key={step.title} className={`flex items-start gap-4 ${step.disabled ? 'opacity-50' : ''}`}>
+              {step.done ? (
+                <span className="w-7 h-7 rounded-full bg-emerald-500/10 ring-1 ring-emerald-500/30 flex items-center justify-center shrink-0">
+                  <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M5 13l4 4L19 7" /></svg>
+                </span>
+              ) : (
+                <span className="w-7 h-7 rounded-full bg-white/[0.04] ring-1 ring-white/10 flex items-center justify-center text-xs font-semibold text-slate-400 shrink-0">{i + 1}</span>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className={`text-sm font-medium ${step.done ? 'text-slate-500 line-through decoration-slate-600' : 'text-slate-200'}`}>{step.title}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{step.hint}</p>
+                {!step.done && (
+                  <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                    {step.actions.map((a) => (
+                      <button
+                        key={a.label}
+                        onClick={a.onClick}
+                        disabled={step.disabled}
+                        title={step.disabled ? step.disabledHint : undefined}
+                        className={a.primary
+                          ? 'btn-primary btn-sheen px-3 py-1.5 text-xs disabled:opacity-50 disabled:cursor-not-allowed'
+                          : 'px-3 py-1.5 text-xs text-slate-400 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors'}
+                      >
+                        {a.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {residentCount === 0 && onSeedDemo && (
+          <>
+            <div className="vt-hairline my-6" />
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-xs text-slate-500">Just exploring? Try it with realistic sample data — you can delete the client later.</p>
+              <button
+                onClick={onSeedDemo}
+                disabled={seeding}
+                className="flex items-center gap-2 px-3 py-1.5 text-xs text-slate-300 border border-white/15 hover:border-white/25 hover:bg-white/[0.06] disabled:opacity-60 rounded-lg transition-colors shrink-0"
+              >
+                {seeding && <Spinner className="w-3 h-3" />}
+                {seeding ? 'Loading…' : 'Load sample community'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function ComplianceCard({ compliance, delay = '' }) {
   const detail = compliance
     ? `${compliance.factors.resolution_rate}% resolved · ${compliance.factors.on_time_rate}% on-time · ${compliance.factors.first_time_rate}% first-time`
@@ -91,19 +182,39 @@ function ComplianceCard({ compliance, delay = '' }) {
   )
 }
 
-export default function OverviewTab({ analytics, loading, violations = [], hoaId, onOpenViolation }) {
+export default function OverviewTab({ analytics, loading, violations = [], hoaId, onOpenViolation, hoa, residentCount, onAddResident, onImportResidents, onNewViolation, onEditClient, onSeedDemo, seeding }) {
   const [activity, setActivity] = useState(null)
+  const hasViolations = violations.length > 0
 
   useEffect(() => {
-    if (!hoaId) return
+    if (!hoaId || !hasViolations) return
     let cancelled = false
     hoaAPI.getActivity(hoaId, 6)
       .then((res) => { if (!cancelled) setActivity(res.data) })
       .catch(() => { if (!cancelled) setActivity([]) })
     return () => { cancelled = true }
-  }, [hoaId, violations])
+  }, [hoaId, hasViolations, violations])
 
   const attention = useMemo(() => needsAttention(violations), [violations])
+
+  // Nothing on the books yet — zero stat cards and an empty feed would just
+  // be noise. Walk the manager through setup instead. (Hold the skeleton
+  // until the first load settles so the checklist never flashes.)
+  if (!hasViolations) {
+    if (loading) return <OverviewSkeleton />
+    return (
+      <GettingStarted
+        hoa={hoa}
+        residentCount={residentCount}
+        onAddResident={onAddResident}
+        onImportResidents={onImportResidents}
+        onNewViolation={onNewViolation}
+        onEditClient={onEditClient}
+        onSeedDemo={onSeedDemo}
+        seeding={seeding}
+      />
+    )
+  }
 
   if (loading && !analytics) return <OverviewSkeleton />
   if (!analytics) return null
