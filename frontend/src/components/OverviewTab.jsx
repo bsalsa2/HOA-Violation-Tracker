@@ -15,9 +15,14 @@ const KPI_ICONS = {
   ),
 }
 
-function KpiCard({ icon, label, value, tone = '', chip, rail, delay = '' }) {
+function KpiCard({ icon, label, value, tone = '', chip, rail, delay = '', onClick, title }) {
+  const Tag = onClick ? 'button' : 'div'
   return (
-    <div className={`vt-card vt-card-interactive vt-spotlight overflow-hidden p-5 anim-rise ${delay}`}>
+    <Tag
+      onClick={onClick}
+      title={title}
+      className={`vt-card vt-card-interactive vt-spotlight overflow-hidden p-5 anim-rise text-left ${delay}`}
+    >
       <span className={`absolute inset-x-0 top-0 h-[2px] rounded-t-[inherit] bg-gradient-to-r ${rail}`} />
       <div className="flex items-center gap-2.5 mb-4">
         <span className={`w-8 h-8 rounded-lg flex items-center justify-center ring-1 ${chip}`}>{KPI_ICONS[icon]}</span>
@@ -26,7 +31,7 @@ function KpiCard({ icon, label, value, tone = '', chip, rail, delay = '' }) {
       <p className={`text-[2rem] leading-none font-bold tracking-tight ${tone || 'stat-number'}`}>
         <CountUp value={value} />
       </p>
-    </div>
+    </Tag>
   )
 }
 
@@ -182,7 +187,7 @@ function ComplianceCard({ compliance, delay = '' }) {
   )
 }
 
-export default function OverviewTab({ analytics, loading, violations = [], hoaId, onOpenViolation, hoa, residentCount, onAddResident, onImportResidents, onNewViolation, onEditClient, onSeedDemo, seeding }) {
+export default function OverviewTab({ analytics, loading, violations = [], hoaId, onOpenViolation, onShowOverdue, hoa, residentCount, onAddResident, onImportResidents, onNewViolation, onEditClient, onSeedDemo, seeding }) {
   const [activity, setActivity] = useState(null)
   const hasViolations = violations.length > 0
 
@@ -235,6 +240,8 @@ export default function OverviewTab({ analytics, loading, violations = [], hoaId
           tone={k.overdue_violations > 0 ? 'text-red-400' : ''}
           chip={k.overdue_violations > 0 ? 'bg-red-500/10 ring-red-500/25 text-red-400' : 'bg-slate-500/10 ring-slate-500/25 text-slate-400'}
           rail={k.overdue_violations > 0 ? 'from-red-500/70 via-red-400/25 to-transparent' : 'from-slate-500/50 via-slate-500/15 to-transparent'}
+          onClick={k.overdue_violations > 0 ? onShowOverdue : undefined}
+          title={k.overdue_violations > 0 ? 'View the overdue violations' : undefined}
         />
         <KpiCard
           icon="fines" label="Outstanding Fines" value={currency(k.outstanding_fines)} delay="stagger-4"

@@ -25,6 +25,7 @@ function getEmailJSConfig() {
 }
 
 const TABS = ['overview', 'violations', 'residents']
+const VIOLATION_FILTERS = ['open', 'noticed', 'escalated', 'resolved', 'overdue']
 
 export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPortfolio, onAddClient, onEditClient, setToken }) {
   const hoaId = hoa.id
@@ -36,7 +37,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
   const [analyticsLoading, setAnalyticsLoading] = useState(true)
   const [dataLoading, setDataLoading] = useState(true)
 
-  // Tab and open violation live in the URL — refresh-safe and deep-linkable
+  // Tab, open violation, and list filter live in the URL — refresh-safe and deep-linkable
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'overview'
   const setTab = useCallback((t) => {
@@ -44,6 +45,24 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
       const next = new URLSearchParams(prev)
       if (t === 'overview') next.delete('tab')
       else next.set('tab', t)
+      next.delete('f') // filters belong to the view they were set in
+      return next
+    })
+  }, [setSearchParams])
+  const violationFilter = VIOLATION_FILTERS.includes(searchParams.get('f')) ? searchParams.get('f') : ''
+  const setViolationFilter = useCallback((f) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (f) next.set('f', f)
+      else next.delete('f')
+      return next
+    })
+  }, [setSearchParams])
+  const openOverdue = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('tab', 'violations')
+      next.set('f', 'overdue')
       return next
     })
   }, [setSearchParams])
@@ -416,6 +435,9 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => setPaletteOpen(true)} aria-label="Search" className="sm:hidden p-2 text-slate-400 bg-white/[0.05] hover:bg-white/[0.07] border border-white/10 rounded-lg transition-colors">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              </button>
               <button onClick={() => setPaletteOpen(true)} className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 bg-white/[0.05] hover:bg-white/[0.07] border border-white/10 rounded-lg transition-colors">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 Search <kbd className="text-[10px] border border-white/10 rounded px-1 ml-0.5">⌘K</kbd>
@@ -443,7 +465,12 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${tab === t.key ? 'bg-[#3b82f6]/15 text-[#60a5fa]' : 'bg-white/[0.06] text-slate-400'}`}>{t.badge}</span>
                 )}
                 {t.key === 'violations' && overdueCount > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20">{overdueCount} overdue</span>
+                  <span
+                    role="button"
+                    aria-label={`Show ${overdueCount} overdue violations`}
+                    onClick={(e) => { e.stopPropagation(); openOverdue() }}
+                    className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20 hover:bg-red-500/25 transition-colors"
+                  >{overdueCount} overdue</span>
                 )}
                 {tab === t.key && (
                   <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-[#3b82f6] to-[#2563eb]" style={{ boxShadow: '0 0 10px rgba(59,130,246,0.6)' }} />
@@ -462,6 +489,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
             violations={violations}
             hoaId={hoaId}
             onOpenViolation={(v) => setSelectedId(v.id)}
+            onShowOverdue={openOverdue}
             hoa={hoa}
             residentCount={activeResidents.length}
             onAddResident={() => setShowAddResident(true)}
@@ -477,6 +505,8 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
             violations={violations}
             query={violationQuery}
             setQuery={setViolationQuery}
+            statusFilter={violationFilter}
+            setStatusFilter={setViolationFilter}
             onOpen={(v) => setSelectedId(v.id)}
             onNew={() => setShowAddViolation(true)}
             onExport={handleExportCsv}

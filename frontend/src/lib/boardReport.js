@@ -11,6 +11,61 @@ function isOverdue(v) {
   return new Date(v.due_date) < new Date()
 }
 
+const GRADE_COLORS = { A: '#16a34a', B: '#2563eb', C: '#d97706', D: '#ea580c', F: '#dc2626' }
+
+/**
+ * Static grouped-bar SVG: new vs resolved violations per month.
+ * Print-friendly — palette (#2563eb / #16a34a on white) is CVD-validated.
+ */
+function trendChartSvg(timeline) {
+  if (!timeline?.length) return ''
+  const W = 660
+  const H = 190
+  const pad = { top: 10, right: 8, bottom: 24, left: 30 }
+  const iw = W - pad.left - pad.right
+  const ih = H - pad.top - pad.bottom
+  const maxRaw = Math.max(...timeline.map((m) => Math.max(m.new || 0, m.resolved || 0)), 1)
+  const yMax = Math.ceil(maxRaw / 2) * 2 // even top so the midpoint gridline is an integer
+  const y = (v) => pad.top + ih - (v / yMax) * ih
+  const groupW = iw / timeline.length
+  const barW = Math.min(20, (groupW - 16) / 2)
+
+  // Bars are rounded at the data end only, anchored square to the baseline.
+  const bar = (x, v, color, label) => {
+    if (v <= 0) return ''
+    const top = y(v)
+    const bottom = pad.top + ih
+    const r = Math.min(4, bottom - top, barW / 2)
+    return `<path d="M${x},${bottom} V${(top + r).toFixed(1)} Q${x},${top.toFixed(1)} ${x + r},${top.toFixed(1)} H${(x + barW - r).toFixed(1)} Q${x + barW},${top.toFixed(1)} ${x + barW},${(top + r).toFixed(1)} V${bottom} Z" fill="${color}"><title>${esc(label)}: ${v}</title></path>`
+  }
+
+  const grid = [0, yMax / 2, yMax]
+    .map(
+      (v) =>
+        `<line x1="${pad.left}" x2="${W - pad.right}" y1="${y(v)}" y2="${y(v)}" stroke="#e2e8f0" stroke-width="1" />` +
+        `<text x="${pad.left - 6}" y="${(y(v) + 3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="#94a3b8">${v}</text>`
+    )
+    .join('')
+
+  const groups = timeline
+    .map((m, i) => {
+      const gx = pad.left + i * groupW + (groupW - (barW * 2 + 2)) / 2
+      return (
+        bar(gx, m.new || 0, '#2563eb', `${m.month} — new`) +
+        bar(gx + barW + 2, m.resolved || 0, '#16a34a', `${m.month} — resolved`) +
+        `<text x="${(pad.left + i * groupW + groupW / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle" font-size="11" fill="#64748b">${esc(m.month)}</text>`
+      )
+    })
+    .join('')
+
+  return `
+  <div class="legend">
+    <span><span class="sw" style="background:#2563eb"></span>New</span>
+    <span><span class="sw" style="background:#16a34a"></span>Resolved</span>
+  </div>
+  <svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="New versus resolved violations by month, last six months" style="max-width:${W}px">${grid}${groups}</svg>`
+}
+
 /**
  * Renders a print-ready board meeting compliance report.
  * Pass an already-opened `win` (so the caller can open it inside the click
@@ -52,6 +107,21 @@ export function openBoardReport(hoa, analytics, violations, win) {
     )
     .join('')
 
+  const compliance = analytics?.compliance
+  const complianceHtml = compliance
+    ? `
+  <h2>Compliance Score</h2>
+  <div class="kpis">
+    <div class="kpi"><div class="v" style="color:${GRADE_COLORS[compliance.grade] || '#1e293b'}">${esc(compliance.grade)} · ${compliance.score}/100</div><div class="l">Overall Grade</div></div>
+    <div class="kpi"><div class="v">${compliance.factors.resolution_rate}%</div><div class="l">Cases Resolved</div></div>
+    <div class="kpi"><div class="v">${compliance.factors.on_time_rate}%</div><div class="l">Resolved On Time</div></div>
+    <div class="kpi"><div class="v">${compliance.factors.first_time_rate}%</div><div class="l">First-Time Compliance</div></div>
+  </div>`
+    : ''
+
+  const trendSvg = trendChartSvg(analytics?.timeline)
+  const trendHtml = trendSvg ? `\n  <h2>Six-Month Enforcement Trend</h2>${trendSvg}` : ''
+
   const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -73,6 +143,9 @@ export function openBoardReport(hoa, analytics, violations, win) {
   tr.overdue td { background: #fef2f2; }
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
   .footer { margin-top: 40px; color: #94a3b8; font-size: 11px; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: #475569; margin: 4px 0 6px; }
+  .legend > span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
   .btn { position: fixed; top: 16px; right: 16px; background: #2563eb; color: white; border: 0; border-radius: 8px; padding: 10px 16px; font-size: 13px; cursor: pointer; }
   @media print { .btn { display: none; } body { padding: 0; } }
 </style>
@@ -88,6 +161,9 @@ export function openBoardReport(hoa, analytics, violations, win) {
     <div class="kpi"><div class="v">${k.resolution_rate ?? 0}%</div><div class="l">Resolution Rate</div></div>
     <div class="kpi"><div class="v">${currency(k.outstanding_fines || 0)}</div><div class="l">Outstanding Fines</div></div>
   </div>
+
+${complianceHtml}
+${trendHtml}
 
   <h2>Fines Ledger</h2>
   <div class="kpis" style="grid-template-columns: repeat(3, 1fr);">

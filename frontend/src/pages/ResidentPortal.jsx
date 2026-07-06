@@ -127,7 +127,7 @@ export default function ResidentPortal() {
               <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Evidence on file</p>
               <div className="grid grid-cols-4 gap-2">
                 {caseData.photos.map((p, i) => (
-                  <button key={i} onClick={() => setLightbox(p.data)} className="aspect-square rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-[#3b82f6]/60 transition-all">
+                  <button key={i} onClick={() => setLightbox(p.data)} aria-label={`View evidence photo ${i + 1}`} className="aspect-square rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-[#3b82f6]/60 transition-all">
                     <img src={p.data} alt={`Evidence ${i + 1}`} className="w-full h-full object-cover" />
                   </button>
                 ))}
