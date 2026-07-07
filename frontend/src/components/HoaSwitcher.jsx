@@ -11,10 +11,10 @@ export default function HoaSwitcher({ hoas, activeHoa, onSwitch, onShowPortfolio
   }, [])
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative min-w-0" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/[0.05] transition-colors min-w-0 max-w-[220px]"
+        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/[0.05] transition-colors min-w-0 max-w-full sm:max-w-[220px]"
       >
         <div className="min-w-0 text-left">
           <p className="text-sm font-semibold text-slate-100 leading-none truncate">{activeHoa?.name}</p>

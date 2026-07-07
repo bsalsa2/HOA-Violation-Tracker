@@ -111,6 +111,7 @@ export function Modal({ title, subtitle, onClose, children, wide = false }) {
           </div>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="text-slate-400 hover:text-slate-100 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 transition-colors text-lg"
           >
             ×
@@ -168,7 +169,7 @@ export function ToastStack({ toasts, onDismiss }) {
             </svg>
           )}
           <span className="flex-1">{t.message}</span>
-          <button onClick={() => onDismiss(t.id)} className="ml-2 opacity-50 hover:opacity-100 transition-opacity">×</button>
+          <button onClick={() => onDismiss(t.id)} aria-label="Dismiss notification" className="ml-2 opacity-50 hover:opacity-100 transition-opacity">×</button>
         </div>
       ))}
     </div>

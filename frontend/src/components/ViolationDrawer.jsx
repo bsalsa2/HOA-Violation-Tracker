@@ -189,7 +189,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
                 {violation.resident_name} · {violation.resident_unit}
               </p>
             </div>
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-100 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-800 shrink-0">×</button>
+            <button onClick={onClose} aria-label="Close case details" className="text-slate-400 hover:text-slate-100 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-800 shrink-0">×</button>
           </div>
           <div className="flex items-center gap-2 mt-3 flex-wrap">
             <Badge config={STATUS_CONFIG[violation.status]} />
@@ -275,7 +275,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
             ) : (
               <div className="grid grid-cols-4 gap-2">
                 {photos.map((p) => (
-                  <button key={p.id} onClick={() => setLightbox(p)} className="relative aspect-square rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-[#3b82f6]/60 transition-all group">
+                  <button key={p.id} onClick={() => setLightbox(p)} aria-label="View evidence photo" className="relative aspect-square rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-[#3b82f6]/60 transition-all group">
                     <img src={p.data} alt={p.caption || 'Violation evidence'} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
                     <span className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>

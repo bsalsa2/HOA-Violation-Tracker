@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { portalAPI } from '../api'
 import { Spinner } from '../components/primitives'
 import { formatDate, currency, daysUntil } from '../lib/format'
+import useDocumentTitle from '../lib/useDocumentTitle'
 
 const STATUS_STYLE = {
   open: 'bg-blue-500/10 text-blue-400 border-blue-500/25',
@@ -26,6 +27,7 @@ export default function ResidentPortal() {
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [lightbox, setLightbox] = useState(null)
+  useDocumentTitle(caseData ? `${caseData.hoa.name} · Violation Notice` : 'Violation Notice Portal')
 
   useEffect(() => {
     portalAPI.getCase(token)
@@ -125,7 +127,7 @@ export default function ResidentPortal() {
               <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Evidence on file</p>
               <div className="grid grid-cols-4 gap-2">
                 {caseData.photos.map((p, i) => (
-                  <button key={i} onClick={() => setLightbox(p.data)} className="aspect-square rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-[#3b82f6]/60 transition-all">
+                  <button key={i} onClick={() => setLightbox(p.data)} aria-label={`View evidence photo ${i + 1}`} className="aspect-square rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-[#3b82f6]/60 transition-all">
                     <img src={p.data} alt={`Evidence ${i + 1}`} className="w-full h-full object-cover" />
                   </button>
                 ))}
