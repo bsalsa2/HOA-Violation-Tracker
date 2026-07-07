@@ -344,46 +344,6 @@ def count_prior_offenses(db: Session, violation: Violation) -> int:
     )
 
 
-def compute_compliance(violations, now: Optional[datetime] = None):
-    """Community Compliance Score, 0–100 with a letter grade.
-
-    Three explainable factors:
-      40% resolution rate · 35% deadline performance (share of active cases
-      not past their cure date) · 25% first-time compliance (share of cases
-      that aren't repeat offenses).
-    Returns None when there's no enforcement history to grade.
-    """
-    now = now or datetime.utcnow()
-    total = len(violations)
-    if total == 0:
-        return None
-
-    resolved = sum(1 for v in violations if v.status == "resolved")
-    active = [v for v in violations if v.status != "resolved"]
-    overdue = sum(1 for v in active if v.due_date and v.due_date < now)
-
-    pairs = {}
-    for v in violations:
-        pairs[(v.resident_id, v.violation_type)] = pairs.get((v.resident_id, v.violation_type), 0) + 1
-    repeats = sum(c - 1 for c in pairs.values() if c > 1)
-
-    resolution = resolved / total
-    on_time = 1 - (overdue / len(active)) if active else 1.0
-    first_time = 1 - (repeats / total)
-
-    score = round(100 * (0.40 * resolution + 0.35 * on_time + 0.25 * first_time))
-    grade = "A" if score >= 90 else "B" if score >= 80 else "C" if score >= 70 else "D" if score >= 60 else "F"
-    return {
-        "score": score,
-        "grade": grade,
-        "factors": {
-            "resolution_rate": round(resolution * 100),
-            "on_time_rate": round(on_time * 100),
-            "first_time_rate": round(first_time * 100),
-        },
-    }
-
-
 def compute_analytics(hoa: HOA, db: Session):
     violations = db.query(Violation).filter(Violation.hoa_id == hoa.id).all()
     residents = db.query(Resident).filter(Resident.hoa_id == hoa.id).all()
@@ -469,7 +429,6 @@ def compute_analytics(hoa: HOA, db: Session):
         "by_priority": [{"label": k, "value": v} for k, v in by_priority.items()],
         "timeline": timeline,
         "top_offenders": top_offenders,
-        "compliance": compute_compliance(violations, now),
     }
 
 
@@ -610,10 +569,6 @@ def list_hoas(current_user: User = Depends(get_current_user), db: Session = Depe
         elif not v.fine_paid:
             a["fines"] += float(v.fine_amount or 0)
 
-    by_hoa = {hid: [] for hid in hoa_ids}
-    for v in violations:
-        by_hoa[v.hoa_id].append(v)
-
     return [
         {
             "id": h.id, "name": h.name, "address": h.address,
@@ -627,7 +582,6 @@ def list_hoas(current_user: User = Depends(get_current_user), db: Session = Depe
             "open_violations": agg[h.id]["open"],
             "overdue_violations": agg[h.id]["overdue"],
             "outstanding_fines": round(agg[h.id]["fines"], 2),
-            "compliance": compute_compliance(by_hoa[h.id], now),
         }
         for h in hoas
     ]

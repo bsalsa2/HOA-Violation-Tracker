@@ -11,8 +11,6 @@ function isOverdue(v) {
   return new Date(v.due_date) < new Date()
 }
 
-const GRADE_COLORS = { A: '#16a34a', B: '#2563eb', C: '#d97706', D: '#ea580c', F: '#dc2626' }
-
 /**
  * Static grouped-bar SVG: new vs resolved violations per month.
  * Print-friendly — palette (#2563eb / #16a34a on white) is CVD-validated.
@@ -67,7 +65,7 @@ function trendChartSvg(timeline) {
 }
 
 /**
- * Renders a print-ready board meeting compliance report.
+ * Renders a print-ready board meeting violation report.
  * Pass an already-opened `win` (so the caller can open it inside the click
  * gesture, then fetch fresh data) — otherwise one is opened here.
  * Returns false if the popup was blocked.
@@ -107,18 +105,6 @@ export function openBoardReport(hoa, analytics, violations, win) {
     )
     .join('')
 
-  const compliance = analytics?.compliance
-  const complianceHtml = compliance
-    ? `
-  <h2>Compliance Score</h2>
-  <div class="kpis">
-    <div class="kpi"><div class="v" style="color:${GRADE_COLORS[compliance.grade] || '#1e293b'}">${esc(compliance.grade)} · ${compliance.score}/100</div><div class="l">Overall Grade</div></div>
-    <div class="kpi"><div class="v">${compliance.factors.resolution_rate}%</div><div class="l">Cases Resolved</div></div>
-    <div class="kpi"><div class="v">${compliance.factors.on_time_rate}%</div><div class="l">Resolved On Time</div></div>
-    <div class="kpi"><div class="v">${compliance.factors.first_time_rate}%</div><div class="l">First-Time Compliance</div></div>
-  </div>`
-    : ''
-
   const trendSvg = trendChartSvg(analytics?.timeline)
   const trendHtml = trendSvg ? `\n  <h2>Six-Month Enforcement Trend</h2>${trendSvg}` : ''
 
@@ -126,7 +112,7 @@ export function openBoardReport(hoa, analytics, violations, win) {
 <html>
 <head>
 <meta charset="utf-8" />
-<title>Compliance Report — ${esc(hoa?.name || 'HOA')}</title>
+<title>Violation Report — ${esc(hoa?.name || 'HOA')}</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #1e293b; margin: 0; padding: 40px; }
@@ -152,7 +138,7 @@ export function openBoardReport(hoa, analytics, violations, win) {
 </head>
 <body>
   <button class="btn" onclick="window.print()">Print / Save as PDF</button>
-  <h1>${esc(hoa?.name || 'HOA')} — Violation Compliance Report</h1>
+  <h1>${esc(hoa?.name || 'HOA')} — Violation Report</h1>
   <div class="sub">${esc(hoa?.address || '')} · Generated ${esc(today)}</div>
 
   <div class="kpis">
@@ -162,7 +148,6 @@ export function openBoardReport(hoa, analytics, violations, win) {
     <div class="kpi"><div class="v">${currency(k.outstanding_fines || 0)}</div><div class="l">Outstanding Fines</div></div>
   </div>
 
-${complianceHtml}
 ${trendHtml}
 
   <h2>Fines Ledger</h2>

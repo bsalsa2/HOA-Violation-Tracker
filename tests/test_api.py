@@ -584,29 +584,6 @@ def test_case_file_pdf(client, alice, hoa, resident):
     client.delete(f"/violations/{v['id']}", headers=alice)
 
 
-# ---------- Compliance score ----------
-
-def test_compliance_score_in_analytics_and_portfolio(client, alice, hoa):
-    a = client.get(f"/hoas/{hoa['id']}/analytics", headers=alice).json()
-    comp = a["compliance"]
-    assert comp is not None
-    assert 0 <= comp["score"] <= 100
-    assert comp["grade"] in ("A", "B", "C", "D", "F")
-    f = comp["factors"]
-    assert set(f.keys()) == {"resolution_rate", "on_time_rate", "first_time_rate"}
-
-    hoas = client.get("/hoas", headers=alice).json()
-    mine = next(h for h in hoas if h["id"] == hoa["id"])
-    assert mine["compliance"]["grade"] == comp["grade"]
-
-
-def test_compliance_none_for_empty_community(client, alice):
-    empty = client.post("/hoas", json={"name": "Quiet Pines", "address": "9 Calm St"}, headers=alice).json()
-    a = client.get(f"/hoas/{empty['id']}/analytics", headers=alice).json()
-    assert a["compliance"] is None
-    client.delete(f"/hoas/{empty['id']}", headers=alice)
-
-
 def test_demo_seed_populates_empty_hoa(client, alice):
     new_hoa = client.post("/hoas", json={"name": "Demo Meadows", "address": "2 Demo Ln"}, headers=alice).json()
     res = client.post(f"/hoas/{new_hoa['id']}/seed-demo", headers=alice)

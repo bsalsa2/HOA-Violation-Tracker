@@ -6,7 +6,6 @@ Modern violation management for property managers and HOA boards. Track violatio
 
 - **Resident Response Portal** — every notice carries a secure link (no account needed) where the resident sees their case, the evidence on file, the deadline countdown, and the fine balance — and can respond: *"I've corrected it"*, *"I dispute this"*, or ask a question. Responses land directly on the case's official record and are flagged for the manager. Enforcement becomes a documented two-way conversation instead of a one-way letter.
 - **Hearing-Ready Case Files** — one click exports the complete case as a single PDF: summary, fine ledger, the full audit timeline (including resident responses), the notice exactly as it was sent, and every photo as a numbered exhibit. Built for board packets and attorney handoffs.
-- **Community Compliance Score** — a transparent 0–100 grade per community (40% resolution rate, 35% on-time performance, 25% first-time compliance), shown on every portfolio card with a portfolio-wide average. The number a manager brings to the board meeting.
 
 ## Features
 
@@ -29,8 +28,8 @@ Modern violation management for property managers and HOA boards. Track violatio
 
 **Portfolio & reporting**
 - Manage multiple HOAs/communities under one account, with per-community contact branding
-- Overview dashboard: KPIs, "Needs Attention" triage queue (overdue and due-soon), recent activity feed, top residents
-- Board-ready compliance report (print/save as PDF)
+- Overview dashboard: KPIs, "Needs Attention" triage queue (overdue and due-soon), recent activity feed
+- Board-ready violation report with a six-month enforcement trend chart (print/save as PDF)
 - CSV export of the violation log; CSV import for residents *and* violations (spreadsheet migration path)
 - One-click sample community for evaluating the product
 - ⌘K command palette for everything

@@ -3,14 +3,6 @@ import { currency } from '../lib/format'
 import { CountUp } from './primitives'
 import useDocumentTitle from '../lib/useDocumentTitle'
 
-const GRADE_STYLE = {
-  A: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
-  B: 'text-blue-400 border-blue-500/30 bg-blue-500/10',
-  C: 'text-amber-400 border-amber-500/30 bg-amber-500/10',
-  D: 'text-orange-400 border-orange-500/30 bg-orange-500/10',
-  F: 'text-red-400 border-red-500/30 bg-red-500/10',
-}
-
 function ClientCard({ hoa, onOpen, onSettings }) {
   const hasOverdue = hoa.overdue_violations > 0
   const isConfigured = hoa.email && hoa.contact_person_name
@@ -32,14 +24,6 @@ function ClientCard({ hoa, onOpen, onSettings }) {
           </div>
         </button>
         <div className="flex items-center gap-2 shrink-0">
-          {hoa.compliance && (
-            <span
-              className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${GRADE_STYLE[hoa.compliance.grade]}`}
-              title={`Compliance score ${hoa.compliance.score}/100 — ${hoa.compliance.factors.resolution_rate}% resolved, ${hoa.compliance.factors.on_time_rate}% on-time, ${hoa.compliance.factors.first_time_rate}% first-time`}
-            >
-              {hoa.compliance.grade} · {hoa.compliance.score}
-            </span>
-          )}
           {hasOverdue && (
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/25 font-medium">
               {hoa.overdue_violations} overdue
@@ -95,10 +79,7 @@ export default function PortfolioOverview({ hoas, onOpen, onEditClient, onAddCli
       }),
       { clients: 0, residents: 0, open: 0, overdue: 0, fines: 0 }
     )
-    const scored = hoas.filter((h) => h.compliance)
-    const avgScore = scored.length ? Math.round(scored.reduce((s, h) => s + h.compliance.score, 0) / scored.length) : null
-    const avgGrade = avgScore === null ? null : avgScore >= 90 ? 'A' : avgScore >= 80 ? 'B' : avgScore >= 70 ? 'C' : avgScore >= 60 ? 'D' : 'F'
-    return { ...base, avgScore, avgGrade }
+    return base
   }, [hoas])
 
   return (
@@ -122,9 +103,6 @@ export default function PortfolioOverview({ hoas, onOpen, onEditClient, onAddCli
             <h2 className="text-xl font-bold text-slate-100 tracking-tight">Your Clients</h2>
             <p className="text-sm text-slate-500 mt-0.5">
               {totals.clients} {totals.clients === 1 ? 'community' : 'communities'} under management
-              {totals.avgScore !== null && (
-                <span> · portfolio compliance <span className={`font-semibold ${GRADE_STYLE[totals.avgGrade]?.split(' ')[0] || 'text-slate-300'}`}>{totals.avgGrade} ({totals.avgScore})</span></span>
-              )}
             </p>
           </div>
           <button onClick={onAddClient} className="btn-primary btn-sheen px-4 py-2 text-sm">+ Add Client</button>

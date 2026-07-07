@@ -13,6 +13,9 @@ const KPI_ICONS = {
   fines: (
     <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
   ),
+  rate: (
+    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+  ),
 }
 
 function KpiCard({ icon, label, value, tone = '', chip, rail, delay = '', onClick, title }) {
@@ -62,14 +65,6 @@ function needsAttention(violations) {
   overdue.sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
   dueSoon.sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
   return [...overdue, ...dueSoon].slice(0, 5)
-}
-
-const GRADE_STYLE = {
-  A: 'text-emerald-400 ring-emerald-500/30 bg-emerald-500/10',
-  B: 'text-blue-400 ring-blue-500/30 bg-blue-500/10',
-  C: 'text-amber-400 ring-amber-500/30 bg-amber-500/10',
-  D: 'text-orange-400 ring-orange-500/30 bg-orange-500/10',
-  F: 'text-red-400 ring-red-500/30 bg-red-500/10',
 }
 
 /** First-run home: a guided checklist instead of four zero stat cards. */
@@ -163,30 +158,6 @@ function GettingStarted({ hoa, residentCount, onAddResident, onImportResidents, 
   )
 }
 
-function ComplianceCard({ compliance, delay = '' }) {
-  const detail = compliance
-    ? `${compliance.factors.resolution_rate}% resolved · ${compliance.factors.on_time_rate}% on-time · ${compliance.factors.first_time_rate}% first-time`
-    : undefined
-  return (
-    <div className={`vt-card vt-card-interactive vt-spotlight overflow-hidden p-5 anim-rise ${delay}`} title={detail}>
-      <span className="absolute inset-x-0 top-0 h-[2px] rounded-t-[inherit] bg-gradient-to-r from-blue-500/70 via-emerald-400/25 to-transparent" />
-      <div className="flex items-center gap-2.5 mb-4">
-        <span className={`w-8 h-8 rounded-lg flex items-center justify-center ring-1 text-sm font-bold ${compliance ? GRADE_STYLE[compliance.grade] : 'text-slate-500 ring-slate-500/25 bg-slate-500/10'}`}>
-          {compliance ? compliance.grade : '—'}
-        </span>
-        <p className="text-slate-400 text-xs font-medium tracking-wide uppercase">Compliance Score</p>
-      </div>
-      {compliance ? (
-        <p className="text-[2rem] leading-none font-bold tracking-tight stat-number">
-          <CountUp value={compliance.score} /><span className="text-base text-slate-500 font-medium"> / 100</span>
-        </p>
-      ) : (
-        <p className="text-sm text-slate-500">No enforcement history yet.</p>
-      )}
-    </div>
-  )
-}
-
 export default function OverviewTab({ analytics, loading, violations = [], hoaId, onOpenViolation, onShowOverdue, hoa, residentCount, onAddResident, onImportResidents, onNewViolation, onEditClient, onSeedDemo, seeding }) {
   const [activity, setActivity] = useState(null)
   const hasViolations = violations.length > 0
@@ -230,13 +201,12 @@ export default function OverviewTab({ analytics, loading, violations = [], hoaId
     <div className="space-y-6">
       {/* Key Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <ComplianceCard compliance={analytics.compliance} delay="stagger-1" />
         <KpiCard
-          icon="open" label="Open Cases" value={k.open_violations} delay="stagger-2"
+          icon="open" label="Open Cases" value={k.open_violations} delay="stagger-1"
           chip="bg-blue-500/10 ring-blue-500/25 text-blue-400" rail="from-blue-500/70 via-blue-400/25 to-transparent"
         />
         <KpiCard
-          icon="overdue" label="Overdue" value={k.overdue_violations} delay="stagger-3"
+          icon="overdue" label="Overdue" value={k.overdue_violations} delay="stagger-2"
           tone={k.overdue_violations > 0 ? 'text-red-400' : ''}
           chip={k.overdue_violations > 0 ? 'bg-red-500/10 ring-red-500/25 text-red-400' : 'bg-slate-500/10 ring-slate-500/25 text-slate-400'}
           rail={k.overdue_violations > 0 ? 'from-red-500/70 via-red-400/25 to-transparent' : 'from-slate-500/50 via-slate-500/15 to-transparent'}
@@ -244,10 +214,14 @@ export default function OverviewTab({ analytics, loading, violations = [], hoaId
           title={k.overdue_violations > 0 ? 'View the overdue violations' : undefined}
         />
         <KpiCard
-          icon="fines" label="Outstanding Fines" value={currency(k.outstanding_fines)} delay="stagger-4"
+          icon="fines" label="Outstanding Fines" value={currency(k.outstanding_fines)} delay="stagger-3"
           tone={k.outstanding_fines > 0 ? 'text-amber-400' : ''}
           chip={k.outstanding_fines > 0 ? 'bg-amber-500/10 ring-amber-500/25 text-amber-400' : 'bg-slate-500/10 ring-slate-500/25 text-slate-400'}
           rail={k.outstanding_fines > 0 ? 'from-amber-500/70 via-amber-400/25 to-transparent' : 'from-slate-500/50 via-slate-500/15 to-transparent'}
+        />
+        <KpiCard
+          icon="rate" label="Resolution Rate" value={`${k.resolution_rate}%`} delay="stagger-4"
+          chip="bg-emerald-500/10 ring-emerald-500/25 text-emerald-400" rail="from-emerald-500/70 via-emerald-400/25 to-transparent"
         />
       </div>
 
