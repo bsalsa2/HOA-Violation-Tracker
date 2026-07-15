@@ -11,6 +11,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+    is_admin = Column(Boolean, default=False)  # admin can see/manage all HOAs
     created_at = Column(DateTime, default=datetime.utcnow)
 
     hoas = relationship("HOA", back_populates="user")

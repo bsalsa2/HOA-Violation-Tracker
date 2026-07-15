@@ -66,6 +66,7 @@ def startup():
             # Postgres form, then the SQLite-compatible form (each failure is caught)
             "ALTER TABLE residents ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP",
             "ALTER TABLE residents ADD COLUMN archived_at TIMESTAMP",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE",
         ]:
             try:
                 db.execute(text(stmt))
@@ -215,8 +216,8 @@ def get_current_user(
 # -- Ownership helpers (every scoped resource is verified to belong to the caller) --
 
 def owned_hoa(hoa_id: int, user: User, db: Session) -> HOA:
-    hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == user.id).first()
-    if not hoa:
+    hoa = db.query(HOA).filter(HOA.id == hoa_id).first()
+    if not hoa or (not user.is_admin and hoa.user_id != user.id):
         raise HTTPException(status_code=404, detail="Client (HOA) not found")
     return hoa
 
@@ -455,7 +456,8 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    user = User(email=email, hashed_password=utils.hash_password(data.password))
+    is_admin = email == "violationtrack.notices@gmail.com"
+    user = User(email=email, hashed_password=utils.hash_password(data.password), is_admin=is_admin)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -533,7 +535,10 @@ def reset_password(data: ResetPassword, db: Session = Depends(get_db)):
 
 @app.get("/hoas")
 def list_hoas(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    hoas = db.query(HOA).filter(HOA.user_id == current_user.id).order_by(HOA.name).all()
+    if current_user.is_admin:
+        hoas = db.query(HOA).order_by(HOA.name).all()
+    else:
+        hoas = db.query(HOA).filter(HOA.user_id == current_user.id).order_by(HOA.name).all()
     hoa_ids = [h.id for h in hoas]
     if not hoa_ids:
         return []
