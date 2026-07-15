@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import emailjs from '@emailjs/browser'
 import { residentAPI, violationAPI, hoaAPI } from '../api'
 import OverviewTab from '../components/OverviewTab'
 import ViolationsTab from '../components/ViolationsTab'
@@ -16,18 +15,10 @@ import useDocumentTitle from '../lib/useDocumentTitle'
 
 const currencyFmt = (n) => Number(n || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 
-function getEmailJSConfig() {
-  return {
-    service: import.meta.env.VITE_EJS_SERVICE || import.meta.env.VITE_EMAILJS_SERVICE_ID,
-    template: import.meta.env.VITE_EJS_TEMPLATE || import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
-    key: import.meta.env.VITE_EJS_KEY || import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
-  }
-}
-
 const TABS = ['overview', 'violations', 'residents']
 const VIOLATION_FILTERS = ['open', 'noticed', 'escalated', 'resolved', 'overdue']
 
-export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPortfolio, onAddClient, onEditClient, setToken }) {
+export default function Dashboard({ hoa, hoas, onSwitchHoa, onShowPortfolio, onAddClient, onEditClient, setToken }) {
   const hoaId = hoa.id
   useDocumentTitle(`${hoa.name} — ViolationTrack`)
 
@@ -198,64 +189,23 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
     }
     setSendingEmail((prev) => ({ ...prev, [violationId]: true }))
 
-    // Preferred path: the server sends and archives the letter in one
-    // transaction. 501 means SMTP isn't configured → fall back to EmailJS.
+    // The server generates the letter, sends it through the configured email
+    // provider (Brevo API / SMTP), and archives the exact copy in one
+    // transaction — so the audit record is authoritative. 501 means no
+    // provider is set up on the server yet.
     try {
       const res = await violationAPI.sendNotice(violationId)
       applySentViolation(violationId, res.data.violation)
       addToast(`Letter sent to ${violation.resident_email}.`)
-      setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
-      return
     } catch (err) {
-      if (err.response?.status !== 501) {
-        addToast(err.response?.data?.detail || 'Failed to send email.', 'error')
-        setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
-        return
-      }
-    }
-
-    // Fallback: client-side EmailJS. The exact letter text is passed to
-    // mark-sent so the archived copy matches what was emailed.
-    const cfg = getEmailJSConfig()
-    if (!cfg.service || !cfg.template || !cfg.key) {
-      addToast('Email is not configured (neither SMTP nor EmailJS).', 'error')
-      setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
-      return
-    }
-    if (!hoaEmail) {
-      addToast('Add the HOA email address in settings before sending letters.', 'error')
-      setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
-      return
-    }
-    try {
-      const letterRes = await violationAPI.getLetter(violationId)
-      const letterText = letterRes.data.letter
-      await emailjs.send(
-        cfg.service, cfg.template,
-        {
-          to_email: violation.resident_email,
-          to_name: violation.resident_name,
-          hoa_name: hoa?.name || 'HOA',
-          hoa_email: hoaEmail,
-          violation_type: violation.violation_type,
-          violation_letter: letterText,
-          from_name: hoa?.name || 'ViolationTrack',
-          from_email: hoaEmail,
-          reply_to: hoaEmail,
-        },
-        cfg.key
-      )
-      const markRes = await violationAPI.markSent(violationId, letterText)
-      applySentViolation(violationId, markRes.data.violation)
-      addToast(`Letter sent to ${violation.resident_email}.`)
-    } catch (err) {
-      const detail = err.response?.data?.detail
-      const msg = Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail || err.text || err.message || 'Failed to send email.')
+      const msg = err.response?.status === 501
+        ? 'Email isn’t set up yet. Add an email provider key (BREVO_API_KEY) on the server to start sending notices.'
+        : (err.response?.data?.detail || 'Failed to send email.')
       addToast(msg, 'error')
     } finally {
       setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
     }
-  }, [violations, hoa, hoaEmail, addToast, applySentViolation])
+  }, [violations, addToast, applySentViolation])
 
   const handleViewLetter = useCallback(async (violation) => {
     const open = (data) => setLetterModal({ violation, data, view: data.sent_letter ? 'sent' : 'draft' })

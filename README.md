@@ -21,7 +21,7 @@ Modern violation management for property managers and HOA boards. Track violatio
 **Letters & notices**
 - Professional violation letters generated per case — property address, cure deadline, notice level, fines, repeat-offense and evidence clauses
 - **Sent letters are archived verbatim**: the exact text emailed to the resident is snapshotted and can never be altered by later edits — view or PDF the "as sent" copy anytime
-- Server-side delivery over SMTP when configured (letter sent + archived in one transaction); automatic fallback to client-side EmailJS otherwise
+- Server-side delivery through a transactional email provider (Brevo API, or SMTP) — the letter is sent and archived in one transaction. Notices show the HOA's name as the sender and route replies to the HOA's own address
 - Optional AI drafting via Google Gemini (falls back to a built-in template)
 - Print-ready PDF letters (1" margins, US Letter) for certified mail — draft or as-sent version
 - Send confirmation with recipient preview — no accidental notices
@@ -37,7 +37,7 @@ Modern violation management for property managers and HOA boards. Track violatio
 
 **Account security**
 - Login rate limiting (10 failed attempts / 15 minutes)
-- Self-service password reset via emailed 30-minute links (requires SMTP)
+- Self-service password reset via emailed 30-minute links (requires an email provider — Brevo or SMTP)
 - 8-character password minimum, email validation, enumeration-safe responses
 
 ## Stack
@@ -48,7 +48,7 @@ Modern violation management for property managers and HOA boards. Track violatio
 | Backend | FastAPI, SQLAlchemy 2 |
 | Database | PostgreSQL (production) / SQLite (local dev) |
 | Auth | JWT (Bearer), bcrypt password hashing |
-| Email | EmailJS (client-side send) |
+| Email | Brevo transactional API (server-side) with SMTP fallback |
 | Letters | Gemini (optional) + template fallback, ReportLab PDFs |
 
 ## Local development
@@ -90,27 +90,31 @@ pytest tests/ -q
 | `CORS_ORIGINS` | no | Comma-separated allowed origins (default `*`) |
 | `GEMINI_API_KEY` | no | Enables AI-drafted letters |
 | `GEMINI_MODEL` | no | Override letter model (default `gemini-2.0-flash`) |
-| `SMTP_HOST` / `SMTP_PORT` | no | Enables server-side notice delivery + password reset emails |
+| `BREVO_API_KEY` | no | Enables email (notices + password reset) via Brevo's HTTPS API |
+| `BREVO_SENDER_EMAIL` | no | Verified Brevo sender address (defaults to `SMTP_FROM`) |
+| `BREVO_SENDER_NAME` | no | Default From name; each notice overrides it with the HOA's name |
+| `SMTP_HOST` / `SMTP_PORT` | no | SMTP fallback (used only when `BREVO_API_KEY` is empty) |
 | `SMTP_USER` / `SMTP_PASS` | no | SMTP credentials |
 | `SMTP_FROM` | no | From address (defaults to `SMTP_USER`) |
 | `SMTP_SSL` / `SMTP_STARTTLS` | no | TLS mode (STARTTLS on port 587 by default) |
 | `FRONTEND_URL` | no | Base URL used in password-reset links |
 
-> Without SMTP configured, notice sending falls back to EmailJS (client-side) and password-reset emails can't be delivered.
+> **Email setup (free):** Sign up at [brevo.com](https://www.brevo.com) (free tier: 300 emails/day), verify a sender email (no domain required — you just click a confirmation link), create an API key, and set `BREVO_API_KEY` + `BREVO_SENDER_EMAIL`. Notices show the HOA's name as the sender with replies routed to the HOA's own email. Without an email provider, notice sending returns a clear "not configured" error and password-reset emails can't be delivered.
+>
+> **Why not plain SMTP?** Render and Railway free tiers block outbound SMTP ports (25/465/587). Brevo sends over HTTPS (port 443), so it works there; the SMTP path is only for hosts where those ports are open.
 
 Frontend (Vite):
 
 | Variable | Purpose |
 |---|---|
 | `VITE_API_BASE` | API base URL |
-| `VITE_EJS_SERVICE` / `VITE_EJS_TEMPLATE` / `VITE_EJS_KEY` | EmailJS service, template, and public key for sending notices |
 
-> **EmailJS note:** the actual sending address is whichever account you connect in the EmailJS dashboard. The app sets the HOA's name and email as the from-name/reply-to template variables — map them to `{{from_name}}` / `{{reply_to}}` in your EmailJS template.
+> Email is sent entirely server-side, so the frontend needs no email configuration.
 
 ## Deployment
 
-- **Backend** — any Python host (Railway/Render; a `Procfile` and `render.yaml` are included). Set `DATABASE_URL`, `SECRET_KEY`, and optionally `CORS_ORIGINS` to your frontend origin. Schema migrations run automatically at startup.
-- **Frontend** — static Vite build (`npm run build` → `dist/`) on Vercel/Netlify. Set `VITE_API_BASE` and the EmailJS variables at build time.
+- **Backend** — any Python host (Railway/Render; a `Procfile` and `render.yaml` are included). Set `DATABASE_URL`, `SECRET_KEY`, `BREVO_API_KEY` + `BREVO_SENDER_EMAIL` (for email), and optionally `CORS_ORIGINS` to your frontend origin. Schema migrations run automatically at startup.
+- **Frontend** — static Vite build (`npm run build` → `dist/`) on Vercel/Netlify. Set `VITE_API_BASE` at build time.
 
 ## CSV formats
 

@@ -496,7 +496,7 @@ def forgot_password(data: ForgotPassword, db: Session = Depends(get_db)):
         token = utils.create_access_token({"sub": str(user.id), "purpose": "pwreset"}, timedelta(minutes=30))
         reset_url = f"{os.getenv('FRONTEND_URL', '').rstrip('/')}/reset?token={token}"
         try:
-            utils.send_email_smtp(
+            utils.send_email(
                 to=user.email,
                 subject="Reset your ViolationTrack password",
                 body=f"A password reset was requested for your ViolationTrack account.\n\n"
@@ -1438,9 +1438,10 @@ def _record_notice_sent(db: Session, violation: Violation, letter: str, via: str
 @app.post("/violations/{violation_id}/mark-sent")
 def mark_violation_sent(violation_id: int, body: Optional[MarkSentBody] = None,
                         current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Called by the frontend after EmailJS successfully sends the letter.
-    The frontend passes the exact letter text it emailed so the archived copy
-    matches what went out."""
+    """Record a notice as sent without going through the server mailer — e.g.
+    the manager delivered it by hand or through their own email client. The
+    caller may pass the exact letter text so the archived copy matches what
+    went out."""
     violation = owned_violation(violation_id, current_user, db)
     letter = (body.letter if body and body.letter else None) or build_letter_with_portal(violation, db)
     _record_notice_sent(db, violation, letter, via="email")
@@ -1452,9 +1453,10 @@ def mark_violation_sent(violation_id: int, body: Optional[MarkSentBody] = None,
 
 @app.post("/violations/{violation_id}/send-notice")
 def send_violation_notice(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Server-side notice delivery over SMTP. Preferred over client-side
-    EmailJS when configured: the server generates, sends, and archives the
-    letter in one transaction, so the audit record is authoritative."""
+    """Server-side notice delivery. The server generates, sends (via the
+    configured email provider — Brevo API or SMTP), and archives the letter in
+    one transaction, so the audit record is authoritative. The From shows the
+    HOA's name and replies route to the HOA's own address."""
     violation = owned_violation(violation_id, current_user, db)
     resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
     if not resident or not resident.email:
@@ -1463,7 +1465,7 @@ def send_violation_notice(violation_id: int, current_user: User = Depends(get_cu
     letter = build_letter_with_portal(violation, db)
     subject = f"{NOTICE_LEVELS[min(violation.notice_level or 0, len(NOTICE_LEVELS) - 1)] if violation.notice_level else 'Violation Notice'} — {violation.violation_type}"
     try:
-        utils.send_email_smtp(
+        utils.send_email(
             to=resident.email,
             subject=f"{hoa.name if hoa else 'HOA'}: {subject}",
             body=letter,
@@ -1471,7 +1473,7 @@ def send_violation_notice(violation_id: int, current_user: User = Depends(get_cu
             from_name=(hoa.name if hoa else None),
         )
     except LookupError:
-        raise HTTPException(status_code=501, detail="Server email (SMTP) is not configured")
+        raise HTTPException(status_code=501, detail="No email provider is configured on the server")
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Email delivery failed: {e}")
     _record_notice_sent(db, violation, letter, via="server")

@@ -22,7 +22,6 @@ function DashboardRoute({ hoas, onSwitchHoa, onShowPortfolio, onAddClient, onEdi
       key={hoa.id}
       hoa={hoa}
       hoas={hoas}
-      hoaEmail={hoa.email}
       onSwitchHoa={onSwitchHoa}
       onShowPortfolio={onShowPortfolio}
       onAddClient={onAddClient}
