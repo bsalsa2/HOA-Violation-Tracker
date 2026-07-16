@@ -14,10 +14,11 @@ import io
 from datetime import datetime, timedelta
 import base64
 import random
+import secrets
 import time
 from collections import defaultdict, deque
 from database import engine, SessionLocal, Base
-from models import User, HOA, Resident, Violation, ViolationNote, ViolationPhoto, ViolationFine
+from models import User, HOA, Resident, Violation, ViolationNote, ViolationPhoto, ViolationFine, InviteCode
 import utils
 
 Base.metadata.create_all(bind=engine)
@@ -38,6 +39,10 @@ app.add_middleware(
 NOTICE_LEVELS = ["None", "Courtesy Notice", "First Notice", "Second Notice", "Final Notice", "Hearing / Legal"]
 VALID_STATUSES = {"open", "noticed", "resolved", "escalated"}
 VALID_PRIORITIES = {"low", "medium", "high"}
+
+# The operator account. This email bootstraps as admin and can register without
+# an invite code (everyone else is invite-only). Overridable via env for testing.
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "violationtrack.notices@gmail.com").strip().lower()
 
 
 # -- Migrations (safe, idempotent) --
@@ -66,6 +71,7 @@ def startup():
             # Postgres form, then the SQLite-compatible form (each failure is caught)
             "ALTER TABLE residents ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP",
             "ALTER TABLE residents ADD COLUMN archived_at TIMESTAMP",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE",
         ]:
             try:
                 db.execute(text(stmt))
@@ -137,6 +143,16 @@ def portal_violation(token: str, db: Session) -> Violation:
 class UserRegister(BaseModel):
     email: str
     password: str
+    invite_code: Optional[str] = None
+
+
+class ChangePassword(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class InviteCreate(BaseModel):
+    label: Optional[str] = None
 
 
 class HOACreate(BaseModel):
@@ -212,11 +228,17 @@ def get_current_user(
     return user
 
 
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
+
 # -- Ownership helpers (every scoped resource is verified to belong to the caller) --
 
 def owned_hoa(hoa_id: int, user: User, db: Session) -> HOA:
-    hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == user.id).first()
-    if not hoa:
+    hoa = db.query(HOA).filter(HOA.id == hoa_id).first()
+    if not hoa or (not user.is_admin and hoa.user_id != user.id):
         raise HTTPException(status_code=404, detail="Client (HOA) not found")
     return hoa
 
@@ -455,11 +477,93 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    user = User(email=email, hashed_password=utils.hash_password(data.password))
+
+    # Registration is invite-only. The operator email bootstraps as admin
+    # without a code (there'd be no one to mint the first code otherwise);
+    # everyone else must present a valid, unused invite code.
+    is_admin = email == ADMIN_EMAIL
+    invite = None
+    if not is_admin:
+        code = (data.invite_code or "").strip()
+        if code:
+            invite = db.query(InviteCode).filter(InviteCode.code == code).first()
+        if not invite or invite.used_at is not None:
+            raise HTTPException(
+                status_code=403,
+                detail="Sign-up is invite-only. Use the link from your welcome email, "
+                       "or contact us to get access.",
+            )
+
+    user = User(email=email, hashed_password=utils.hash_password(data.password), is_admin=is_admin)
     db.add(user)
+    db.flush()  # assign user.id before marking the invite used
+    if invite is not None:
+        invite.used_by = user.id
+        invite.used_at = datetime.utcnow()
     db.commit()
     db.refresh(user)
     return {"access_token": utils.create_access_token({"sub": str(user.id)}), "token_type": "bearer"}
+
+
+@app.get("/auth/me")
+def whoami(current_user: User = Depends(get_current_user)):
+    return {"id": current_user.id, "email": current_user.email, "is_admin": bool(current_user.is_admin)}
+
+
+@app.post("/auth/change-password")
+def change_password(data: ChangePassword, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not utils.verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if len(data.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+    current_user.hashed_password = utils.hash_password(data.new_password)
+    db.commit()
+    return {"message": "Password updated."}
+
+
+@app.post("/admin/invites")
+def create_invite(data: InviteCreate, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Mint a single-use signup code. The operator sends the paying customer a
+    link containing it (e.g. https://app/?invite=CODE)."""
+    code = secrets.token_urlsafe(9)
+    invite = InviteCode(code=code, label=(data.label or None), created_by=admin.id)
+    db.add(invite)
+    db.commit()
+    db.refresh(invite)
+    return {"id": invite.id, "code": invite.code, "label": invite.label, "created_at": invite.created_at.isoformat()}
+
+
+@app.get("/admin/invites")
+def list_invites(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    invites = db.query(InviteCode).order_by(InviteCode.created_at.desc()).all()
+    used_emails = {}
+    used_ids = [i.used_by for i in invites if i.used_by]
+    if used_ids:
+        used_emails = {u.id: u.email for u in db.query(User).filter(User.id.in_(used_ids)).all()}
+    return [
+        {
+            "id": i.id,
+            "code": i.code,
+            "label": i.label,
+            "used": i.used_at is not None,
+            "used_by_email": used_emails.get(i.used_by),
+            "used_at": i.used_at.isoformat() if i.used_at else None,
+            "created_at": i.created_at.isoformat(),
+        }
+        for i in invites
+    ]
+
+
+@app.delete("/admin/invites/{invite_id}")
+def revoke_invite(invite_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    invite = db.query(InviteCode).filter(InviteCode.id == invite_id).first()
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    if invite.used_at is not None:
+        raise HTTPException(status_code=400, detail="That invite has already been used and can't be revoked")
+    db.delete(invite)
+    db.commit()
+    return {"message": "Invite revoked"}
 
 
 @app.post("/auth/login")
@@ -533,7 +637,10 @@ def reset_password(data: ResetPassword, db: Session = Depends(get_db)):
 
 @app.get("/hoas")
 def list_hoas(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    hoas = db.query(HOA).filter(HOA.user_id == current_user.id).order_by(HOA.name).all()
+    if current_user.is_admin:
+        hoas = db.query(HOA).order_by(HOA.name).all()
+    else:
+        hoas = db.query(HOA).filter(HOA.user_id == current_user.id).order_by(HOA.name).all()
     hoa_ids = [h.id for h in hoas]
     if not hoa_ids:
         return []

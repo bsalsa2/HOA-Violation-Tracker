@@ -35,9 +35,11 @@ Modern violation management for property managers and HOA boards. Track violatio
 - ⌘K command palette for everything
 - Deep-linkable URLs — every community, tab, and open violation has an address you can bookmark or paste into board minutes
 
-**Account security**
+**Account security & access**
+- Invite-only registration: the operator mints single-use signup links (one per paying customer); visitors without a link are pointed to contact for access
+- Admin operator (`ADMIN_EMAIL`) sees and manages every HOA; regular managers see only their own
+- In-app change password, plus self-service reset via emailed 30-minute links (requires an email provider — Brevo or SMTP)
 - Login rate limiting (10 failed attempts / 15 minutes)
-- Self-service password reset via emailed 30-minute links (requires an email provider — Brevo or SMTP)
 - 8-character password minimum, email validation, enumeration-safe responses
 
 ## Stack
@@ -88,6 +90,7 @@ pytest tests/ -q
 | `DATABASE_URL` | prod | Postgres connection string (SQLite fallback for dev) |
 | `SECRET_KEY` | prod | JWT signing secret (`JWT_SECRET` also accepted) |
 | `CORS_ORIGINS` | no | Comma-separated allowed origins (default `*`) |
+| `ADMIN_EMAIL` | no | Operator account — bootstraps as admin and registers without an invite code (default `violationtrack.notices@gmail.com`) |
 | `GEMINI_API_KEY` | no | Enables AI-drafted letters |
 | `GEMINI_MODEL` | no | Override letter model (default `gemini-2.0-flash`) |
 | `BREVO_API_KEY` | no | Enables email (notices + password reset) via Brevo's HTTPS API |

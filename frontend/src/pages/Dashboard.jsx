@@ -7,6 +7,7 @@ import ResidentsTab from '../components/ResidentsTab'
 import ViolationDrawer from '../components/ViolationDrawer'
 import CommandPalette from '../components/CommandPalette'
 import HoaSwitcher from '../components/HoaSwitcher'
+import AccountMenu from '../components/AccountMenu'
 import { AddResidentModal, AddViolationModal, ImportCSVModal, ImportViolationsCSVModal } from '../components/modals'
 import { Modal, ConfirmDialog, ToastStack, Spinner } from '../components/primitives'
 import { openBoardReport } from '../lib/boardReport'
@@ -18,7 +19,7 @@ const currencyFmt = (n) => Number(n || 0).toLocaleString('en-US', { style: 'curr
 const TABS = ['overview', 'violations', 'residents']
 const VIOLATION_FILTERS = ['open', 'noticed', 'escalated', 'resolved', 'overdue']
 
-export default function Dashboard({ hoa, hoas, onSwitchHoa, onShowPortfolio, onAddClient, onEditClient, setToken }) {
+export default function Dashboard({ hoa, hoas, me, onSwitchHoa, onShowPortfolio, onAddClient, onEditClient, onSignOut, setToken }) {
   const hoaId = hoa.id
   useDocumentTitle(`${hoa.name} — ViolationTrack`)
 
@@ -397,7 +398,7 @@ export default function Dashboard({ hoa, hoas, onSwitchHoa, onShowPortfolio, onA
                 <span className="hidden sm:inline">Board Report</span>
               </button>
               <button onClick={() => onEditClient(hoaId)} className="hidden md:block px-3 py-1.5 text-xs text-slate-400 hover:text-slate-100 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors">Edit</button>
-              <button onClick={handleLogout} className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-100 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors whitespace-nowrap">Sign Out</button>
+              <AccountMenu email={me?.email} isAdmin={me?.is_admin} onSignOut={onSignOut || handleLogout} addToast={addToast} />
             </div>
           </div>
 
