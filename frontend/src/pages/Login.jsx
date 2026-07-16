@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { authAPI } from '../api'
 import useDocumentTitle from '../lib/useDocumentTitle'
 
@@ -8,6 +8,9 @@ const HIGHLIGHTS = [
   { label: 'Board-ready reports' },
 ]
 
+const SUPPORT_EMAIL = 'violationtrack.notices@gmail.com'
+const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=ViolationTrack%20access%20request`
+
 function Login({ setToken }) {
   useDocumentTitle('Sign in — ViolationTrack')
   const [mode, setMode] = useState('login')
@@ -16,6 +19,11 @@ function Login({ setToken }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [forgotSent, setForgotSent] = useState(false)
+  const [showManualSignup, setShowManualSignup] = useState(false)
+
+  // A paid customer's welcome link carries ?invite=CODE. Without it, sign-up
+  // is closed and we point visitors to email us for access.
+  const inviteCode = useMemo(() => new URLSearchParams(window.location.search).get('invite') || '', [])
 
   const handleForgot = async (e) => {
     e.preventDefault()
@@ -36,8 +44,9 @@ function Login({ setToken }) {
     setLoading(true)
     setError('')
     try {
-      const fn = mode === 'login' ? authAPI.login : authAPI.register
-      const response = await fn(email, password)
+      const response = mode === 'login'
+        ? await authAPI.login(email, password)
+        : await authAPI.register(email, password, inviteCode)
       localStorage.setItem('access_token', response.data.access_token)
       setToken(response.data.access_token)
     } catch (err) {
@@ -45,6 +54,7 @@ function Login({ setToken }) {
       const status = err.response?.status
       if (mode === 'login' && status === 401) setError('Invalid email or password.')
       else if (status === 429) setError('Too many failed attempts. Try again in a few minutes.')
+      else if (mode === 'register' && status === 403) setError(typeof detail === 'string' ? detail : 'Sign-up is invite-only.')
       else if (mode === 'register' && status === 400) setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail || 'Could not create the account.'))
       else if (!err.response) setError('Cannot reach the server. It may still be deploying — wait a moment and try again.')
       else setError(`Error ${status}: ${Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail || err.message || 'Unknown error')}`)
@@ -79,7 +89,7 @@ function Login({ setToken }) {
               <button
                 key={m}
                 type="button"
-                onClick={() => { setMode(m); setError('') }}
+                onClick={() => { setMode(m); setError(''); setShowManualSignup(false) }}
                 className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
                   mode === m ? 'bg-white/[0.07] text-white ring-1 ring-[#3b82f6]/25 shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white'
                 }`}
@@ -125,8 +135,27 @@ function Login({ setToken }) {
                 </p>
               </form>
             )
+          ) : (mode === 'register' && !inviteCode && !showManualSignup) ? (
+            <div className="space-y-4 text-center py-2">
+              <div className="inline-flex w-11 h-11 rounded-full bg-[#3b82f6]/10 ring-1 ring-[#3b82f6]/25 items-center justify-center">
+                <svg className="w-5 h-5 text-[#60a5fa]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-slate-100 text-sm font-medium">Sign-up is invite-only</p>
+                <p className="text-slate-400 text-sm">Already subscribed? Open the sign-up link from your welcome email. Otherwise, reach out and we'll get you set up.</p>
+              </div>
+              <a href={SUPPORT_MAILTO} className="btn-primary btn-sheen w-full py-3 inline-flex items-center justify-center no-underline">Email us for access</a>
+              <button type="button" onClick={() => { setMode('login'); setError('') }} className="block w-full text-xs text-slate-500 hover:text-slate-300 transition-colors">Back to sign in</button>
+              <button type="button" onClick={() => setShowManualSignup(true)} className="block w-full text-[11px] text-slate-600 hover:text-slate-400 transition-colors">Operator? Create your account</button>
+            </div>
           ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === 'register' && inviteCode && (
+              <div className="flex items-center gap-2 bg-emerald-900/20 border border-emerald-800/40 text-emerald-200 text-xs rounded-lg p-2.5">
+                <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                Invite applied — create your account below.
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Email address</label>
               <input

@@ -17,6 +17,21 @@ class User(Base):
     hoas = relationship("HOA", back_populates="user")
 
 
+class InviteCode(Base):
+    """A single-use signup code. The operator mints one for each paying
+    customer and sends them a link containing it; registration requires a
+    valid, unused code so accounts can't be created without paying."""
+    __tablename__ = "invite_codes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String, unique=True, index=True)
+    label = Column(String, nullable=True)              # e.g. the customer's name, for the operator's reference
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    used_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class HOA(Base):
     __tablename__ = "hoas"
 
