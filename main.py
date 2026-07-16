@@ -506,7 +506,10 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
 
 
 @app.get("/auth/me")
-def whoami(current_user: User = Depends(get_current_user)):
+def whoami(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.email.lower() == ADMIN_EMAIL and not current_user.is_admin:
+        current_user.is_admin = True
+        db.commit()
     return {"id": current_user.id, "email": current_user.email, "is_admin": bool(current_user.is_admin)}
 
 
@@ -576,6 +579,11 @@ def login(data: UserRegister, db: Session = Depends(get_db)):
         record_login_failure(email.lower())
         raise HTTPException(status_code=401, detail="Invalid email or password")
     _login_failures.pop(email.lower(), None)
+    # Self-heal: the designated operator email is always admin, even if the
+    # account was created before the admin flag existed.
+    if user.email.lower() == ADMIN_EMAIL and not user.is_admin:
+        user.is_admin = True
+        db.commit()
     return {"access_token": utils.create_access_token({"sub": str(user.id)}), "token_type": "bearer"}
 
 

@@ -99,10 +99,10 @@ export function Modal({ title, subtitle, onClose, children, wide = false }) {
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 anim-fade" onClick={(e) => { if (e.target === e.currentTarget) onClose?.() }}>
+    <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4 anim-fade" style={{ background: 'rgba(2, 6, 15, 0.72)' }} onClick={(e) => { if (e.target === e.currentTarget) onClose?.() }}>
       <div
         className={`anim-scale-in vt-card ${wide ? 'max-w-2xl' : 'max-w-lg'} w-full max-h-[90vh] flex flex-col`}
-        style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.08), var(--shadow-xl)' }}
+        style={{ background: '#0d121e', boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.08), var(--shadow-xl)' }}
       >
         <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-white/[0.06]">
           <div>
@@ -125,8 +125,8 @@ export function Modal({ title, subtitle, onClose, children, wide = false }) {
 
 export function ConfirmDialog({ message, confirmLabel = 'Delete', onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4 anim-fade">
-      <div className="anim-scale-in vt-card p-6 max-w-sm w-full" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.08), var(--shadow-xl)' }}>
+    <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-[60] p-4 anim-fade" style={{ background: 'rgba(2, 6, 15, 0.72)' }}>
+      <div className="anim-scale-in vt-card p-6 max-w-sm w-full" style={{ background: '#0d121e', boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.08), var(--shadow-xl)' }}>
         <div className="flex items-center gap-3 mb-4">
           <div className="flex-shrink-0 w-11 h-11 bg-red-500/10 ring-1 ring-red-500/20 rounded-full flex items-center justify-center">
             <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
