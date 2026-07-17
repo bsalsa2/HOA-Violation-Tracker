@@ -5,7 +5,7 @@ import { Modal, Spinner } from './primitives'
 /** Header account dropdown: change password (all users), invite links (admin), sign out. */
 export default function AccountMenu({ email, isAdmin, onSignOut, addToast }) {
   const [open, setOpen] = useState(false)
-  const [modal, setModal] = useState(null) // 'password' | 'invite' | null
+  const [modal, setModal] = useState(null) // 'password' | 'invite' | 'wipe' | null
   const ref = useRef(null)
 
   useEffect(() => {
@@ -44,6 +44,12 @@ export default function AccountMenu({ email, isAdmin, onSignOut, addToast }) {
               Invite links
             </button>
           )}
+          {isAdmin && (
+            <button onClick={() => { setModal('wipe'); setOpen(false) }} className={`${item} text-red-400 hover:bg-red-500/10`}>
+              <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              Wipe all data
+            </button>
+          )}
           <div className="vt-hairline my-1.5" />
           <button onClick={onSignOut} className={item}>
             <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
@@ -54,6 +60,7 @@ export default function AccountMenu({ email, isAdmin, onSignOut, addToast }) {
 
       {modal === 'password' && <ChangePasswordModal onClose={() => setModal(null)} addToast={addToast} />}
       {modal === 'invite' && <InviteModal onClose={() => setModal(null)} addToast={addToast} />}
+      {modal === 'wipe' && <WipeDataModal onClose={() => setModal(null)} addToast={addToast} />}
     </div>
   )
 }
@@ -104,6 +111,60 @@ function ChangePasswordModal({ onClose, addToast }) {
           <button type="button" onClick={onClose} className="flex-1 py-2.5 text-sm border border-white/10 text-slate-400 hover:bg-white/5 rounded-lg transition-colors">Cancel</button>
           <button type="submit" disabled={loading} className="btn-primary btn-sheen flex-1 py-2.5 text-sm flex items-center justify-center gap-2">
             {loading && <Spinner />} Update password
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+function WipeDataModal({ onClose, addToast }) {
+  const [confirmText, setConfirmText] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      const res = await adminAPI.wipeData()
+      addToast(res.data.message || 'All data wiped.')
+      // Every list in the app (HOAs, residents, violations) was loaded before
+      // the wipe — reload so the whole app re-fetches a clean, empty state.
+      window.location.reload()
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Could not wipe data.')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Modal title="Wipe all data" subtitle="Deletes every HOA, resident, and violation — for every account" onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <div className="flex items-start gap-2.5 bg-red-900/20 border border-red-800/40 text-red-200 text-sm rounded-lg p-3">
+          <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+          <span>This permanently deletes <strong>all HOAs, residents, and violations across every account</strong> — not just yours. Logins and invite links are kept. This cannot be undone.</span>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">Type <span className="font-mono text-red-300">WIPE</span> to confirm</label>
+          <input
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            className="vt-input px-3.5 py-2.5 focus:ring-2 focus:ring-red-500/30 font-mono"
+            placeholder="WIPE"
+            autoComplete="off"
+          />
+        </div>
+        {error && <div className="bg-red-900/30 border border-red-800/50 text-red-200 text-sm rounded-lg p-3">{error}</div>}
+        <div className="flex gap-3 pt-1">
+          <button type="button" onClick={onClose} className="flex-1 py-2.5 text-sm border border-white/10 text-slate-400 hover:bg-white/5 rounded-lg transition-colors">Cancel</button>
+          <button
+            type="submit"
+            disabled={loading || confirmText !== 'WIPE'}
+            className="flex-1 py-2.5 text-sm bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 disabled:opacity-40 disabled:pointer-events-none text-slate-100 rounded-lg transition-all font-medium shadow-lg shadow-red-900/40 flex items-center justify-center gap-2"
+          >
+            {loading && <Spinner />} Wipe everything
           </button>
         </div>
       </form>
