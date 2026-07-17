@@ -569,29 +569,6 @@ def revoke_invite(invite_id: int, admin: User = Depends(require_admin), db: Sess
     return {"message": "Invite revoked"}
 
 
-class WipeDataBody(BaseModel):
-    confirm: str
-
-
-@app.post("/admin/wipe-data")
-def wipe_all_data(data: WipeDataBody, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
-    """Deletes every HOA across every account, along with its residents and
-    violations (notes/fines/photos cascade). Logins and invite codes are left
-    intact so nobody gets locked out. Irreversible — requires typing WIPE."""
-    if data.confirm != "WIPE":
-        raise HTTPException(status_code=400, detail="Type WIPE to confirm — this cannot be undone")
-    hoa_count = db.query(HOA).count()
-    # Bulk delete bypasses ORM cascade, so children must go first, in FK order.
-    db.query(ViolationPhoto).delete(synchronize_session=False)
-    db.query(ViolationNote).delete(synchronize_session=False)
-    db.query(ViolationFine).delete(synchronize_session=False)
-    db.query(Violation).delete(synchronize_session=False)
-    db.query(Resident).delete(synchronize_session=False)
-    db.query(HOA).delete(synchronize_session=False)
-    db.commit()
-    return {"message": f"Wiped {hoa_count} HOA(s) and all their residents/violations."}
-
-
 @app.post("/auth/login")
 def login(data: UserRegister, db: Session = Depends(get_db)):
     email = data.email.strip()

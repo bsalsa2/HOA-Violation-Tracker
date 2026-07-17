@@ -41,7 +41,6 @@ export const adminAPI = {
   createInvite: (label) => api.post('/admin/invites', { label: label || null }),
   listInvites: () => api.get('/admin/invites'),
   revokeInvite: (id) => api.delete(`/admin/invites/${id}`),
-  wipeData: () => api.post('/admin/wipe-data', { confirm: 'WIPE' }),
 }
 
 export const hoaAPI = {
