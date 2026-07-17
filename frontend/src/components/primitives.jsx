@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 export function Spinner({ className = 'w-4 h-4' }) {
   return (
@@ -98,7 +99,10 @@ export function Modal({ title, subtitle, onClose, children, wide = false }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  return (
+  // Portal to <body>: ancestors with backdrop-filter/transform (e.g. the
+  // blurred sticky header) hijack position:fixed, pinning the dialog to
+  // themselves instead of the viewport.
+  return createPortal(
     <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4 anim-fade" style={{ background: 'rgba(2, 6, 15, 0.72)' }} onClick={(e) => { if (e.target === e.currentTarget) onClose?.() }}>
       <div
         className={`anim-scale-in vt-card ${wide ? 'max-w-2xl' : 'max-w-lg'} w-full max-h-[90vh] flex flex-col`}
@@ -119,12 +123,13 @@ export function Modal({ title, subtitle, onClose, children, wide = false }) {
         </div>
         <div className="p-6 overflow-y-auto">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
 export function ConfirmDialog({ message, confirmLabel = 'Delete', onConfirm, onCancel }) {
-  return (
+  return createPortal(
     <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-[60] p-4 anim-fade" style={{ background: 'rgba(2, 6, 15, 0.72)' }}>
       <div className="anim-scale-in vt-card p-6 max-w-sm w-full" style={{ background: '#0d121e', boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.08), var(--shadow-xl)' }}>
         <div className="flex items-center gap-3 mb-4">
@@ -144,7 +149,8 @@ export function ConfirmDialog({ message, confirmLabel = 'Delete', onConfirm, onC
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
