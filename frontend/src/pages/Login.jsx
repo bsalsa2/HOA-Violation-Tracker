@@ -19,7 +19,6 @@ function Login({ setToken }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [forgotSent, setForgotSent] = useState(false)
-  const [showManualSignup, setShowManualSignup] = useState(false)
 
   // A paid customer's welcome link carries ?invite=CODE. Without it, sign-up
   // is closed and we point visitors to email us for access.
@@ -89,7 +88,7 @@ function Login({ setToken }) {
               <button
                 key={m}
                 type="button"
-                onClick={() => { setMode(m); setError(''); setShowManualSignup(false) }}
+                onClick={() => { setMode(m); setError('') }}
                 className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
                   mode === m ? 'bg-white/[0.07] text-white ring-1 ring-[#3b82f6]/25 shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white'
                 }`}
@@ -135,7 +134,7 @@ function Login({ setToken }) {
                 </p>
               </form>
             )
-          ) : (mode === 'register' && !inviteCode && !showManualSignup) ? (
+          ) : (mode === 'register' && !inviteCode) ? (
             <div className="space-y-4 text-center py-2">
               <div className="inline-flex w-11 h-11 rounded-full bg-[#3b82f6]/10 ring-1 ring-[#3b82f6]/25 items-center justify-center">
                 <svg className="w-5 h-5 text-[#60a5fa]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -146,7 +145,6 @@ function Login({ setToken }) {
               </div>
               <a href={SUPPORT_MAILTO} className="btn-primary btn-sheen w-full py-3 inline-flex items-center justify-center no-underline">Email us for access</a>
               <button type="button" onClick={() => { setMode('login'); setError('') }} className="block w-full text-xs text-slate-500 hover:text-slate-300 transition-colors">Back to sign in</button>
-              <button type="button" onClick={() => setShowManualSignup(true)} className="block w-full text-[11px] text-slate-600 hover:text-slate-400 transition-colors">Operator? Create your account</button>
             </div>
           ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
