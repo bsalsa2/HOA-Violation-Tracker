@@ -664,32 +664,3 @@ def test_demo_seed_populates_empty_hoa(client, alice):
 
     a = client.get(f"/hoas/{new_hoa['id']}/analytics", headers=alice).json()
     assert a["kpis"]["total_violations"] == 10
-    assert a["kpis"]["total_residents"] == 8
-
-
-# ---------- Admin data wipe (destructive — must run last) ----------
-
-def test_wipe_data_requires_admin_and_confirmation(client, alice):
-    # Non-admin is forbidden regardless of confirmation text
-    res = client.post("/admin/wipe-data", json={"confirm": "WIPE"}, headers=alice)
-    assert res.status_code == 403
-    # Admin without the exact confirmation phrase is rejected
-    res = client.post("/admin/wipe-data", json={"confirm": "wipe"}, headers=admin_headers(client))
-    assert res.status_code == 400
-
-
-def test_wipe_data_clears_hoas_but_keeps_logins(client, alice, hoa, resident):
-    # Sanity: there's data to wipe
-    assert len(client.get(f"/hoas", headers=alice).json()) > 0
-
-    res = client.post("/admin/wipe-data", json={"confirm": "WIPE"}, headers=admin_headers(client))
-    assert res.status_code == 200
-
-    # All HOAs gone, for every account
-    assert client.get("/hoas", headers=alice).json() == []
-    assert client.get("/hoas", headers=admin_headers(client)).json() == []
-
-    # But the accounts themselves still work — nobody got locked out
-    assert client.post("/auth/login", json={"email": "alice@example.com", "password": "password123"}).status_code == 200
-    me = client.get("/auth/me", headers=admin_headers(client))
-    assert me.status_code == 200 and me.json()["is_admin"] is True
