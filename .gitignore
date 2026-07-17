@@ -21,6 +21,7 @@ wheels/
 
 .env
 .env.local
+.env.supabase
 .venv/
 venv/
 ENV/
