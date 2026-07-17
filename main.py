@@ -775,6 +775,11 @@ def update_hoa(hoa_id: int, data: HOACreate, current_user: User = Depends(get_cu
 @app.delete("/hoas/{hoa_id}")
 def delete_hoa(hoa_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     hoa = owned_hoa(hoa_id, current_user, db)
+    # Explicitly delete related violation notes, fines, and photos first (they reference HOA directly)
+    db.query(ViolationNote).filter(ViolationNote.hoa_id == hoa_id).delete()
+    db.query(ViolationFine).filter(ViolationFine.hoa_id == hoa_id).delete()
+    db.query(ViolationPhoto).filter(ViolationPhoto.hoa_id == hoa_id).delete()
+    # Delete violations and residents (cascade will handle nested relationships)
     db.delete(hoa)
     db.commit()
     return {"message": "Client deleted"}
