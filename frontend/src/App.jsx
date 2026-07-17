@@ -90,17 +90,16 @@ function AuthedApp({ setToken }) {
   const handleDeleteClient = async () => {
     const id = editClientId
     setConfirmDeleteClient(false)
-    setEditClientId(null)
     try {
       await hoaAPI.delete(id)
       const remaining = await refreshPortfolio()
+      setEditClientId(null)
       navigate(remaining.length > 0 ? `/c/${remaining[0].id}` : '/', { replace: true })
     } catch (err) {
-      setEditClientId(null)
-      console.error('Delete failed:', err)
-      const errorMsg = err.response?.data?.detail || 'Failed to delete client.'
+      console.error('Delete failed:', err.response?.status, err.response?.data)
       // Sync with server state in case delete partially succeeded
       await refreshPortfolio()
+      setEditClientId(null)
     }
   }
 
