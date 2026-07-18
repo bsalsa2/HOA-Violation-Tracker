@@ -1606,3 +1606,10 @@ def send_violation_notice(violation_id: int, current_user: User = Depends(get_cu
     db.commit()
     db.refresh(violation)
     return {"email_sent_at": violation.email_sent_at.isoformat(), "violation": serialize_violation(violation, resident, db=db)}
+
+
+if __name__ == "__main__":
+    # Local development entry point: `python main.py`
+    # (production uses a process manager that runs uvicorn directly)
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000)

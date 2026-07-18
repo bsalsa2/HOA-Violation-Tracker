@@ -2,6 +2,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 
+# Load a local .env file if present (used for local development on a laptop;
+# hosted platforms like Railway inject env vars directly so this is a no-op there).
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./hoa_tracker.db")
 
 if DATABASE_URL.startswith("postgres"):
