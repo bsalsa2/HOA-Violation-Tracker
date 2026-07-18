@@ -13,16 +13,13 @@ const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=ViolationTrack%20access%
 
 function Login({ setToken }) {
   useDocumentTitle('Sign in — ViolationTrack')
-  const [mode, setMode] = useState('login')
+  const inviteCode = useMemo(() => new URLSearchParams(window.location.search).get('invite') || '', [])
+  const [mode, setMode] = useState(inviteCode ? 'register' : 'login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [forgotSent, setForgotSent] = useState(false)
-
-  // A paid customer's welcome link carries ?invite=CODE. Without it, sign-up
-  // is closed and we point visitors to email us for access.
-  const inviteCode = useMemo(() => new URLSearchParams(window.location.search).get('invite') || '', [])
 
   const handleForgot = async (e) => {
     e.preventDefault()
@@ -53,7 +50,10 @@ function Login({ setToken }) {
       const status = err.response?.status
       if (mode === 'login' && status === 401) setError('Invalid email or password.')
       else if (status === 429) setError('Too many failed attempts. Try again in a few minutes.')
-      else if (mode === 'register' && status === 403) setError(typeof detail === 'string' ? detail : 'Sign-up is invite-only.')
+      else if (mode === 'register' && status === 403) {
+        const msg = typeof detail === 'string' ? detail : 'Sign-up is invite-only.'
+        setError(`${msg} Contact sales for access.`)
+      }
       else if (mode === 'register' && status === 400) setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail || 'Could not create the account.'))
       else if (!err.response) setError('Cannot reach the server. It may still be deploying — wait a moment and try again.')
       else setError(`Error ${status}: ${Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail || err.message || 'Unknown error')}`)
@@ -92,11 +92,21 @@ function Login({ setToken }) {
                 className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
                   mode === m ? 'bg-white/[0.07] text-white ring-1 ring-[#3b82f6]/25 shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white'
                 }`}
+                disabled={m === 'register' && !inviteCode}
               >
                 {m === 'login' ? 'Sign In' : 'Create Account'}
               </button>
             ))}
           </div>
+
+          {mode === 'register' && !inviteCode && (
+            <div className="bg-blue-900/20 border border-blue-800/40 text-blue-200 text-sm rounded-lg p-3 mb-6">
+              <p>Sign-up requires a customer invite link.</p>
+              <p className="text-xs text-blue-300 mt-1">
+                If you're a new customer, <a href={`mailto:${SUPPORT_EMAIL}`} className="underline hover:text-blue-100">contact sales</a> for access.
+              </p>
+            </div>
+          )}
 
           {mode === 'forgot' ? (
             forgotSent ? (
