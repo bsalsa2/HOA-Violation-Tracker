@@ -92,7 +92,6 @@ function Login({ setToken }) {
                 className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
                   mode === m ? 'bg-white/[0.07] text-white ring-1 ring-[#3b82f6]/25 shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white'
                 }`}
-                disabled={m === 'register' && !inviteCode}
               >
                 {m === 'login' ? 'Sign In' : 'Create Account'}
               </button>
@@ -100,10 +99,10 @@ function Login({ setToken }) {
           </div>
 
           {mode === 'register' && !inviteCode && (
-            <div className="bg-blue-900/20 border border-blue-800/40 text-blue-200 text-sm rounded-lg p-3 mb-6">
-              <p>Sign-up requires a customer invite link.</p>
+            <div className="bg-blue-900/20 border border-blue-800/40 text-blue-200 text-sm rounded-lg p-3 mb-4">
+              <p>Invite-only sign-up</p>
               <p className="text-xs text-blue-300 mt-1">
-                If you're a new customer, <a href={`mailto:${SUPPORT_EMAIL}`} className="underline hover:text-blue-100">contact sales</a> for access.
+                <a href={`mailto:${SUPPORT_EMAIL}`} className="underline hover:text-blue-100">Contact sales</a> to get a customer invite link.
               </p>
             </div>
           )}

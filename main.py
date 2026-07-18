@@ -50,10 +50,13 @@ ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "violationtrack.notices@gmail.com").strip
 def startup():
     db = SessionLocal()
     try:
-        from sqlalchemy import text
-        for stmt in [
+        from sqlalchemy import text, inspect
+
+        # PostgreSQL migrations (if not SQLite)
+        is_sqlite = "sqlite" in str(db.get_bind().url)
+
+        pg_stmts = [
             "ALTER TABLE hoas ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)",
-            # Portfolio: a manager may own many HOAs — drop the old one-HOA-per-user unique constraint
             "ALTER TABLE hoas DROP CONSTRAINT IF EXISTS hoas_user_id_key",
             "ALTER TABLE hoas ADD COLUMN IF NOT EXISTS email VARCHAR",
             "ALTER TABLE hoas ADD COLUMN IF NOT EXISTS phone VARCHAR",
@@ -68,18 +71,21 @@ def startup():
             "ALTER TABLE violations ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMP",
             "ALTER TABLE violations ADD COLUMN IF NOT EXISTS fine_amount DOUBLE PRECISION DEFAULT 0",
             "ALTER TABLE violations ADD COLUMN IF NOT EXISTS fine_paid BOOLEAN DEFAULT FALSE",
-            # Postgres form, then the SQLite-compatible form (each failure is caught)
             "ALTER TABLE residents ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP",
-            "ALTER TABLE residents ADD COLUMN archived_at TIMESTAMP",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE",
-        ]:
+        ]
+
+        for stmt in pg_stmts:
+            if is_sqlite:
+                continue  # SQLite schema is created fresh by SQLAlchemy
             try:
                 db.execute(text(stmt))
                 db.commit()
-                print(f"✓ Migration: {stmt[:60]}")
             except Exception as e:
                 db.rollback()
-                print(f"✗ Migration failed: {e}")
+                print(f"⚠ Skipped: {str(e)[:80]}")
+
+        print("✓ Database initialized")
     except Exception as e:
         print(f"Migration error: {e}")
     finally:
