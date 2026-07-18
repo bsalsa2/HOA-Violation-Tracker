@@ -28,10 +28,19 @@ api.interceptors.response.use(
 )
 
 export const authAPI = {
-  register: (email, password) => api.post('/auth/register', { email, password }),
+  register: (email, password, inviteCode) => api.post('/auth/register', { email, password, invite_code: inviteCode || null }),
   login: (email, password) => api.post('/auth/login', { email, password }),
   forgot: (email) => api.post('/auth/forgot', { email }),
   reset: (token, password) => api.post('/auth/reset', { token, password }),
+  me: () => api.get('/auth/me'),
+  changePassword: (currentPassword, newPassword) =>
+    api.post('/auth/change-password', { current_password: currentPassword, new_password: newPassword }),
+}
+
+export const adminAPI = {
+  createInvite: (label) => api.post('/admin/invites', { label: label || null }),
+  listInvites: () => api.get('/admin/invites'),
+  revokeInvite: (id) => api.delete(`/admin/invites/${id}`),
 }
 
 export const hoaAPI = {

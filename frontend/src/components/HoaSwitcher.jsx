@@ -11,10 +11,10 @@ export default function HoaSwitcher({ hoas, activeHoa, onSwitch, onShowPortfolio
   }, [])
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative min-w-0" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/[0.05] transition-colors min-w-0 max-w-[220px]"
+        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/[0.05] transition-colors min-w-0 max-w-full sm:max-w-[220px]"
       >
         <div className="min-w-0 text-left">
           <p className="text-sm font-semibold text-slate-100 leading-none truncate">{activeHoa?.name}</p>
@@ -26,7 +26,7 @@ export default function HoaSwitcher({ hoas, activeHoa, onSwitch, onShowPortfolio
       </button>
 
       {open && (
-        <div className="anim-scale-in absolute left-0 top-full mt-2 w-72 vt-card py-1.5 z-50 max-h-[70vh] overflow-y-auto" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.08), var(--shadow-xl)' }}>
+        <div className="anim-scale-in absolute left-0 top-full mt-2 w-72 vt-card bg-slate-950 py-1.5 z-50 max-h-[70vh] overflow-y-auto" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.08), var(--shadow-xl)' }}>
           <p className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-slate-500">Switch client</p>
           {hoas.map((h) => (
             <button

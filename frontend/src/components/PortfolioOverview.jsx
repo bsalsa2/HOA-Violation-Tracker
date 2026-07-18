@@ -1,14 +1,7 @@
 import React, { useMemo } from 'react'
 import { currency } from '../lib/format'
 import { CountUp } from './primitives'
-
-const GRADE_STYLE = {
-  A: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
-  B: 'text-blue-400 border-blue-500/30 bg-blue-500/10',
-  C: 'text-amber-400 border-amber-500/30 bg-amber-500/10',
-  D: 'text-orange-400 border-orange-500/30 bg-orange-500/10',
-  F: 'text-red-400 border-red-500/30 bg-red-500/10',
-}
+import useDocumentTitle from '../lib/useDocumentTitle'
 
 function ClientCard({ hoa, onOpen, onSettings }) {
   const hasOverdue = hoa.overdue_violations > 0
@@ -31,14 +24,6 @@ function ClientCard({ hoa, onOpen, onSettings }) {
           </div>
         </button>
         <div className="flex items-center gap-2 shrink-0">
-          {hoa.compliance && (
-            <span
-              className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${GRADE_STYLE[hoa.compliance.grade]}`}
-              title={`Compliance score ${hoa.compliance.score}/100 — ${hoa.compliance.factors.resolution_rate}% resolved, ${hoa.compliance.factors.on_time_rate}% on-time, ${hoa.compliance.factors.first_time_rate}% first-time`}
-            >
-              {hoa.compliance.grade} · {hoa.compliance.score}
-            </span>
-          )}
           {hasOverdue && (
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/25 font-medium">
               {hoa.overdue_violations} overdue
@@ -53,6 +38,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
             onClick={(e) => { e.stopPropagation(); onSettings(hoa) }}
             className="p-1.5 rounded-lg text-slate-400 hover:bg-white/5 hover:text-slate-300 transition-colors"
             title="Settings"
+            aria-label={`${hoa.name} settings`}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
           </button>
@@ -81,6 +67,7 @@ function ClientCard({ hoa, onOpen, onSettings }) {
 }
 
 export default function PortfolioOverview({ hoas, onOpen, onEditClient, onAddClient, onSignOut }) {
+  useDocumentTitle('Portfolio — ViolationTrack')
   const totals = useMemo(() => {
     const base = hoas.reduce(
       (acc, h) => ({
@@ -92,10 +79,7 @@ export default function PortfolioOverview({ hoas, onOpen, onEditClient, onAddCli
       }),
       { clients: 0, residents: 0, open: 0, overdue: 0, fines: 0 }
     )
-    const scored = hoas.filter((h) => h.compliance)
-    const avgScore = scored.length ? Math.round(scored.reduce((s, h) => s + h.compliance.score, 0) / scored.length) : null
-    const avgGrade = avgScore === null ? null : avgScore >= 90 ? 'A' : avgScore >= 80 ? 'B' : avgScore >= 70 ? 'C' : avgScore >= 60 ? 'D' : 'F'
-    return { ...base, avgScore, avgGrade }
+    return base
   }, [hoas])
 
   return (
@@ -119,9 +103,6 @@ export default function PortfolioOverview({ hoas, onOpen, onEditClient, onAddCli
             <h2 className="text-xl font-bold text-slate-100 tracking-tight">Your Clients</h2>
             <p className="text-sm text-slate-500 mt-0.5">
               {totals.clients} {totals.clients === 1 ? 'community' : 'communities'} under management
-              {totals.avgScore !== null && (
-                <span> · portfolio compliance <span className={`font-semibold ${GRADE_STYLE[totals.avgGrade]?.split(' ')[0] || 'text-slate-300'}`}>{totals.avgGrade} ({totals.avgScore})</span></span>
-              )}
             </p>
           </div>
           <button onClick={onAddClient} className="btn-primary btn-sheen px-4 py-2 text-sm">+ Add Client</button>

@@ -65,8 +65,7 @@ function ViolationCard({ violation, onOpen }) {
   )
 }
 
-export default function ViolationsTab({ violations, onOpen, onNew, onExport, onImport, canAdd, query, setQuery }) {
-  const [statusFilter, setStatusFilter] = useState('')
+export default function ViolationsTab({ violations, onOpen, onNew, onExport, onImport, canAdd, query, setQuery, statusFilter, setStatusFilter }) {
   const [typeFilter, setTypeFilter] = useState('')
   const [sortBy, setSortBy] = useState('recent')
 

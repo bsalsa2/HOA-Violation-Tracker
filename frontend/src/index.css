@@ -209,6 +209,10 @@
   }
 
   /* Subtle sheen that sweeps a primary button on hover */
+  .btn-sheen {
+    position: relative;
+    overflow: hidden; /* keep the parked sheen from painting outside the button */
+  }
   .btn-sheen::before {
     content: "";
     position: absolute;

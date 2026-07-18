@@ -35,6 +35,68 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
+def send_email(to: str, subject: str, body: str, reply_to: str = None, from_name: str = None):
+    """Deliver a plain-text email through whichever provider is configured.
+
+    Preference order:
+      1. Brevo HTTP API (BREVO_API_KEY) — sends over HTTPS, so it works on hosts
+         that block outbound SMTP ports (Render/Railway free tiers do).
+      2. Raw SMTP (SMTP_HOST) — for self-hosted or paid tiers where SMTP is open.
+
+    `from_name` sets the sender display name (we pass the HOA's name so notices
+    read as coming from that HOA) and `reply_to` routes replies (the HOA's own
+    address). The envelope From is always the one verified sender we control.
+
+    Raises LookupError when no provider is configured, so callers can degrade
+    gracefully (return 501 for notices, silently skip password-reset mail)."""
+    if os.getenv("BREVO_API_KEY"):
+        return _send_email_brevo(to, subject, body, reply_to, from_name)
+    if os.getenv("SMTP_HOST"):
+        return send_email_smtp(to, subject, body, reply_to, from_name)
+    raise LookupError("No email provider configured (set BREVO_API_KEY or SMTP_HOST)")
+
+
+def _send_email_brevo(to: str, subject: str, body: str, reply_to: str = None, from_name: str = None):
+    """Send via Brevo's transactional email API over HTTPS. Requires a verified
+    sender (BREVO_SENDER_EMAIL) — on Brevo's free tier that's just an email you
+    confirm by clicking a link, no domain purchase needed."""
+    import json
+    import urllib.request
+    import urllib.error
+
+    api_key = os.getenv("BREVO_API_KEY")
+    sender_email = os.getenv("BREVO_SENDER_EMAIL") or os.getenv("SMTP_FROM")
+    if not sender_email:
+        raise LookupError("BREVO_SENDER_EMAIL (or SMTP_FROM) is not configured")
+    sender_name = from_name or os.getenv("BREVO_SENDER_NAME") or "ViolationTrack"
+
+    payload = {
+        "sender": {"email": sender_email, "name": sender_name},
+        "to": [{"email": to}],
+        "subject": subject,
+        "textContent": body,
+    }
+    if reply_to:
+        payload["replyTo"] = {"email": reply_to}
+
+    req = urllib.request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=json.dumps(payload).encode("utf-8"),
+        method="POST",
+        headers={
+            "api-key": api_key,
+            "content-type": "application/json",
+            "accept": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            resp.read()
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="ignore")
+        raise RuntimeError(f"Brevo API error {e.code}: {detail}") from e
+
+
 def send_email_smtp(to: str, subject: str, body: str, reply_to: str = None, from_name: str = None):
     """Send plain-text mail through the SMTP server configured in the
     environment. Raises LookupError when SMTP is not configured so callers

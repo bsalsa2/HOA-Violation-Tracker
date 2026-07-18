@@ -14,10 +14,11 @@ import io
 from datetime import datetime, timedelta
 import base64
 import random
+import secrets
 import time
 from collections import defaultdict, deque
 from database import engine, SessionLocal, Base
-from models import User, HOA, Resident, Violation, ViolationNote, ViolationPhoto, ViolationFine
+from models import User, HOA, Resident, Violation, ViolationNote, ViolationPhoto, ViolationFine, InviteCode
 import utils
 
 Base.metadata.create_all(bind=engine)
@@ -38,6 +39,10 @@ app.add_middleware(
 NOTICE_LEVELS = ["None", "Courtesy Notice", "First Notice", "Second Notice", "Final Notice", "Hearing / Legal"]
 VALID_STATUSES = {"open", "noticed", "resolved", "escalated"}
 VALID_PRIORITIES = {"low", "medium", "high"}
+
+# The operator account. This email bootstraps as admin and can register without
+# an invite code (everyone else is invite-only). Overridable via env for testing.
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "violationtrack.notices@gmail.com").strip().lower()
 
 
 # -- Migrations (safe, idempotent) --
@@ -66,6 +71,7 @@ def startup():
             # Postgres form, then the SQLite-compatible form (each failure is caught)
             "ALTER TABLE residents ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP",
             "ALTER TABLE residents ADD COLUMN archived_at TIMESTAMP",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE",
         ]:
             try:
                 db.execute(text(stmt))
@@ -137,6 +143,16 @@ def portal_violation(token: str, db: Session) -> Violation:
 class UserRegister(BaseModel):
     email: str
     password: str
+    invite_code: Optional[str] = None
+
+
+class ChangePassword(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class InviteCreate(BaseModel):
+    label: Optional[str] = None
 
 
 class HOACreate(BaseModel):
@@ -212,11 +228,17 @@ def get_current_user(
     return user
 
 
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
+
 # -- Ownership helpers (every scoped resource is verified to belong to the caller) --
 
 def owned_hoa(hoa_id: int, user: User, db: Session) -> HOA:
-    hoa = db.query(HOA).filter(HOA.id == hoa_id, HOA.user_id == user.id).first()
-    if not hoa:
+    hoa = db.query(HOA).filter(HOA.id == hoa_id).first()
+    if not hoa or (not user.is_admin and hoa.user_id != user.id):
         raise HTTPException(status_code=404, detail="Client (HOA) not found")
     return hoa
 
@@ -344,46 +366,6 @@ def count_prior_offenses(db: Session, violation: Violation) -> int:
     )
 
 
-def compute_compliance(violations, now: Optional[datetime] = None):
-    """Community Compliance Score, 0–100 with a letter grade.
-
-    Three explainable factors:
-      40% resolution rate · 35% deadline performance (share of active cases
-      not past their cure date) · 25% first-time compliance (share of cases
-      that aren't repeat offenses).
-    Returns None when there's no enforcement history to grade.
-    """
-    now = now or datetime.utcnow()
-    total = len(violations)
-    if total == 0:
-        return None
-
-    resolved = sum(1 for v in violations if v.status == "resolved")
-    active = [v for v in violations if v.status != "resolved"]
-    overdue = sum(1 for v in active if v.due_date and v.due_date < now)
-
-    pairs = {}
-    for v in violations:
-        pairs[(v.resident_id, v.violation_type)] = pairs.get((v.resident_id, v.violation_type), 0) + 1
-    repeats = sum(c - 1 for c in pairs.values() if c > 1)
-
-    resolution = resolved / total
-    on_time = 1 - (overdue / len(active)) if active else 1.0
-    first_time = 1 - (repeats / total)
-
-    score = round(100 * (0.40 * resolution + 0.35 * on_time + 0.25 * first_time))
-    grade = "A" if score >= 90 else "B" if score >= 80 else "C" if score >= 70 else "D" if score >= 60 else "F"
-    return {
-        "score": score,
-        "grade": grade,
-        "factors": {
-            "resolution_rate": round(resolution * 100),
-            "on_time_rate": round(on_time * 100),
-            "first_time_rate": round(first_time * 100),
-        },
-    }
-
-
 def compute_analytics(hoa: HOA, db: Session):
     violations = db.query(Violation).filter(Violation.hoa_id == hoa.id).all()
     residents = db.query(Resident).filter(Resident.hoa_id == hoa.id).all()
@@ -469,7 +451,6 @@ def compute_analytics(hoa: HOA, db: Session):
         "by_priority": [{"label": k, "value": v} for k, v in by_priority.items()],
         "timeline": timeline,
         "top_offenders": top_offenders,
-        "compliance": compute_compliance(violations, now),
     }
 
 
@@ -496,11 +477,96 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    user = User(email=email, hashed_password=utils.hash_password(data.password))
+
+    # Registration is invite-only. The operator email bootstraps as admin
+    # without a code (there'd be no one to mint the first code otherwise);
+    # everyone else must present a valid, unused invite code.
+    is_admin = email == ADMIN_EMAIL
+    invite = None
+    if not is_admin:
+        code = (data.invite_code or "").strip()
+        if code:
+            invite = db.query(InviteCode).filter(InviteCode.code == code).first()
+        if not invite or invite.used_at is not None:
+            raise HTTPException(
+                status_code=403,
+                detail="Sign-up is invite-only. Use the link from your welcome email, "
+                       "or contact us to get access.",
+            )
+
+    user = User(email=email, hashed_password=utils.hash_password(data.password), is_admin=is_admin)
     db.add(user)
+    db.flush()  # assign user.id before marking the invite used
+    if invite is not None:
+        invite.used_by = user.id
+        invite.used_at = datetime.utcnow()
     db.commit()
     db.refresh(user)
     return {"access_token": utils.create_access_token({"sub": str(user.id)}), "token_type": "bearer"}
+
+
+@app.get("/auth/me")
+def whoami(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.email.lower() == ADMIN_EMAIL and not current_user.is_admin:
+        current_user.is_admin = True
+        db.commit()
+    return {"id": current_user.id, "email": current_user.email, "is_admin": bool(current_user.is_admin)}
+
+
+@app.post("/auth/change-password")
+def change_password(data: ChangePassword, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not utils.verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if len(data.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+    current_user.hashed_password = utils.hash_password(data.new_password)
+    db.commit()
+    return {"message": "Password updated."}
+
+
+@app.post("/admin/invites")
+def create_invite(data: InviteCreate, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Mint a single-use signup code. The operator sends the paying customer a
+    link containing it (e.g. https://app/?invite=CODE)."""
+    code = secrets.token_urlsafe(9)
+    invite = InviteCode(code=code, label=(data.label or None), created_by=admin.id)
+    db.add(invite)
+    db.commit()
+    db.refresh(invite)
+    return {"id": invite.id, "code": invite.code, "label": invite.label, "created_at": invite.created_at.isoformat()}
+
+
+@app.get("/admin/invites")
+def list_invites(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    invites = db.query(InviteCode).order_by(InviteCode.created_at.desc()).all()
+    used_emails = {}
+    used_ids = [i.used_by for i in invites if i.used_by]
+    if used_ids:
+        used_emails = {u.id: u.email for u in db.query(User).filter(User.id.in_(used_ids)).all()}
+    return [
+        {
+            "id": i.id,
+            "code": i.code,
+            "label": i.label,
+            "used": i.used_at is not None,
+            "used_by_email": used_emails.get(i.used_by),
+            "used_at": i.used_at.isoformat() if i.used_at else None,
+            "created_at": i.created_at.isoformat(),
+        }
+        for i in invites
+    ]
+
+
+@app.delete("/admin/invites/{invite_id}")
+def revoke_invite(invite_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    invite = db.query(InviteCode).filter(InviteCode.id == invite_id).first()
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    if invite.used_at is not None:
+        raise HTTPException(status_code=400, detail="That invite has already been used and can't be revoked")
+    db.delete(invite)
+    db.commit()
+    return {"message": "Invite revoked"}
 
 
 @app.post("/auth/login")
@@ -513,6 +579,11 @@ def login(data: UserRegister, db: Session = Depends(get_db)):
         record_login_failure(email.lower())
         raise HTTPException(status_code=401, detail="Invalid email or password")
     _login_failures.pop(email.lower(), None)
+    # Self-heal: the designated operator email is always admin, even if the
+    # account was created before the admin flag existed.
+    if user.email.lower() == ADMIN_EMAIL and not user.is_admin:
+        user.is_admin = True
+        db.commit()
     return {"access_token": utils.create_access_token({"sub": str(user.id)}), "token_type": "bearer"}
 
 
@@ -537,7 +608,7 @@ def forgot_password(data: ForgotPassword, db: Session = Depends(get_db)):
         token = utils.create_access_token({"sub": str(user.id), "purpose": "pwreset"}, timedelta(minutes=30))
         reset_url = f"{os.getenv('FRONTEND_URL', '').rstrip('/')}/reset?token={token}"
         try:
-            utils.send_email_smtp(
+            utils.send_email(
                 to=user.email,
                 subject="Reset your ViolationTrack password",
                 body=f"A password reset was requested for your ViolationTrack account.\n\n"
@@ -574,7 +645,10 @@ def reset_password(data: ResetPassword, db: Session = Depends(get_db)):
 
 @app.get("/hoas")
 def list_hoas(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    hoas = db.query(HOA).filter(HOA.user_id == current_user.id).order_by(HOA.name).all()
+    if current_user.is_admin:
+        hoas = db.query(HOA).order_by(HOA.name).all()
+    else:
+        hoas = db.query(HOA).filter(HOA.user_id == current_user.id).order_by(HOA.name).all()
     hoa_ids = [h.id for h in hoas]
     if not hoa_ids:
         return []
@@ -610,10 +684,6 @@ def list_hoas(current_user: User = Depends(get_current_user), db: Session = Depe
         elif not v.fine_paid:
             a["fines"] += float(v.fine_amount or 0)
 
-    by_hoa = {hid: [] for hid in hoa_ids}
-    for v in violations:
-        by_hoa[v.hoa_id].append(v)
-
     return [
         {
             "id": h.id, "name": h.name, "address": h.address,
@@ -627,7 +697,6 @@ def list_hoas(current_user: User = Depends(get_current_user), db: Session = Depe
             "open_violations": agg[h.id]["open"],
             "overdue_violations": agg[h.id]["overdue"],
             "outstanding_fines": round(agg[h.id]["fines"], 2),
-            "compliance": compute_compliance(by_hoa[h.id], now),
         }
         for h in hoas
     ]
@@ -706,6 +775,11 @@ def update_hoa(hoa_id: int, data: HOACreate, current_user: User = Depends(get_cu
 @app.delete("/hoas/{hoa_id}")
 def delete_hoa(hoa_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     hoa = owned_hoa(hoa_id, current_user, db)
+    # Explicitly delete related violation notes, fines, and photos first (they reference HOA directly)
+    db.query(ViolationNote).filter(ViolationNote.hoa_id == hoa_id).delete()
+    db.query(ViolationFine).filter(ViolationFine.hoa_id == hoa_id).delete()
+    db.query(ViolationPhoto).filter(ViolationPhoto.hoa_id == hoa_id).delete()
+    # Delete violations and residents (cascade will handle nested relationships)
     db.delete(hoa)
     db.commit()
     return {"message": "Client deleted"}
@@ -1484,9 +1558,10 @@ def _record_notice_sent(db: Session, violation: Violation, letter: str, via: str
 @app.post("/violations/{violation_id}/mark-sent")
 def mark_violation_sent(violation_id: int, body: Optional[MarkSentBody] = None,
                         current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Called by the frontend after EmailJS successfully sends the letter.
-    The frontend passes the exact letter text it emailed so the archived copy
-    matches what went out."""
+    """Record a notice as sent without going through the server mailer — e.g.
+    the manager delivered it by hand or through their own email client. The
+    caller may pass the exact letter text so the archived copy matches what
+    went out."""
     violation = owned_violation(violation_id, current_user, db)
     letter = (body.letter if body and body.letter else None) or build_letter_with_portal(violation, db)
     _record_notice_sent(db, violation, letter, via="email")
@@ -1498,9 +1573,10 @@ def mark_violation_sent(violation_id: int, body: Optional[MarkSentBody] = None,
 
 @app.post("/violations/{violation_id}/send-notice")
 def send_violation_notice(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Server-side notice delivery over SMTP. Preferred over client-side
-    EmailJS when configured: the server generates, sends, and archives the
-    letter in one transaction, so the audit record is authoritative."""
+    """Server-side notice delivery. The server generates, sends (via the
+    configured email provider — Brevo API or SMTP), and archives the letter in
+    one transaction, so the audit record is authoritative. The From shows the
+    HOA's name and replies route to the HOA's own address."""
     violation = owned_violation(violation_id, current_user, db)
     resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
     if not resident or not resident.email:
@@ -1509,7 +1585,7 @@ def send_violation_notice(violation_id: int, current_user: User = Depends(get_cu
     letter = build_letter_with_portal(violation, db)
     subject = f"{NOTICE_LEVELS[min(violation.notice_level or 0, len(NOTICE_LEVELS) - 1)] if violation.notice_level else 'Violation Notice'} — {violation.violation_type}"
     try:
-        utils.send_email_smtp(
+        utils.send_email(
             to=resident.email,
             subject=f"{hoa.name if hoa else 'HOA'}: {subject}",
             body=letter,
@@ -1517,7 +1593,7 @@ def send_violation_notice(violation_id: int, current_user: User = Depends(get_cu
             from_name=(hoa.name if hoa else None),
         )
     except LookupError:
-        raise HTTPException(status_code=501, detail="Server email (SMTP) is not configured")
+        raise HTTPException(status_code=501, detail="No email provider is configured on the server")
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Email delivery failed: {e}")
     _record_notice_sent(db, violation, letter, via="server")

@@ -6,7 +6,6 @@ Modern violation management for property managers and HOA boards. Track violatio
 
 - **Resident Response Portal** — every notice carries a secure link (no account needed) where the resident sees their case, the evidence on file, the deadline countdown, and the fine balance — and can respond: *"I've corrected it"*, *"I dispute this"*, or ask a question. Responses land directly on the case's official record and are flagged for the manager. Enforcement becomes a documented two-way conversation instead of a one-way letter.
 - **Hearing-Ready Case Files** — one click exports the complete case as a single PDF: summary, fine ledger, the full audit timeline (including resident responses), the notice exactly as it was sent, and every photo as a numbered exhibit. Built for board packets and attorney handoffs.
-- **Community Compliance Score** — a transparent 0–100 grade per community (40% resolution rate, 35% on-time performance, 25% first-time compliance), shown on every portfolio card with a portfolio-wide average. The number a manager brings to the board meeting.
 
 ## Features
 
@@ -22,23 +21,25 @@ Modern violation management for property managers and HOA boards. Track violatio
 **Letters & notices**
 - Professional violation letters generated per case — property address, cure deadline, notice level, fines, repeat-offense and evidence clauses
 - **Sent letters are archived verbatim**: the exact text emailed to the resident is snapshotted and can never be altered by later edits — view or PDF the "as sent" copy anytime
-- Server-side delivery over SMTP when configured (letter sent + archived in one transaction); automatic fallback to client-side EmailJS otherwise
+- Server-side delivery through a transactional email provider (Brevo API, or SMTP) — the letter is sent and archived in one transaction. Notices show the HOA's name as the sender and route replies to the HOA's own address
 - Optional AI drafting via Google Gemini (falls back to a built-in template)
 - Print-ready PDF letters (1" margins, US Letter) for certified mail — draft or as-sent version
 - Send confirmation with recipient preview — no accidental notices
 
 **Portfolio & reporting**
 - Manage multiple HOAs/communities under one account, with per-community contact branding
-- Overview dashboard: KPIs, "Needs Attention" triage queue (overdue and due-soon), recent activity feed, top residents
-- Board-ready compliance report (print/save as PDF)
+- Overview dashboard: KPIs, "Needs Attention" triage queue (overdue and due-soon), recent activity feed
+- Board-ready violation report with a six-month enforcement trend chart (print/save as PDF)
 - CSV export of the violation log; CSV import for residents *and* violations (spreadsheet migration path)
 - One-click sample community for evaluating the product
 - ⌘K command palette for everything
 - Deep-linkable URLs — every community, tab, and open violation has an address you can bookmark or paste into board minutes
 
-**Account security**
+**Account security & access**
+- Invite-only registration: the operator mints single-use signup links (one per paying customer); visitors without a link are pointed to contact for access
+- Admin operator (`ADMIN_EMAIL`) sees and manages every HOA; regular managers see only their own
+- In-app change password, plus self-service reset via emailed 30-minute links (requires an email provider — Brevo or SMTP)
 - Login rate limiting (10 failed attempts / 15 minutes)
-- Self-service password reset via emailed 30-minute links (requires SMTP)
 - 8-character password minimum, email validation, enumeration-safe responses
 
 ## Stack
@@ -49,7 +50,7 @@ Modern violation management for property managers and HOA boards. Track violatio
 | Backend | FastAPI, SQLAlchemy 2 |
 | Database | PostgreSQL (production) / SQLite (local dev) |
 | Auth | JWT (Bearer), bcrypt password hashing |
-| Email | EmailJS (client-side send) |
+| Email | Brevo transactional API (server-side) with SMTP fallback |
 | Letters | Gemini (optional) + template fallback, ReportLab PDFs |
 
 ## Local development
@@ -89,29 +90,34 @@ pytest tests/ -q
 | `DATABASE_URL` | prod | Postgres connection string (SQLite fallback for dev) |
 | `SECRET_KEY` | prod | JWT signing secret (`JWT_SECRET` also accepted) |
 | `CORS_ORIGINS` | no | Comma-separated allowed origins (default `*`) |
+| `ADMIN_EMAIL` | no | Operator account — bootstraps as admin and registers without an invite code (default `violationtrack.notices@gmail.com`) |
 | `GEMINI_API_KEY` | no | Enables AI-drafted letters |
 | `GEMINI_MODEL` | no | Override letter model (default `gemini-2.0-flash`) |
-| `SMTP_HOST` / `SMTP_PORT` | no | Enables server-side notice delivery + password reset emails |
+| `BREVO_API_KEY` | no | Enables email (notices + password reset) via Brevo's HTTPS API |
+| `BREVO_SENDER_EMAIL` | no | Verified Brevo sender address (defaults to `SMTP_FROM`) |
+| `BREVO_SENDER_NAME` | no | Default From name; each notice overrides it with the HOA's name |
+| `SMTP_HOST` / `SMTP_PORT` | no | SMTP fallback (used only when `BREVO_API_KEY` is empty) |
 | `SMTP_USER` / `SMTP_PASS` | no | SMTP credentials |
 | `SMTP_FROM` | no | From address (defaults to `SMTP_USER`) |
 | `SMTP_SSL` / `SMTP_STARTTLS` | no | TLS mode (STARTTLS on port 587 by default) |
 | `FRONTEND_URL` | no | Base URL used in password-reset links |
 
-> Without SMTP configured, notice sending falls back to EmailJS (client-side) and password-reset emails can't be delivered.
+> **Email setup (free):** Sign up at [brevo.com](https://www.brevo.com) (free tier: 300 emails/day), verify a sender email (no domain required — you just click a confirmation link), create an API key, and set `BREVO_API_KEY` + `BREVO_SENDER_EMAIL`. Notices show the HOA's name as the sender with replies routed to the HOA's own email. Without an email provider, notice sending returns a clear "not configured" error and password-reset emails can't be delivered.
+>
+> **Why not plain SMTP?** Render and Railway free tiers block outbound SMTP ports (25/465/587). Brevo sends over HTTPS (port 443), so it works there; the SMTP path is only for hosts where those ports are open.
 
 Frontend (Vite):
 
 | Variable | Purpose |
 |---|---|
 | `VITE_API_BASE` | API base URL |
-| `VITE_EJS_SERVICE` / `VITE_EJS_TEMPLATE` / `VITE_EJS_KEY` | EmailJS service, template, and public key for sending notices |
 
-> **EmailJS note:** the actual sending address is whichever account you connect in the EmailJS dashboard. The app sets the HOA's name and email as the from-name/reply-to template variables — map them to `{{from_name}}` / `{{reply_to}}` in your EmailJS template.
+> Email is sent entirely server-side, so the frontend needs no email configuration.
 
 ## Deployment
 
-- **Backend** — any Python host (Railway/Render; a `Procfile` and `render.yaml` are included). Set `DATABASE_URL`, `SECRET_KEY`, and optionally `CORS_ORIGINS` to your frontend origin. Schema migrations run automatically at startup.
-- **Frontend** — static Vite build (`npm run build` → `dist/`) on Vercel/Netlify. Set `VITE_API_BASE` and the EmailJS variables at build time.
+- **Backend** — any Python host (Railway/Render; a `Procfile` and `render.yaml` are included). Set `DATABASE_URL`, `SECRET_KEY`, `BREVO_API_KEY` + `BREVO_SENDER_EMAIL` (for email), and optionally `CORS_ORIGINS` to your frontend origin. Schema migrations run automatically at startup.
+- **Frontend** — static Vite build (`npm run build` → `dist/`) on Vercel/Netlify. Set `VITE_API_BASE` at build time.
 
 ## CSV formats
 

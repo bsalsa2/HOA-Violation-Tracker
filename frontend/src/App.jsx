@@ -8,11 +8,11 @@ import Dashboard from './pages/Dashboard'
 import PortfolioOverview from './components/PortfolioOverview'
 import { AddClientModal, EditHOAModal } from './components/modals'
 import { ConfirmDialog, Spinner } from './components/primitives'
-import { hoaAPI } from './api'
+import { hoaAPI, authAPI } from './api'
 
 const ACTIVE_KEY = 'active_hoa_id'
 
-function DashboardRoute({ hoas, onSwitchHoa, onShowPortfolio, onAddClient, onEditClient, setToken }) {
+function DashboardRoute({ hoas, me, onSwitchHoa, onShowPortfolio, onAddClient, onEditClient, onSignOut, setToken }) {
   const { hoaId } = useParams()
   const hoa = hoas.find((h) => h.id === parseInt(hoaId, 10))
   if (!hoa) return <Navigate to="/portfolio" replace />
@@ -22,11 +22,12 @@ function DashboardRoute({ hoas, onSwitchHoa, onShowPortfolio, onAddClient, onEdi
       key={hoa.id}
       hoa={hoa}
       hoas={hoas}
-      hoaEmail={hoa.email}
+      me={me}
       onSwitchHoa={onSwitchHoa}
       onShowPortfolio={onShowPortfolio}
       onAddClient={onAddClient}
       onEditClient={onEditClient}
+      onSignOut={onSignOut}
       setToken={setToken}
     />
   )
@@ -41,6 +42,13 @@ function AuthedApp({ setToken }) {
   const [showAddClient, setShowAddClient] = useState(false)
   const [editClientId, setEditClientId] = useState(null)
   const [confirmDeleteClient, setConfirmDeleteClient] = useState(false)
+  const [me, setMe] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    authAPI.me().then((res) => { if (!cancelled) setMe(res.data) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   const refreshPortfolio = useCallback(async () => {
     const res = await hoaAPI.list()
@@ -82,13 +90,16 @@ function AuthedApp({ setToken }) {
   const handleDeleteClient = async () => {
     const id = editClientId
     setConfirmDeleteClient(false)
-    setEditClientId(null)
     try {
       await hoaAPI.delete(id)
       const remaining = await refreshPortfolio()
+      setEditClientId(null)
       navigate(remaining.length > 0 ? `/c/${remaining[0].id}` : '/', { replace: true })
-    } catch {
-      /* portfolio refresh will reflect reality */
+    } catch (err) {
+      console.error('Delete failed:', err.response?.status, err.response?.data)
+      // Sync with server state in case delete partially succeeded
+      await refreshPortfolio()
+      setEditClientId(null)
     }
   }
 
@@ -139,10 +150,12 @@ function AuthedApp({ setToken }) {
           element={
             <DashboardRoute
               hoas={hoas}
+              me={me}
               onSwitchHoa={(h) => navigate(`/c/${h.id}`)}
               onShowPortfolio={() => { refreshPortfolio(); navigate('/portfolio') }}
               onAddClient={() => setShowAddClient(true)}
               onEditClient={(hoaId) => setEditClientId(hoaId)}
+              onSignOut={handleSignOut}
               setToken={setToken}
             />
           }

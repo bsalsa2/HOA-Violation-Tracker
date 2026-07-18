@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import emailjs from '@emailjs/browser'
 import { residentAPI, violationAPI, hoaAPI } from '../api'
 import OverviewTab from '../components/OverviewTab'
 import ViolationsTab from '../components/ViolationsTab'
@@ -8,25 +7,21 @@ import ResidentsTab from '../components/ResidentsTab'
 import ViolationDrawer from '../components/ViolationDrawer'
 import CommandPalette from '../components/CommandPalette'
 import HoaSwitcher from '../components/HoaSwitcher'
+import AccountMenu from '../components/AccountMenu'
 import { AddResidentModal, AddViolationModal, ImportCSVModal, ImportViolationsCSVModal } from '../components/modals'
 import { Modal, ConfirmDialog, ToastStack, Spinner } from '../components/primitives'
 import { openBoardReport } from '../lib/boardReport'
 import { downloadViolationsCsv, downloadLetterPdf } from '../lib/export'
+import useDocumentTitle from '../lib/useDocumentTitle'
 
 const currencyFmt = (n) => Number(n || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 
-function getEmailJSConfig() {
-  return {
-    service: import.meta.env.VITE_EJS_SERVICE || import.meta.env.VITE_EMAILJS_SERVICE_ID,
-    template: import.meta.env.VITE_EJS_TEMPLATE || import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
-    key: import.meta.env.VITE_EJS_KEY || import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
-  }
-}
-
 const TABS = ['overview', 'violations', 'residents']
+const VIOLATION_FILTERS = ['open', 'noticed', 'escalated', 'resolved', 'overdue']
 
-export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPortfolio, onAddClient, onEditClient, setToken }) {
+export default function Dashboard({ hoa, hoas, me, onSwitchHoa, onShowPortfolio, onAddClient, onEditClient, onSignOut, setToken }) {
   const hoaId = hoa.id
+  useDocumentTitle(`${hoa.name} — ViolationTrack`)
 
   const [residents, setResidents] = useState([])
   const [violations, setViolations] = useState([])
@@ -34,7 +29,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
   const [analyticsLoading, setAnalyticsLoading] = useState(true)
   const [dataLoading, setDataLoading] = useState(true)
 
-  // Tab and open violation live in the URL — refresh-safe and deep-linkable
+  // Tab, open violation, and list filter live in the URL — refresh-safe and deep-linkable
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'overview'
   const setTab = useCallback((t) => {
@@ -42,6 +37,24 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
       const next = new URLSearchParams(prev)
       if (t === 'overview') next.delete('tab')
       else next.set('tab', t)
+      next.delete('f') // filters belong to the view they were set in
+      return next
+    })
+  }, [setSearchParams])
+  const violationFilter = VIOLATION_FILTERS.includes(searchParams.get('f')) ? searchParams.get('f') : ''
+  const setViolationFilter = useCallback((f) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (f) next.set('f', f)
+      else next.delete('f')
+      return next
+    })
+  }, [setSearchParams])
+  const openOverdue = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('tab', 'violations')
+      next.set('f', 'overdue')
       return next
     })
   }, [setSearchParams])
@@ -177,64 +190,23 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
     }
     setSendingEmail((prev) => ({ ...prev, [violationId]: true }))
 
-    // Preferred path: the server sends and archives the letter in one
-    // transaction. 501 means SMTP isn't configured → fall back to EmailJS.
+    // The server generates the letter, sends it through the configured email
+    // provider (Brevo API / SMTP), and archives the exact copy in one
+    // transaction — so the audit record is authoritative. 501 means no
+    // provider is set up on the server yet.
     try {
       const res = await violationAPI.sendNotice(violationId)
       applySentViolation(violationId, res.data.violation)
       addToast(`Letter sent to ${violation.resident_email}.`)
-      setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
-      return
     } catch (err) {
-      if (err.response?.status !== 501) {
-        addToast(err.response?.data?.detail || 'Failed to send email.', 'error')
-        setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
-        return
-      }
-    }
-
-    // Fallback: client-side EmailJS. The exact letter text is passed to
-    // mark-sent so the archived copy matches what was emailed.
-    const cfg = getEmailJSConfig()
-    if (!cfg.service || !cfg.template || !cfg.key) {
-      addToast('Email is not configured (neither SMTP nor EmailJS).', 'error')
-      setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
-      return
-    }
-    if (!hoaEmail) {
-      addToast('Add the HOA email address in settings before sending letters.', 'error')
-      setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
-      return
-    }
-    try {
-      const letterRes = await violationAPI.getLetter(violationId)
-      const letterText = letterRes.data.letter
-      await emailjs.send(
-        cfg.service, cfg.template,
-        {
-          to_email: violation.resident_email,
-          to_name: violation.resident_name,
-          hoa_name: hoa?.name || 'HOA',
-          hoa_email: hoaEmail,
-          violation_type: violation.violation_type,
-          violation_letter: letterText,
-          from_name: hoa?.name || 'ViolationTrack',
-          from_email: hoaEmail,
-          reply_to: hoaEmail,
-        },
-        cfg.key
-      )
-      const markRes = await violationAPI.markSent(violationId, letterText)
-      applySentViolation(violationId, markRes.data.violation)
-      addToast(`Letter sent to ${violation.resident_email}.`)
-    } catch (err) {
-      const detail = err.response?.data?.detail
-      const msg = Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail || err.text || err.message || 'Failed to send email.')
+      const msg = err.response?.status === 501
+        ? 'Email isn’t set up yet. Add an email provider key (BREVO_API_KEY) on the server to start sending notices.'
+        : (err.response?.data?.detail || 'Failed to send email.')
       addToast(msg, 'error')
     } finally {
       setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
     }
-  }, [violations, hoa, hoaEmail, addToast, applySentViolation])
+  }, [violations, addToast, applySentViolation])
 
   const handleViewLetter = useCallback(async (violation) => {
     const open = (data) => setLetterModal({ violation, data, view: data.sent_letter ? 'sent' : 'draft' })
@@ -337,7 +309,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
         try {
           await violationAPI.delete(violationId)
           setViolations((prev) => prev.filter((v) => v.id !== violationId))
-          setSelectedId((id) => (id === violationId ? null : id))
+          setSelectedId(null)
           loadAnalytics()
           addToast('Violation deleted.')
         } catch {
@@ -345,7 +317,7 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
         }
       },
     })
-  }, [addToast, loadAnalytics])
+  }, [addToast, loadAnalytics, setSelectedId])
 
   const handleDeleteResident = useCallback((residentId, residentName, violationCount = 0) => {
     setConfirmDelete({
@@ -372,11 +344,6 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
     setViolationQuery(resident.name)
     setTab('violations')
   }, [])
-
-  const goToResidentById = useCallback((residentId) => {
-    const r = residents.find((x) => x.id === residentId)
-    if (r) goToResidentViolations(r)
-  }, [residents, goToResidentViolations])
 
   // ---- Board report (open window in-gesture, then fetch fresh analytics) ----
   const handleBoardReport = useCallback(() => {
@@ -418,23 +385,29 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
               <HoaSwitcher hoas={hoas} activeHoa={hoa} onSwitch={onSwitchHoa} onShowPortfolio={onShowPortfolio} onAddClient={onAddClient} />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => setPaletteOpen(true)} aria-label="Search" className="sm:hidden p-2 text-slate-400 bg-white/[0.05] hover:bg-white/[0.07] border border-white/10 rounded-lg transition-colors">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              </button>
               <button onClick={() => setPaletteOpen(true)} className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 bg-white/[0.05] hover:bg-white/[0.07] border border-white/10 rounded-lg transition-colors">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 Search <kbd className="text-[10px] border border-white/10 rounded px-1 ml-0.5">⌘K</kbd>
               </button>
-              <button onClick={handleBoardReport} className="px-3 py-1.5 text-xs text-slate-400 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors">Board Report</button>
+              <button onClick={handleBoardReport} className="px-3 py-1.5 text-xs text-slate-400 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors whitespace-nowrap">
+                <span className="sm:hidden">Report</span>
+                <span className="hidden sm:inline">Board Report</span>
+              </button>
               <button onClick={() => onEditClient(hoaId)} className="hidden md:block px-3 py-1.5 text-xs text-slate-400 hover:text-slate-100 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors">Edit</button>
-              <button onClick={handleLogout} className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-100 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors">Sign Out</button>
+              <AccountMenu email={me?.email} isAdmin={me?.is_admin} onSignOut={onSignOut || handleLogout} addToast={addToast} />
             </div>
           </div>
 
-          <div className="flex items-center gap-1 -mb-px">
+          <div className="flex items-center gap-1 -mb-px overflow-x-auto">
             {tabs.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
-                className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap shrink-0 ${
                   tab === t.key ? 'text-slate-100' : 'text-slate-400 hover:text-slate-300'
                 }`}
               >
@@ -443,7 +416,12 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${tab === t.key ? 'bg-[#3b82f6]/15 text-[#60a5fa]' : 'bg-white/[0.06] text-slate-400'}`}>{t.badge}</span>
                 )}
                 {t.key === 'violations' && overdueCount > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20">{overdueCount} overdue</span>
+                  <span
+                    role="button"
+                    aria-label={`Show ${overdueCount} overdue violations`}
+                    onClick={(e) => { e.stopPropagation(); openOverdue() }}
+                    className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20 hover:bg-red-500/25 transition-colors"
+                  >{overdueCount} overdue</span>
                 )}
                 {tab === t.key && (
                   <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-[#3b82f6] to-[#2563eb]" style={{ boxShadow: '0 0 10px rgba(59,130,246,0.6)' }} />
@@ -458,11 +436,19 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
         {tab === 'overview' && (
           <OverviewTab
             analytics={analytics}
-            loading={analyticsLoading}
+            loading={analyticsLoading || dataLoading}
             violations={violations}
             hoaId={hoaId}
-            onOpenResident={goToResidentById}
             onOpenViolation={(v) => setSelectedId(v.id)}
+            onShowOverdue={openOverdue}
+            hoa={hoa}
+            residentCount={activeResidents.length}
+            onAddResident={() => setShowAddResident(true)}
+            onImportResidents={() => setShowImportCSV(true)}
+            onNewViolation={() => setShowAddViolation(true)}
+            onEditClient={() => onEditClient(hoaId)}
+            onSeedDemo={handleSeedDemo}
+            seeding={seedingDemo}
           />
         )}
         {tab === 'violations' && (
@@ -470,6 +456,8 @@ export default function Dashboard({ hoa, hoas, hoaEmail, onSwitchHoa, onShowPort
             violations={violations}
             query={violationQuery}
             setQuery={setViolationQuery}
+            statusFilter={violationFilter}
+            setStatusFilter={setViolationFilter}
             onOpen={(v) => setSelectedId(v.id)}
             onNew={() => setShowAddViolation(true)}
             onExport={handleExportCsv}

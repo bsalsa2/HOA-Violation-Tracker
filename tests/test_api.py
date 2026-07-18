@@ -34,8 +34,32 @@ def client():
             os.remove(f)
 
 
+_admin_token = None
+
+
+def admin_headers(client):
+    """Bootstrap the operator/admin account once (it registers without an
+    invite code) and return its auth header."""
+    global _admin_token
+    if _admin_token is None:
+        res = client.post("/auth/register", json={
+            "email": "violationtrack.notices@gmail.com", "password": "adminpassword123",
+        })
+        assert res.status_code == 200, res.text
+        _admin_token = res.json()["access_token"]
+    return {"Authorization": f"Bearer {_admin_token}"}
+
+
+def mint_invite(client, label=None):
+    res = client.post("/admin/invites", json={"label": label}, headers=admin_headers(client))
+    assert res.status_code == 200, res.text
+    return res.json()["code"]
+
+
 def register(client, email, password="password123"):
-    res = client.post("/auth/register", json={"email": email, "password": password})
+    # Registration is invite-only; mint a fresh single-use code for each user.
+    code = mint_invite(client)
+    res = client.post("/auth/register", json={"email": email, "password": password, "invite_code": code})
     assert res.status_code == 200, res.text
     return {"Authorization": f"Bearer {res.json()['access_token']}"}
 
@@ -90,6 +114,47 @@ def test_login_wrong_password(client, alice):
 def test_login_case_insensitive_email(client, alice):
     res = client.post("/auth/login", json={"email": "ALICE@example.com", "password": "password123"})
     assert res.status_code == 200
+
+
+def test_register_requires_invite_code(client):
+    # No code → rejected as invite-only
+    res = client.post("/auth/register", json={"email": "nocode@example.com", "password": "password123"})
+    assert res.status_code == 403
+    # Bogus code → rejected
+    res = client.post("/auth/register", json={"email": "nocode@example.com", "password": "password123", "invite_code": "not-real"})
+    assert res.status_code == 403
+
+
+def test_invite_code_is_single_use(client):
+    code = mint_invite(client, label="Acme HOA")
+    ok = client.post("/auth/register", json={"email": "invited@example.com", "password": "password123", "invite_code": code})
+    assert ok.status_code == 200
+    # Same code can't be reused
+    reuse = client.post("/auth/register", json={"email": "invited2@example.com", "password": "password123", "invite_code": code})
+    assert reuse.status_code == 403
+
+
+def test_only_admin_can_mint_invites(client, alice):
+    # Regular user is forbidden
+    res = client.post("/admin/invites", json={}, headers=alice)
+    assert res.status_code == 403
+    # Admin can, and /auth/me reflects the role
+    me_admin = client.get("/auth/me", headers=admin_headers(client))
+    assert me_admin.status_code == 200 and me_admin.json()["is_admin"] is True
+    me_user = client.get("/auth/me", headers=alice)
+    assert me_user.json()["is_admin"] is False
+
+
+def test_change_password(client):
+    hdr = register(client, "changer@example.com", "originalpw123")
+    # Wrong current password is rejected
+    bad = client.post("/auth/change-password", json={"current_password": "nope", "new_password": "brandnew123"}, headers=hdr)
+    assert bad.status_code == 400
+    # Correct current password updates it
+    ok = client.post("/auth/change-password", json={"current_password": "originalpw123", "new_password": "brandnew123"}, headers=hdr)
+    assert ok.status_code == 200
+    assert client.post("/auth/login", json={"email": "changer@example.com", "password": "originalpw123"}).status_code == 401
+    assert client.post("/auth/login", json={"email": "changer@example.com", "password": "brandnew123"}).status_code == 200
 
 
 def test_requests_without_token_rejected(client):
@@ -584,29 +649,6 @@ def test_case_file_pdf(client, alice, hoa, resident):
     client.delete(f"/violations/{v['id']}", headers=alice)
 
 
-# ---------- Compliance score ----------
-
-def test_compliance_score_in_analytics_and_portfolio(client, alice, hoa):
-    a = client.get(f"/hoas/{hoa['id']}/analytics", headers=alice).json()
-    comp = a["compliance"]
-    assert comp is not None
-    assert 0 <= comp["score"] <= 100
-    assert comp["grade"] in ("A", "B", "C", "D", "F")
-    f = comp["factors"]
-    assert set(f.keys()) == {"resolution_rate", "on_time_rate", "first_time_rate"}
-
-    hoas = client.get("/hoas", headers=alice).json()
-    mine = next(h for h in hoas if h["id"] == hoa["id"])
-    assert mine["compliance"]["grade"] == comp["grade"]
-
-
-def test_compliance_none_for_empty_community(client, alice):
-    empty = client.post("/hoas", json={"name": "Quiet Pines", "address": "9 Calm St"}, headers=alice).json()
-    a = client.get(f"/hoas/{empty['id']}/analytics", headers=alice).json()
-    assert a["compliance"] is None
-    client.delete(f"/hoas/{empty['id']}", headers=alice)
-
-
 def test_demo_seed_populates_empty_hoa(client, alice):
     new_hoa = client.post("/hoas", json={"name": "Demo Meadows", "address": "2 Demo Ln"}, headers=alice).json()
     res = client.post(f"/hoas/{new_hoa['id']}/seed-demo", headers=alice)
@@ -622,4 +664,3 @@ def test_demo_seed_populates_empty_hoa(client, alice):
 
     a = client.get(f"/hoas/{new_hoa['id']}/analytics", headers=alice).json()
     assert a["kpis"]["total_violations"] == 10
-    assert a["kpis"]["total_residents"] == 8

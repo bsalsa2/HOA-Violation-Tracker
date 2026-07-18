@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { authAPI } from '../api'
+import useDocumentTitle from '../lib/useDocumentTitle'
 
 const HIGHLIGHTS = [
   { label: 'AI violation letters' },
@@ -7,13 +8,21 @@ const HIGHLIGHTS = [
   { label: 'Board-ready reports' },
 ]
 
+const SUPPORT_EMAIL = 'violationtrack.notices@gmail.com'
+const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=ViolationTrack%20access%20request`
+
 function Login({ setToken }) {
+  useDocumentTitle('Sign in — ViolationTrack')
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [forgotSent, setForgotSent] = useState(false)
+
+  // A paid customer's welcome link carries ?invite=CODE. Without it, sign-up
+  // is closed and we point visitors to email us for access.
+  const inviteCode = useMemo(() => new URLSearchParams(window.location.search).get('invite') || '', [])
 
   const handleForgot = async (e) => {
     e.preventDefault()
@@ -34,8 +43,9 @@ function Login({ setToken }) {
     setLoading(true)
     setError('')
     try {
-      const fn = mode === 'login' ? authAPI.login : authAPI.register
-      const response = await fn(email, password)
+      const response = mode === 'login'
+        ? await authAPI.login(email, password)
+        : await authAPI.register(email, password, inviteCode)
       localStorage.setItem('access_token', response.data.access_token)
       setToken(response.data.access_token)
     } catch (err) {
@@ -43,6 +53,7 @@ function Login({ setToken }) {
       const status = err.response?.status
       if (mode === 'login' && status === 401) setError('Invalid email or password.')
       else if (status === 429) setError('Too many failed attempts. Try again in a few minutes.')
+      else if (mode === 'register' && status === 403) setError(typeof detail === 'string' ? detail : 'Sign-up is invite-only.')
       else if (mode === 'register' && status === 400) setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail || 'Could not create the account.'))
       else if (!err.response) setError('Cannot reach the server. It may still be deploying — wait a moment and try again.')
       else setError(`Error ${status}: ${Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail || err.message || 'Unknown error')}`)
@@ -125,6 +136,12 @@ function Login({ setToken }) {
             )
           ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === 'register' && inviteCode && (
+              <div className="flex items-center gap-2 bg-emerald-900/20 border border-emerald-800/40 text-emerald-200 text-xs rounded-lg p-2.5">
+                <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                Invite applied — create your account below.
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Email address</label>
               <input
