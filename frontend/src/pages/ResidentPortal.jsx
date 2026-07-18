@@ -30,8 +30,15 @@ export default function ResidentPortal() {
   useDocumentTitle(caseData ? `${caseData.hoa.name} · Violation Notice` : 'Violation Notice Portal')
 
   useEffect(() => {
-    portalAPI.getCase(token)
-      .then((res) => setCaseData(res.data))
+    // Portal is public access only — don't send auth token even if logged in
+    const publicAPI = {
+      getCase: (token) => {
+        return fetch(`${import.meta.env.VITE_API_BASE || 'https://hoa-violation-tracker-production.up.railway.app'}/portal/${token}`)
+          .then(r => r.ok ? r.json() : Promise.reject(r))
+      },
+    }
+    publicAPI.getCase(token)
+      .then((data) => setCaseData(data))
       .catch(() => setError('This link is invalid or has expired. Contact your association for a new one.'))
   }, [token])
 

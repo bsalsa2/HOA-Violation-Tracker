@@ -193,9 +193,11 @@ function App() {
 
   return (
     <Routes>
+      {/* Public routes — no auth required */}
       <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login setToken={setToken} />} />
       <Route path="/reset" element={<ResetPassword />} />
       <Route path="/v/:token" element={<ResidentPortal />} />
+      {/* Protected routes */}
       <Route path="/*" element={token ? <AuthedApp setToken={setToken} /> : <Navigate to="/login" replace />} />
     </Routes>
   )
