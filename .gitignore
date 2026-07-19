@@ -34,3 +34,5 @@ test_*.db
 .idea/
 hoa_tracker.db.bak
 *.db.bak
+
+*.db
