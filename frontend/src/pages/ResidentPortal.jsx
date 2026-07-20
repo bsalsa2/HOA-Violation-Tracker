@@ -33,7 +33,7 @@ export default function ResidentPortal() {
     // Portal is public access only — don't send auth token even if logged in
     const publicAPI = {
       getCase: (token) => {
-        return fetch(`${import.meta.env.VITE_API_BASE || 'https://hoa-violation-tracker-production.up.railway.app'}/portal/${token}`)
+        return fetch(`${import.meta.env.VITE_API_BASE || 'https://hoa-violation-tracker-k4lq.vercel.app'}/portal/${token}`)
           .then(r => r.ok ? r.json() : Promise.reject(r))
       },
     }
