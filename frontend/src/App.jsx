@@ -199,7 +199,7 @@ function App() {
   return (
     <Routes>
       {/* Public routes — no auth required */}
-      <Route path="/login" element={hasInvite ? <Navigate to="/invite-signup" replace /> : (token ? <Navigate to="/" replace /> : <Login setToken={setToken} />)} />
+      <Route path="/login" element={hasInvite ? <Navigate to={`/invite-signup${window.location.search}`} replace /> : (token ? <Navigate to="/" replace /> : <Login setToken={setToken} />)} />
       <Route path="/invite-signup" element={!hasInvite ? <Navigate to="/login" replace /> : <InviteSignup setToken={setToken} />} />
       <Route path="/reset" element={<ResetPassword />} />
       <Route path="/v/:token" element={<ResidentPortal />} />
