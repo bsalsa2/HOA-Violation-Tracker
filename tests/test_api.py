@@ -181,6 +181,30 @@ def test_other_user_cannot_touch_violation(client, alice, bob, hoa, resident):
     client.delete(f"/violations/{v['id']}", headers=alice)
 
 
+def test_admin_can_access_every_users_hoa_resident_and_violation(client, alice, hoa, resident):
+    """The admin monitors every HOA on the platform, even ones it doesn't own —
+    customers create their own HOA at signup. Every ownership-scoped endpoint
+    (owned_hoa, owned_resident, owned_violation) must let is_admin bypass the
+    HOA.user_id filter, or the admin gets a false 404 on someone else's data."""
+    v = client.post("/violations", json={
+        "hoa_id": hoa["id"], "resident_id": resident["id"],
+        "violation_type": "Parking Violation", "description": "Blocking fire lane",
+    }, headers=alice).json()
+
+    admin = admin_headers(client)
+    assert client.get(f"/hoas/{hoa['id']}", headers=admin).status_code == 200
+    assert client.get(f"/hoas/{hoa['id']}/analytics", headers=admin).status_code == 200
+    assert client.get(f"/residents?hoa_id={hoa['id']}", headers=admin).status_code == 200
+    assert client.patch(f"/residents/{resident['id']}", json={
+        "name": resident["name"], "unit": resident["unit"],
+    }, headers=admin).status_code == 200
+    assert client.get(f"/violations/{v['id']}/letter", headers=admin).status_code == 200
+    assert client.post(f"/violations/{v['id']}/escalate", headers=admin).status_code == 200
+    assert client.post(f"/violations/{v['id']}/notes", json={"body": "Admin check-in"}, headers=admin).status_code == 200
+
+    client.delete(f"/violations/{v['id']}", headers=alice)
+
+
 # ---------- Violation lifecycle ----------
 
 def test_violation_lifecycle(client, alice, hoa, resident):
