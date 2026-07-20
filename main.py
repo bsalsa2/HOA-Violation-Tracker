@@ -290,12 +290,14 @@ def owned_resident(resident_id: int, user: User, db: Session) -> Resident:
 
 
 def owned_violation(violation_id: int, user: User, db: Session) -> Violation:
-    violation = (
+    query = (
         db.query(Violation)
         .join(HOA, Violation.hoa_id == HOA.id)
-        .filter(Violation.id == violation_id, HOA.user_id == user.id)
-        .first()
+        .filter(Violation.id == violation_id)
     )
+    if not user.is_admin:
+        query = query.filter(HOA.user_id == user.id)
+    violation = query.first()
     if not violation:
         raise HTTPException(status_code=404, detail="Violation not found")
     return violation
