@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authAPI } from '../api'
 import useDocumentTitle from '../lib/useDocumentTitle'
@@ -16,12 +16,15 @@ export default function InviteSignup({ setToken }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    if (!inviteCode) navigate('/login', { replace: true })
+  }, [inviteCode, navigate])
+
   const handleAccountStep = async (e) => {
     e.preventDefault()
     setError('')
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
     if (password !== confirmPassword) { setError('Passwords do not match.'); return }
-    if (!inviteCode) { setError('Invalid invite code.'); return }
     setStep('hoa')
   }
 
