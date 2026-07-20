@@ -278,12 +278,14 @@ def owned_hoa(hoa_id: int, user: User, db: Session) -> HOA:
 
 
 def owned_resident(resident_id: int, user: User, db: Session) -> Resident:
-    resident = (
+    query = (
         db.query(Resident)
         .join(HOA, Resident.hoa_id == HOA.id)
-        .filter(Resident.id == resident_id, HOA.user_id == user.id)
-        .first()
+        .filter(Resident.id == resident_id)
     )
+    if not user.is_admin:
+        query = query.filter(HOA.user_id == user.id)
+    resident = query.first()
     if not resident:
         raise HTTPException(status_code=404, detail="Resident not found")
     return resident
