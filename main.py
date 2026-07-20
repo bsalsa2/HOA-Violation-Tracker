@@ -21,8 +21,6 @@ from database import engine, SessionLocal, Base
 from models import User, HOA, Resident, Violation, ViolationNote, ViolationPhoto, ViolationFine, InviteCode
 import utils
 
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI(title="HOA Violation Tracker API")
 
 # Auth uses Bearer tokens (no cookies), so credentials aren't needed and a
@@ -45,16 +43,32 @@ VALID_PRIORITIES = {"low", "medium", "high"}
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "violationtrack.notices@gmail.com").strip().lower()
 
 
-# -- Migrations (safe, idempotent) --
-@app.on_event("startup")
-def startup():
+# -- Schema setup (safe, idempotent, runs once per process) --
+#
+# On serverless (Vercel) this must NOT run at import time: every cold start
+# would then do a full create_all reflection plus 17 ALTERs against the DB
+# before handling the request, which inflates cold-start latency enough to time
+# out slow calls (e.g. sending a notice email). Instead we run it lazily on the
+# first request and guard it with a flag so it's a no-op afterward. A request
+# middleware triggers it because Vercel's runtime does not reliably fire ASGI
+# lifespan ("startup") events.
+_schema_ready = False
+
+
+def ensure_schema():
+    global _schema_ready
+    if _schema_ready:
+        return
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"create_all skipped: {str(e)[:100]}")
+
     db = SessionLocal()
     try:
-        from sqlalchemy import text, inspect
+        from sqlalchemy import text
 
-        # PostgreSQL migrations (if not SQLite)
         is_sqlite = "sqlite" in str(db.get_bind().url)
-
         pg_stmts = [
             "ALTER TABLE hoas ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)",
             "ALTER TABLE hoas DROP CONSTRAINT IF EXISTS hoas_user_id_key",
@@ -74,22 +88,34 @@ def startup():
             "ALTER TABLE residents ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE",
         ]
-
-        for stmt in pg_stmts:
-            if is_sqlite:
-                continue  # SQLite schema is created fresh by SQLAlchemy
-            try:
-                db.execute(text(stmt))
-                db.commit()
-            except Exception as e:
-                db.rollback()
-                print(f"⚠ Skipped: {str(e)[:80]}")
-
+        if not is_sqlite:
+            for stmt in pg_stmts:
+                try:
+                    db.execute(text(stmt))
+                    db.commit()
+                except Exception as e:
+                    db.rollback()
+                    print(f"⚠ Skipped: {str(e)[:80]}")
         print("✓ Database initialized")
     except Exception as e:
         print(f"Migration error: {e}")
     finally:
         db.close()
+
+    _schema_ready = True
+
+
+@app.middleware("http")
+async def _schema_guard(request, call_next):
+    ensure_schema()
+    return await call_next(request)
+
+
+@app.on_event("startup")
+def startup():
+    # Fires under uvicorn/TestClient (local + tests). On Vercel the middleware
+    # above is what actually triggers schema setup.
+    ensure_schema()
 
 
 security = HTTPBearer()
