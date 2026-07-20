@@ -29,6 +29,8 @@ api.interceptors.response.use(
 
 export const authAPI = {
   register: (email, password, inviteCode) => api.post('/auth/register', { email, password, invite_code: inviteCode || null }),
+  registerWithHOA: (email, password, hoaName, hoaAddress, inviteCode) =>
+    api.post('/auth/register', { email, password, invite_code: inviteCode, hoa_name: hoaName, hoa_address: hoaAddress }),
   login: (email, password) => api.post('/auth/login', { email, password }),
   forgot: (email) => api.post('/auth/forgot', { email }),
   reset: (token, password) => api.post('/auth/reset', { token, password }),

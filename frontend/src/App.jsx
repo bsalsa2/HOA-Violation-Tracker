@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
 import Login from './pages/Login'
+import InviteSignup from './pages/InviteSignup'
 import ResetPassword from './pages/ResetPassword'
 import ResidentPortal from './pages/ResidentPortal'
 import HOASetup from './pages/HOASetup'
@@ -198,7 +199,8 @@ function App() {
   return (
     <Routes>
       {/* Public routes — no auth required */}
-      <Route path="/login" element={token && !hasInvite ? <Navigate to="/" replace /> : <Login setToken={setToken} />} />
+      <Route path="/login" element={hasInvite ? <Navigate to="/invite-signup" replace /> : (token ? <Navigate to="/" replace /> : <Login setToken={setToken} />)} />
+      <Route path="/invite-signup" element={!hasInvite ? <Navigate to="/login" replace /> : <InviteSignup setToken={setToken} />} />
       <Route path="/reset" element={<ResetPassword />} />
       <Route path="/v/:token" element={<ResidentPortal />} />
       {/* Protected routes */}

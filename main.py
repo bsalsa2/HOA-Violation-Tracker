@@ -176,6 +176,8 @@ class UserRegister(BaseModel):
     email: str
     password: str
     invite_code: Optional[str] = None
+    hoa_name: Optional[str] = None  # for invite signup flow
+    hoa_address: Optional[str] = None
 
 
 class ChangePassword(BaseModel):
@@ -528,10 +530,18 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
 
     user = User(email=email, hashed_password=utils.hash_password(data.password), is_admin=is_admin)
     db.add(user)
-    db.flush()  # assign user.id before marking the invite used
+    db.flush()
     if invite is not None:
         invite.used_by = user.id
         invite.used_at = datetime.utcnow()
+    # If registering via invite with HOA info, create the HOA
+    if data.hoa_name and invite is not None:
+        hoa = HOA(
+            name=data.hoa_name.strip(),
+            address=(data.hoa_address or "").strip(),
+            user_id=user.id
+        )
+        db.add(hoa)
     db.commit()
     db.refresh(user)
     return {"access_token": utils.create_access_token({"sub": str(user.id)}), "token_type": "bearer"}
