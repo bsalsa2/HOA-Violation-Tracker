@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useCallback, useRef } from 'react'
 import { currency } from '../lib/format'
-import { CountUp } from './primitives'
+import { CountUp, ToastStack } from './primitives'
+import { InviteModal } from './modals'
 import useDocumentTitle from '../lib/useDocumentTitle'
 
 function ClientCard({ hoa, onOpen, onSettings }) {
@@ -68,6 +69,17 @@ function ClientCard({ hoa, onOpen, onSettings }) {
 
 export default function PortfolioOverview({ hoas, onOpen, onEditClient, onAddClient, onSignOut }) {
   useDocumentTitle('Portfolio — ViolationTrack')
+  const [showInvites, setShowInvites] = useState(false)
+  const [toasts, setToasts] = useState([])
+  const toastCounter = useRef(0)
+
+  const addToast = useCallback((message, type = 'success') => {
+    const id = ++toastCounter.current
+    setToasts((prev) => [...prev, { id, message, type }])
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000)
+  }, [])
+  const dismissToast = (id) => setToasts((prev) => prev.filter((t) => t.id !== id))
+
   const totals = useMemo(() => {
     const base = hoas.reduce(
       (acc, h) => ({
@@ -93,7 +105,10 @@ export default function PortfolioOverview({ hoas, onOpen, onEditClient, onAddCli
             </div>
             <h1 className="font-semibold text-sm text-slate-100 tracking-tight">ViolationTrack <span className="text-slate-500 font-normal">· Portfolio</span></h1>
           </div>
-          <button onClick={onSignOut} className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-100 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors">Sign Out</button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowInvites(true)} className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-100 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors">Invite links</button>
+            <button onClick={onSignOut} className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-100 border border-white/10 hover:border-white/20 hover:bg-white/[0.06] rounded-lg transition-colors">Sign Out</button>
+          </div>
         </div>
       </header>
 
@@ -141,6 +156,9 @@ export default function PortfolioOverview({ hoas, onOpen, onEditClient, onAddCli
           </button>
         </div>
       </main>
+
+      {showInvites && <InviteModal onClose={() => setShowInvites(false)} addToast={addToast} />}
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
     </div>
   )
 }
