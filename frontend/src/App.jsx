@@ -190,11 +190,15 @@ function AuthedApp({ setToken }) {
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('access_token'))
+  // An invite link must always land on the sign-up form, even if this browser
+  // is already signed in as someone else — otherwise it silently drops the
+  // invited customer into whoever's session happens to be active.
+  const hasInvite = new URLSearchParams(window.location.search).has('invite')
 
   return (
     <Routes>
       {/* Public routes — no auth required */}
-      <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login setToken={setToken} />} />
+      <Route path="/login" element={token && !hasInvite ? <Navigate to="/" replace /> : <Login setToken={setToken} />} />
       <Route path="/reset" element={<ResetPassword />} />
       <Route path="/v/:token" element={<ResidentPortal />} />
       {/* Protected routes */}

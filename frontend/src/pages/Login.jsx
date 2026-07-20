@@ -15,6 +15,7 @@ function Login({ setToken }) {
   useDocumentTitle('Sign in — ViolationTrack')
   const inviteCode = useMemo(() => new URLSearchParams(window.location.search).get('invite') || '', [])
   const [mode, setMode] = useState(inviteCode ? 'register' : 'login')
+  const hasExistingSession = inviteCode && !!localStorage.getItem('access_token')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -97,6 +98,12 @@ function Login({ setToken }) {
               </button>
             ))}
           </div>
+
+          {hasExistingSession && (
+            <div className="bg-amber-900/20 border border-amber-800/40 text-amber-200 text-xs rounded-lg p-3 mb-4">
+              This browser is already signed in to another account. Creating an account here will switch you to the new one.
+            </div>
+          )}
 
           {mode === 'register' && !inviteCode && (
             <div className="bg-blue-900/20 border border-blue-800/40 text-blue-200 text-sm rounded-lg p-3 mb-4">
