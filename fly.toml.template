@@ -1,0 +1,71 @@
+# Fly.io Configuration Template
+# Replace YOUR_APP_NAME with your chosen app name
+# Then copy to: fly.toml
+
+app = "YOUR_APP_NAME"
+primary_region = "sjc"  # San Jose (US West). Change to your region:
+                        # sjc, lax = US West
+                        # pdx = US Pacific
+                        # sea = US Seattle
+                        # dfw = US Dallas
+                        # mia = US Miami
+                        # iad = US Virginia
+                        # lhr = London
+                        # fra = Frankfurt
+
+[build]
+  builder = "pacer"
+
+[env]
+  # CRITICAL: Explicit Python version to avoid compatibility issues
+  PYTHON_VERSION = "3.11.9"
+
+  # Prevent out-of-disk errors during pip install
+  PIP_CACHE_DIR = "/tmp/pip-cache"
+
+  # Default to production mode
+  ENVIRONMENT = "production"
+
+# HTTP Service Configuration
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 1000
+    soft_limit = 800
+
+# Static files (frontend build)
+[[statics]]
+  guest_path = "/app/frontend/dist"
+  url_path = "/"
+
+# Ports
+[[services]]
+  protocol = "tcp"
+  internal_port = 8000
+
+  [[services.ports]]
+    port = 443
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+# Health checks
+[checks]
+  [checks.http]
+    method = "GET"
+    path = "/docs"
+    interval = 30000  # 30 seconds
+    timeout = 5000    # 5 seconds
+
+# Metrics
+[metrics]
+  port = 9090
+  path = "/metrics"
