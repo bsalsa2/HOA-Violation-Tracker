@@ -612,6 +612,19 @@ def revoke_invite(invite_id: int, admin: User = Depends(require_admin), db: Sess
     return {"message": "Invite revoked"}
 
 
+@app.delete("/admin/invites/{invite_id}/delete-history")
+def delete_invite_history(invite_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Delete invite history (only for used invites). Used to clean up history after signup."""
+    invite = db.query(InviteCode).filter(InviteCode.id == invite_id).first()
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    if invite.used_at is None:
+        raise HTTPException(status_code=400, detail="Only used invites can be deleted from history. Use revoke for unused invites.")
+    db.delete(invite)
+    db.commit()
+    return {"message": "Invite history deleted"}
+
+
 @app.post("/auth/login")
 def login(data: UserRegister, db: Session = Depends(get_db)):
     email = data.email.strip()
