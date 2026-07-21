@@ -38,12 +38,6 @@ export default function AccountMenu({ email, isAdmin, onSignOut, addToast }) {
             <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
             Change password
           </button>
-          {isAdmin && (
-            <button onClick={() => { setModal('invite'); setOpen(false) }} className={item}>
-              <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
-              Invite links
-            </button>
-          )}
           <div className="vt-hairline my-1.5" />
           <button onClick={onSignOut} className={item}>
             <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
@@ -53,7 +47,6 @@ export default function AccountMenu({ email, isAdmin, onSignOut, addToast }) {
       )}
 
       {modal === 'password' && <ChangePasswordModal onClose={() => setModal(null)} addToast={addToast} />}
-      {modal === 'invite' && <InviteModal onClose={() => setModal(null)} addToast={addToast} />}
     </div>
   )
 }
@@ -111,7 +104,7 @@ function ChangePasswordModal({ onClose, addToast }) {
   )
 }
 
-function InviteModal({ onClose, addToast }) {
+export function InviteModal({ onClose, addToast }) {
   const [invites, setInvites] = useState(null)
   const [label, setLabel] = useState('')
   const [creating, setCreating] = useState(false)
