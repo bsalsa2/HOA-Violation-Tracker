@@ -5,7 +5,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
 import jwt
 import os
 import re
@@ -1132,6 +1132,21 @@ def get_violations(hoa_id: int, status: str = None, limit: Optional[int] = None,
     ]
 
 
+def hoa_contact_gaps(hoa: Optional[HOA]) -> List[str]:
+    """Fields a resident would need to actually reach the board. Missing all
+    of these means a violation notice goes out with no way to contact anyone."""
+    if not hoa:
+        return ["association name", "contact person", "email or phone"]
+    gaps = []
+    if not (hoa.name or "").strip():
+        gaps.append("association name")
+    if not (hoa.contact_person_name or "").strip():
+        gaps.append("contact person")
+    if not (hoa.email or "").strip() and not (hoa.phone or "").strip():
+        gaps.append("email or phone")
+    return gaps
+
+
 def build_letter(violation: Violation, db: Session) -> str:
     """The current draft letter, generated from live violation data."""
     resident = db.query(Resident).filter(Resident.id == violation.resident_id).first()
@@ -1598,13 +1613,18 @@ def _record_notice_sent(db: Session, violation: Violation, letter: str, via: str
 
 
 @app.post("/violations/{violation_id}/mark-sent")
-def mark_violation_sent(violation_id: int, body: Optional[MarkSentBody] = None,
+def mark_violation_sent(violation_id: int, force: bool = False, body: Optional[MarkSentBody] = None,
                         current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Record a notice as sent without going through the server mailer — e.g.
     the manager delivered it by hand or through their own email client. The
     caller may pass the exact letter text so the archived copy matches what
     went out."""
     violation = owned_violation(violation_id, current_user, db)
+    if not force:
+        hoa = db.query(HOA).filter(HOA.id == violation.hoa_id).first()
+        gaps = hoa_contact_gaps(hoa)
+        if gaps:
+            raise HTTPException(status_code=409, detail={"code": "hoa_contact_incomplete", "missing": gaps})
     letter = (body.letter if body and body.letter else None) or build_letter_with_portal(violation, db)
     _record_notice_sent(db, violation, letter, via="email")
     db.commit()
@@ -1614,7 +1634,7 @@ def mark_violation_sent(violation_id: int, body: Optional[MarkSentBody] = None,
 
 
 @app.post("/violations/{violation_id}/send-notice")
-def send_violation_notice(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def send_violation_notice(violation_id: int, force: bool = False, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Server-side notice delivery. The server generates, sends (via the
     configured email provider — Brevo API or SMTP), and archives the letter in
     one transaction, so the audit record is authoritative. The From shows the
@@ -1624,6 +1644,10 @@ def send_violation_notice(violation_id: int, current_user: User = Depends(get_cu
     if not resident or not resident.email:
         raise HTTPException(status_code=400, detail="Resident has no email address")
     hoa = db.query(HOA).filter(HOA.id == violation.hoa_id).first()
+    if not force:
+        gaps = hoa_contact_gaps(hoa)
+        if gaps:
+            raise HTTPException(status_code=409, detail={"code": "hoa_contact_incomplete", "missing": gaps})
     letter = build_letter_with_portal(violation, db)
     subject = f"{NOTICE_LEVELS[min(violation.notice_level or 0, len(NOTICE_LEVELS) - 1)] if violation.notice_level else 'Violation Notice'} — {violation.violation_type}"
     try:

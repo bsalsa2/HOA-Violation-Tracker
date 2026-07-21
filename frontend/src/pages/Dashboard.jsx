@@ -182,7 +182,7 @@ export default function Dashboard({ hoa, hoas, me, onSwitchHoa, onShowPortfolio,
     loadAnalytics()
   }, [loadAnalytics])
 
-  const handleSendEmail = useCallback(async (violationId) => {
+  const handleSendEmail = useCallback(async (violationId, force = false) => {
     const violation = violations.find((v) => v.id === violationId)
     if (!violation?.resident_email) {
       addToast('Resident has no email address.', 'error')
@@ -193,12 +193,24 @@ export default function Dashboard({ hoa, hoas, me, onSwitchHoa, onShowPortfolio,
     // The server generates the letter, sends it through the configured email
     // provider (Brevo API / SMTP), and archives the exact copy in one
     // transaction — so the audit record is authoritative. 501 means no
-    // provider is set up on the server yet.
+    // provider is set up on the server yet. 409 means the association's
+    // contact info is incomplete — confirm before sending a notice with no
+    // way for the resident to reach the board.
     try {
-      const res = await violationAPI.sendNotice(violationId)
+      const res = await violationAPI.sendNotice(violationId, force)
       applySentViolation(violationId, res.data.violation)
       addToast(`Letter sent to ${violation.resident_email}.`)
     } catch (err) {
+      if (err.response?.status === 409 && err.response?.data?.detail?.code === 'hoa_contact_incomplete') {
+        const missing = err.response.data.detail.missing.join(', ')
+        setSendingEmail((prev) => ({ ...prev, [violationId]: false }))
+        setConfirmDelete({
+          message: `Your association profile is missing: ${missing}. The resident won't have a way to contact the board from this notice. Send it anyway?`,
+          confirmLabel: 'Send anyway',
+          onConfirm: () => { setConfirmDelete(null); handleSendEmail(violationId, true) },
+        })
+        return
+      }
       const msg = err.response?.status === 501
         ? 'Email isn’t set up yet. Add an email provider key (BREVO_API_KEY) on the server to start sending notices.'
         : (err.response?.data?.detail || 'Failed to send email.')

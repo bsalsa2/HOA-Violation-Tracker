@@ -82,7 +82,7 @@ function GettingStarted({ hoa, residentCount, onAddResident, onImportResidents, 
     {
       title: 'Set your association details',
       hint: 'Your contact info appears on every violation notice as the reply-to.',
-      done: !!(hoa?.email && hoa?.contact_person_name),
+      done: !!(hoa?.contact_person_name && (hoa?.email || hoa?.phone)),
       actions: [{ label: 'Edit settings', onClick: onEditClient }],
     },
     {
@@ -196,9 +196,26 @@ export default function OverviewTab({ analytics, loading, violations = [], hoaId
   if (!analytics) return null
 
   const k = analytics.kpis
+  const hoaContactIncomplete = !(hoa?.contact_person_name && (hoa?.email || hoa?.phone))
 
   return (
     <div className="space-y-6">
+      {hoaContactIncomplete && (
+        <div className="vt-card !border-amber-500/25 overflow-hidden p-4 flex items-center justify-between gap-4 flex-wrap anim-rise">
+          <span className="absolute inset-x-0 top-0 h-[2px] rounded-t-[inherit] bg-gradient-to-r from-amber-500/80 via-amber-400/30 to-transparent" />
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="w-8 h-8 rounded-lg bg-amber-500/10 ring-1 ring-amber-500/25 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+            </span>
+            <p className="text-sm text-slate-300">
+              <span className="font-medium text-slate-100">Your association's contact info is incomplete.</span>{' '}
+              Violation notices are going out without a way for residents to reach the board.
+            </p>
+          </div>
+          <button onClick={onEditClient} className="btn-primary btn-sheen px-3 py-1.5 text-xs shrink-0">Complete association details</button>
+        </div>
+      )}
+
       {/* Key Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
