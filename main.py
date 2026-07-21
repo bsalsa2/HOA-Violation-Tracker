@@ -656,6 +656,20 @@ def forgot_password(data: ForgotPassword, db: Session = Depends(get_db)):
                 body=f"A password reset was requested for your ViolationTrack account.\n\n"
                      f"Reset link (valid 30 minutes):\n{reset_url}\n\n"
                      f"If you didn't request this, you can ignore this email.",
+                html_body=f"""<html><body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+<p>A password reset was requested for your ViolationTrack account.</p>
+<p>Click the button below to reset your password (valid for 30 minutes):</p>
+<p style="text-align: center; margin: 30px 0;">
+  <a href="{reset_url}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; display: inline-block;">Reset Password</a>
+</p>
+<p style="color: #666; font-size: 14px; margin-top: 30px;">
+  Or copy and paste this link in your browser:<br>
+  <a href="{reset_url}" style="color: #3b82f6; word-break: break-all;">{reset_url}</a>
+</p>
+<p style="color: #999; font-size: 12px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+  If you didn't request this, you can ignore this email. The reset link will expire in 30 minutes.
+</p>
+</body></html>""",
             )
         except LookupError:
             pass  # SMTP not configured — respond generically anyway
