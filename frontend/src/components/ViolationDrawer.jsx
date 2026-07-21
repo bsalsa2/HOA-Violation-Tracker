@@ -19,6 +19,8 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
   const [resolveOpen, setResolveOpen] = useState(false)
   const [resolveNote, setResolveNote] = useState('')
   const [sendConfirmOpen, setSendConfirmOpen] = useState(false)
+  const [fineConfirm, setFineConfirm] = useState(null)   // { kind, amount, note }
+  const [escalateConfirmOpen, setEscalateConfirmOpen] = useState(false)
   const [photos, setPhotos] = useState([])
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [photoError, setPhotoError] = useState('')
@@ -90,12 +92,14 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
       // Close the topmost layer first, not the whole drawer
       if (lightbox) setLightbox(null)
       else if (sendConfirmOpen) setSendConfirmOpen(false)
+      else if (fineConfirm) setFineConfirm(null)
+      else if (escalateConfirmOpen) setEscalateConfirmOpen(false)
       else if (resolveOpen) setResolveOpen(false)
       else onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, lightbox, sendConfirmOpen, resolveOpen])
+  }, [onClose, lightbox, sendConfirmOpen, fineConfirm, escalateConfirmOpen, resolveOpen])
 
   const runUpdate = async (fields) => {
     setBusy(true)
@@ -120,13 +124,19 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
     }
   }
 
-  const submitFine = async (e) => {
+  const submitFine = (e) => {
     e.preventDefault()
     const amount = parseFloat(fineAmount)
     if (!amount || amount <= 0) return
+    setFineConfirm({ kind: fineForm.kind, amount, note: fineNote.trim() || null })
+  }
+
+  const confirmFine = async () => {
+    const { kind, amount, note } = fineConfirm
+    setFineConfirm(null)
     setBusy(true)
     try {
-      await onFine(violation.id, amount, fineForm.kind, fineNote.trim() || null)
+      await onFine(violation.id, amount, kind, note)
       setFineForm(null)
       setFineAmount('')
       setFineNote('')
@@ -139,6 +149,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
   }
 
   const handleEscalate = async () => {
+    setEscalateConfirmOpen(false)
     setBusy(true)
     try {
       await onEscalate(violation.id)
@@ -333,19 +344,27 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
                 </div>
               </form>
             ) : (
-              <div className="flex gap-2 mt-3">
-                <button onClick={() => setFineForm({ kind: 'assessment' })} disabled={busy} className="flex-1 py-1.5 text-xs border border-white/10 text-slate-400 hover:bg-white/[0.06] hover:border-white/20 rounded-lg transition-colors">
-                  + Assess fine
-                </button>
-                <button
-                  onClick={() => setFineForm({ kind: 'payment' })}
-                  disabled={busy || (violation.fine_balance ?? 0) <= 0}
-                  className="flex-1 py-1.5 text-xs border border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
-                  title={(violation.fine_balance ?? 0) <= 0 ? 'Nothing outstanding' : ''}
-                >
-                  Record payment
-                </button>
-              </div>
+              <>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={() => setFineForm({ kind: 'assessment' })}
+                    disabled={busy}
+                    title="Add a new fine to this case's ledger"
+                    className="flex-1 py-1.5 text-xs border border-white/10 text-slate-400 hover:bg-white/[0.06] hover:border-white/20 rounded-lg transition-colors"
+                  >
+                    + Assess fine
+                  </button>
+                  <button
+                    onClick={() => setFineForm({ kind: 'payment' })}
+                    disabled={busy || (violation.fine_balance ?? 0) <= 0}
+                    className="flex-1 py-1.5 text-xs border border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
+                    title={(violation.fine_balance ?? 0) <= 0 ? 'Nothing outstanding' : 'Log a payment against the outstanding balance'}
+                  >
+                    Record payment
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-600 mt-2">Updates the ledger and case log only — it doesn't email the resident. Use "Email Letter" below to notify them.</p>
+              </>
             )}
           </div>
 
@@ -357,6 +376,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
                 <button
                   onClick={() => setSendConfirmOpen(true)}
                   disabled={sending}
+                  title="Send this notice letter to the resident by email now — this is the only action that actually notifies them"
                   className="flex items-center justify-center gap-1.5 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-slate-100 rounded-lg transition-colors"
                 >
                   {sending ? <Spinner className="w-3.5 h-3.5" /> : null}
@@ -365,7 +385,7 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
               ) : (
                 <button disabled className="py-2 text-sm bg-slate-800 text-slate-600 rounded-lg cursor-not-allowed" title="Resident has no email">No email on file</button>
               )}
-              <button onClick={() => onViewLetter(violation)} className="py-2 text-sm border border-slate-700 text-slate-400 hover:bg-slate-800 rounded-lg transition-colors">
+              <button onClick={() => onViewLetter(violation)} title="Preview the notice letter as it would be sent — this does not send anything" className="py-2 text-sm border border-slate-700 text-slate-400 hover:bg-slate-800 rounded-lg transition-colors">
                 View Letter
               </button>
               <button
@@ -394,10 +414,10 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
                 Case file
               </button>
               <button
-                onClick={handleEscalate}
+                onClick={() => setEscalateConfirmOpen(true)}
                 disabled={busy || atMaxNotice}
                 className="col-span-2 py-2 text-sm bg-red-600/90 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-slate-100 rounded-lg transition-colors"
-                title={atMaxNotice ? 'Already at highest level' : ''}
+                title={atMaxNotice ? 'Already at highest level' : `Raises the notice level to "${NOTICE_LEVELS[(violation.notice_level || 0) + 1]}" — doesn't email the resident by itself`}
               >
                 {atMaxNotice ? 'Max escalation reached' : `Escalate → ${NOTICE_LEVELS[(violation.notice_level || 0) + 1]}`}
               </button>
@@ -475,6 +495,62 @@ export default function ViolationDrawer({ violation, onClose, onUpdate, onEscala
             <div className="flex gap-3">
               <button onClick={() => setSendConfirmOpen(false)} className="flex-1 py-2 text-sm border border-slate-600 text-slate-400 hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
               <button onClick={() => { setSendConfirmOpen(false); onSendEmail(violation.id) }} className="flex-1 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 text-slate-100 rounded-lg transition-colors font-medium">Send Notice</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fine/payment confirmation — real money, so spell out exactly what will happen */}
+      {fineConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70" onClick={(e) => { if (e.target === e.currentTarget) setFineConfirm(null) }}>
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-amber-500/10 rounded-full flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .672-3 1.5S10.343 11 12 11s3 .672 3 1.5-1.343 1.5-3 1.5m0-6c1.11 0 2.08.402 2.599 1M12 8V6.5m0 8V17m0-8v6m9-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <div className="min-w-0">
+                <p className="text-slate-100 text-sm font-medium">
+                  {fineConfirm.kind === 'assessment' ? `Assess a ${currency(fineConfirm.amount)} fine?` : `Record a ${currency(fineConfirm.amount)} payment?`}
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">{violation.resident_name} · {violation.resident_unit}</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              {fineConfirm.kind === 'assessment'
+                ? `This adds ${currency(fineConfirm.amount)} to the fine ledger and logs it in the case activity.`
+                : `This logs a ${currency(fineConfirm.amount)} payment against the outstanding balance in the case activity.`}
+              {' '}It does not email the resident — use "Email Letter" separately to notify them.
+              {fineConfirm.note && <> Reason: <span className="text-slate-300">{fineConfirm.note}</span></>}
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setFineConfirm(null)} className="flex-1 py-2 text-sm border border-slate-600 text-slate-400 hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
+              <button onClick={confirmFine} className="flex-1 py-2 text-sm bg-amber-600 hover:bg-amber-500 text-slate-100 rounded-lg transition-colors font-medium">
+                {fineConfirm.kind === 'assessment' ? 'Assess Fine' : 'Record Payment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Escalation confirmation — raises the notice level, doesn't send anything by itself */}
+      {escalateConfirmOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70" onClick={(e) => { if (e.target === e.currentTarget) setEscalateConfirmOpen(false) }}>
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-500/10 rounded-full flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-8.25 3h.008v.008h-.008v-.008z" /></svg>
+              </div>
+              <div className="min-w-0">
+                <p className="text-slate-100 text-sm font-medium">Escalate to "{NOTICE_LEVELS[(violation.notice_level || 0) + 1]}"?</p>
+                <p className="text-xs text-slate-500 mt-0.5">{violation.resident_name} · {violation.resident_unit}</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              This raises the case's notice level and logs it in the case activity. It does not email the resident by itself — use "Email Letter" afterward to send the notice at the new level.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setEscalateConfirmOpen(false)} className="flex-1 py-2 text-sm border border-slate-600 text-slate-400 hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
+              <button onClick={handleEscalate} className="flex-1 py-2 text-sm bg-red-600/90 hover:bg-red-500 text-slate-100 rounded-lg transition-colors font-medium">Escalate</button>
             </div>
           </div>
         </div>
