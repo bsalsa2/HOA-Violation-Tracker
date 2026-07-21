@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
 import Login from './pages/Login'
+import InviteSignup from './pages/InviteSignup'
 import ResetPassword from './pages/ResetPassword'
 import ResidentPortal from './pages/ResidentPortal'
 import HOASetup from './pages/HOASetup'
@@ -90,13 +91,16 @@ function AuthedApp({ setToken }) {
   const handleDeleteClient = async () => {
     const id = editClientId
     setConfirmDeleteClient(false)
-    setEditClientId(null)
     try {
       await hoaAPI.delete(id)
       const remaining = await refreshPortfolio()
+      setEditClientId(null)
       navigate(remaining.length > 0 ? `/c/${remaining[0].id}` : '/', { replace: true })
-    } catch {
-      /* portfolio refresh will reflect reality */
+    } catch (err) {
+      console.error('Delete failed:', err.response?.status, err.response?.data)
+      // Sync with server state in case delete partially succeeded
+      await refreshPortfolio()
+      setEditClientId(null)
     }
   }
 
@@ -167,6 +171,7 @@ function AuthedApp({ setToken }) {
       {editHoa && (
         <EditHOAModal
           hoa={editHoa}
+          userEmail={me?.email}
           onClose={() => setEditClientId(null)}
           onUpdated={handleClientUpdated}
           onDelete={() => setConfirmDeleteClient(true)}
@@ -187,12 +192,19 @@ function AuthedApp({ setToken }) {
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('access_token'))
+  // An invite link must always land on the sign-up form, even if this browser
+  // is already signed in as someone else — otherwise it silently drops the
+  // invited customer into whoever's session happens to be active.
+  const hasInvite = new URLSearchParams(window.location.search).has('invite')
 
   return (
     <Routes>
-      <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login setToken={setToken} />} />
+      {/* Public routes — no auth required */}
+      <Route path="/login" element={hasInvite ? <Navigate to="/invite-signup" replace /> : (token ? <Navigate to="/" replace /> : <Login setToken={setToken} />)} />
+      <Route path="/invite-signup" element={!hasInvite ? <Navigate to="/login" replace /> : <InviteSignup setToken={setToken} />} />
       <Route path="/reset" element={<ResetPassword />} />
       <Route path="/v/:token" element={<ResidentPortal />} />
+      {/* Protected routes */}
       <Route path="/*" element={token ? <AuthedApp setToken={setToken} /> : <Navigate to="/login" replace />} />
     </Routes>
   )

@@ -13,16 +13,14 @@ const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=ViolationTrack%20access%
 
 function Login({ setToken }) {
   useDocumentTitle('Sign in — ViolationTrack')
-  const [mode, setMode] = useState('login')
+  const inviteCode = useMemo(() => new URLSearchParams(window.location.search).get('invite') || '', [])
+  const [mode, setMode] = useState(inviteCode ? 'register' : 'login')
+  const hasExistingSession = inviteCode && !!localStorage.getItem('access_token')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [forgotSent, setForgotSent] = useState(false)
-
-  // A paid customer's welcome link carries ?invite=CODE. Without it, sign-up
-  // is closed and we point visitors to email us for access.
-  const inviteCode = useMemo(() => new URLSearchParams(window.location.search).get('invite') || '', [])
 
   const handleForgot = async (e) => {
     e.preventDefault()
@@ -53,7 +51,10 @@ function Login({ setToken }) {
       const status = err.response?.status
       if (mode === 'login' && status === 401) setError('Invalid email or password.')
       else if (status === 429) setError('Too many failed attempts. Try again in a few minutes.')
-      else if (mode === 'register' && status === 403) setError(typeof detail === 'string' ? detail : 'Sign-up is invite-only.')
+      else if (mode === 'register' && status === 403) {
+        const msg = typeof detail === 'string' ? detail : 'Sign-up is invite-only.'
+        setError(`${msg} Contact sales for access.`)
+      }
       else if (mode === 'register' && status === 400) setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail || 'Could not create the account.'))
       else if (!err.response) setError('Cannot reach the server. It may still be deploying — wait a moment and try again.')
       else setError(`Error ${status}: ${Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail || err.message || 'Unknown error')}`)
@@ -98,6 +99,21 @@ function Login({ setToken }) {
             ))}
           </div>
 
+          {hasExistingSession && (
+            <div className="bg-amber-900/20 border border-amber-800/40 text-amber-200 text-xs rounded-lg p-3 mb-4">
+              This browser is already signed in to another account. Creating an account here will switch you to the new one.
+            </div>
+          )}
+
+          {mode === 'register' && !inviteCode && (
+            <div className="bg-blue-900/20 border border-blue-800/40 text-blue-200 text-sm rounded-lg p-3 mb-4">
+              <p>Invite-only sign-up</p>
+              <p className="text-xs text-blue-300 mt-1">
+                <a href={`mailto:${SUPPORT_EMAIL}`} className="underline hover:text-blue-100">Contact sales</a> to get a customer invite link.
+              </p>
+            </div>
+          )}
+
           {mode === 'forgot' ? (
             forgotSent ? (
               <div className="text-center space-y-3 py-2">
@@ -134,18 +150,6 @@ function Login({ setToken }) {
                 </p>
               </form>
             )
-          ) : (mode === 'register' && !inviteCode) ? (
-            <div className="space-y-4 text-center py-2">
-              <div className="inline-flex w-11 h-11 rounded-full bg-[#3b82f6]/10 ring-1 ring-[#3b82f6]/25 items-center justify-center">
-                <svg className="w-5 h-5 text-[#60a5fa]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-              </div>
-              <div className="space-y-1.5">
-                <p className="text-slate-100 text-sm font-medium">Sign-up is invite-only</p>
-                <p className="text-slate-400 text-sm">Already subscribed? Open the sign-up link from your welcome email. Otherwise, reach out and we'll get you set up.</p>
-              </div>
-              <a href={SUPPORT_MAILTO} className="btn-primary btn-sheen w-full py-3 inline-flex items-center justify-center no-underline">Email us for access</a>
-              <button type="button" onClick={() => { setMode('login'); setError('') }} className="block w-full text-xs text-slate-500 hover:text-slate-300 transition-colors">Back to sign in</button>
-            </div>
           ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && inviteCode && (

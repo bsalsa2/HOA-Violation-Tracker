@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://hoa-violation-tracker-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://hoa-violation-tracker-k4lq.vercel.app'
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -29,6 +29,8 @@ api.interceptors.response.use(
 
 export const authAPI = {
   register: (email, password, inviteCode) => api.post('/auth/register', { email, password, invite_code: inviteCode || null }),
+  registerWithHOA: (email, password, hoaName, hoaAddress, inviteCode) =>
+    api.post('/auth/register', { email, password, invite_code: inviteCode, hoa_name: hoaName, hoa_address: hoaAddress }),
   login: (email, password) => api.post('/auth/login', { email, password }),
   forgot: (email) => api.post('/auth/forgot', { email }),
   reset: (token, password) => api.post('/auth/reset', { token, password }),
@@ -90,8 +92,8 @@ export const violationAPI = {
     api.get(`/violations?hoa_id=${hoaId}${status ? `&status=${status}` : ''}`),
   getLetter: (violationId) => api.get(`/violations/${violationId}/letter`),
   getLetterPdf: (violationId, version = 'draft') => api.get(`/violations/${violationId}/letter.pdf?version=${version}`, { responseType: 'blob' }),
-  markSent: (violationId, letter) => api.post(`/violations/${violationId}/mark-sent`, letter ? { letter } : {}),
-  sendNotice: (violationId) => api.post(`/violations/${violationId}/send-notice`),
+  markSent: (violationId, letter, force = false) => api.post(`/violations/${violationId}/mark-sent${force ? '?force=true' : ''}`, letter ? { letter } : {}),
+  sendNotice: (violationId, force = false) => api.post(`/violations/${violationId}/send-notice${force ? '?force=true' : ''}`),
   getFines: (violationId) => api.get(`/violations/${violationId}/fines`),
   addFine: (violationId, amount, kind, note) => api.post(`/violations/${violationId}/fines`, { amount, kind, note: note || null }),
   getPortalLink: (violationId) => api.get(`/violations/${violationId}/portal-link`),

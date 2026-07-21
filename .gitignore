@@ -21,13 +21,18 @@ wheels/
 
 .env
 .env.local
+.env.supabase
 .venv/
 venv/
 ENV/
 
 node_modules/
 .DS_Store
-*.db
+test_*.db
 .claude/
 .vscode/
 .idea/
+hoa_tracker.db.bak
+*.db.bak
+
+*.db

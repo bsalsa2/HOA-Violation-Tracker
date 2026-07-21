@@ -2,11 +2,25 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 
+# Load a local .env file if present (used for local development on a laptop;
+# hosted platforms like Railway inject env vars directly so this is a no-op there).
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./hoa_tracker.db")
 
 if DATABASE_URL.startswith("postgres"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://").replace("postgresql://", "postgresql+psycopg2://", 1)
-    engine = create_engine(DATABASE_URL)
+    if os.getenv("VERCEL"):
+        # Serverless: instances come and go, so don't hold connections open —
+        # the external pooler (Supabase pgbouncer) does the pooling instead.
+        from sqlalchemy.pool import NullPool
+        engine = create_engine(DATABASE_URL, poolclass=NullPool)
+    else:
+        engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 else:
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 

@@ -5,7 +5,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
 import jwt
 import os
 import re
@@ -20,8 +20,6 @@ from collections import defaultdict, deque
 from database import engine, SessionLocal, Base
 from models import User, HOA, Resident, Violation, ViolationNote, ViolationPhoto, ViolationFine, InviteCode
 import utils
-
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="HOA Violation Tracker API")
 
@@ -45,15 +43,34 @@ VALID_PRIORITIES = {"low", "medium", "high"}
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "violationtrack.notices@gmail.com").strip().lower()
 
 
-# -- Migrations (safe, idempotent) --
-@app.on_event("startup")
-def startup():
+# -- Schema setup (safe, idempotent, runs once per process) --
+#
+# On serverless (Vercel) this must NOT run at import time: every cold start
+# would then do a full create_all reflection plus 17 ALTERs against the DB
+# before handling the request, which inflates cold-start latency enough to time
+# out slow calls (e.g. sending a notice email). Instead we run it lazily on the
+# first request and guard it with a flag so it's a no-op afterward. A request
+# middleware triggers it because Vercel's runtime does not reliably fire ASGI
+# lifespan ("startup") events.
+_schema_ready = False
+
+
+def ensure_schema():
+    global _schema_ready
+    if _schema_ready:
+        return
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"create_all skipped: {str(e)[:100]}")
+
     db = SessionLocal()
     try:
         from sqlalchemy import text
-        for stmt in [
+
+        is_sqlite = "sqlite" in str(db.get_bind().url)
+        pg_stmts = [
             "ALTER TABLE hoas ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)",
-            # Portfolio: a manager may own many HOAs — drop the old one-HOA-per-user unique constraint
             "ALTER TABLE hoas DROP CONSTRAINT IF EXISTS hoas_user_id_key",
             "ALTER TABLE hoas ADD COLUMN IF NOT EXISTS email VARCHAR",
             "ALTER TABLE hoas ADD COLUMN IF NOT EXISTS phone VARCHAR",
@@ -68,22 +85,37 @@ def startup():
             "ALTER TABLE violations ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMP",
             "ALTER TABLE violations ADD COLUMN IF NOT EXISTS fine_amount DOUBLE PRECISION DEFAULT 0",
             "ALTER TABLE violations ADD COLUMN IF NOT EXISTS fine_paid BOOLEAN DEFAULT FALSE",
-            # Postgres form, then the SQLite-compatible form (each failure is caught)
             "ALTER TABLE residents ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP",
-            "ALTER TABLE residents ADD COLUMN archived_at TIMESTAMP",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE",
-        ]:
-            try:
-                db.execute(text(stmt))
-                db.commit()
-                print(f"✓ Migration: {stmt[:60]}")
-            except Exception as e:
-                db.rollback()
-                print(f"✗ Migration failed: {e}")
+        ]
+        if not is_sqlite:
+            for stmt in pg_stmts:
+                try:
+                    db.execute(text(stmt))
+                    db.commit()
+                except Exception as e:
+                    db.rollback()
+                    print(f"⚠ Skipped: {str(e)[:80]}")
+        print("✓ Database initialized")
     except Exception as e:
         print(f"Migration error: {e}")
     finally:
         db.close()
+
+    _schema_ready = True
+
+
+@app.middleware("http")
+async def _schema_guard(request, call_next):
+    ensure_schema()
+    return await call_next(request)
+
+
+@app.on_event("startup")
+def startup():
+    # Fires under uvicorn/TestClient (local + tests). On Vercel the middleware
+    # above is what actually triggers schema setup.
+    ensure_schema()
 
 
 security = HTTPBearer()
@@ -144,6 +176,8 @@ class UserRegister(BaseModel):
     email: str
     password: str
     invite_code: Optional[str] = None
+    hoa_name: Optional[str] = None  # for invite signup flow
+    hoa_address: Optional[str] = None
 
 
 class ChangePassword(BaseModel):
@@ -496,10 +530,19 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
 
     user = User(email=email, hashed_password=utils.hash_password(data.password), is_admin=is_admin)
     db.add(user)
-    db.flush()  # assign user.id before marking the invite used
+    db.flush()
     if invite is not None:
         invite.used_by = user.id
         invite.used_at = datetime.utcnow()
+    # If registering via invite with HOA info, create the HOA
+    if data.hoa_name and invite is not None:
+        hoa = HOA(
+            name=data.hoa_name.strip(),
+            address=(data.hoa_address or "").strip(),
+            email=email,  # Auto-set to user's email during signup
+            user_id=user.id
+        )
+        db.add(hoa)
     db.commit()
     db.refresh(user)
     return {"access_token": utils.create_access_token({"sub": str(user.id)}), "token_type": "bearer"}
@@ -614,6 +657,20 @@ def forgot_password(data: ForgotPassword, db: Session = Depends(get_db)):
                 body=f"A password reset was requested for your ViolationTrack account.\n\n"
                      f"Reset link (valid 30 minutes):\n{reset_url}\n\n"
                      f"If you didn't request this, you can ignore this email.",
+                html_body=f"""<html><body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+<p>A password reset was requested for your ViolationTrack account.</p>
+<p>Click the button below to reset your password (valid for 30 minutes):</p>
+<p style="text-align: center; margin: 30px 0;">
+  <a href="{reset_url}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; display: inline-block;">Reset Password</a>
+</p>
+<p style="color: #666; font-size: 14px; margin-top: 30px;">
+  Or copy and paste this link in your browser:<br>
+  <a href="{reset_url}" style="color: #3b82f6; word-break: break-all;">{reset_url}</a>
+</p>
+<p style="color: #999; font-size: 12px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+  If you didn't request this, you can ignore this email. The reset link will expire in 30 minutes.
+</p>
+</body></html>""",
             )
         except LookupError:
             pass  # SMTP not configured — respond generically anyway
@@ -775,6 +832,11 @@ def update_hoa(hoa_id: int, data: HOACreate, current_user: User = Depends(get_cu
 @app.delete("/hoas/{hoa_id}")
 def delete_hoa(hoa_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     hoa = owned_hoa(hoa_id, current_user, db)
+    # Explicitly delete related violation notes, fines, and photos first (they reference HOA directly)
+    db.query(ViolationNote).filter(ViolationNote.hoa_id == hoa_id).delete()
+    db.query(ViolationFine).filter(ViolationFine.hoa_id == hoa_id).delete()
+    db.query(ViolationPhoto).filter(ViolationPhoto.hoa_id == hoa_id).delete()
+    # Delete violations and residents (cascade will handle nested relationships)
     db.delete(hoa)
     db.commit()
     return {"message": "Client deleted"}
@@ -1083,6 +1145,23 @@ def get_violations(hoa_id: int, status: str = None, limit: Optional[int] = None,
                             fines=fines.get(v.id), resident_response_count=int(response_counts.get(v.id, 0)))
         for v in violations
     ]
+
+
+def hoa_contact_gaps(hoa: Optional[HOA]) -> List[str]:
+    """Check required HOA contact fields. These are needed to send proper
+    violation notices that residents can respond to."""
+    if not hoa:
+        return ["association name", "address", "contact person", "email"]
+    gaps = []
+    if not (hoa.name or "").strip():
+        gaps.append("association name")
+    if not (hoa.address or "").strip():
+        gaps.append("address")
+    if not (hoa.contact_person_name or "").strip():
+        gaps.append("contact person")
+    if not (hoa.email or "").strip():
+        gaps.append("email")
+    return gaps
 
 
 def build_letter(violation: Violation, db: Session) -> str:
@@ -1551,13 +1630,18 @@ def _record_notice_sent(db: Session, violation: Violation, letter: str, via: str
 
 
 @app.post("/violations/{violation_id}/mark-sent")
-def mark_violation_sent(violation_id: int, body: Optional[MarkSentBody] = None,
+def mark_violation_sent(violation_id: int, force: bool = False, body: Optional[MarkSentBody] = None,
                         current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Record a notice as sent without going through the server mailer — e.g.
     the manager delivered it by hand or through their own email client. The
     caller may pass the exact letter text so the archived copy matches what
     went out."""
     violation = owned_violation(violation_id, current_user, db)
+    if not force:
+        hoa = db.query(HOA).filter(HOA.id == violation.hoa_id).first()
+        gaps = hoa_contact_gaps(hoa)
+        if gaps:
+            raise HTTPException(status_code=409, detail={"code": "hoa_contact_incomplete", "missing": gaps})
     letter = (body.letter if body and body.letter else None) or build_letter_with_portal(violation, db)
     _record_notice_sent(db, violation, letter, via="email")
     db.commit()
@@ -1567,7 +1651,7 @@ def mark_violation_sent(violation_id: int, body: Optional[MarkSentBody] = None,
 
 
 @app.post("/violations/{violation_id}/send-notice")
-def send_violation_notice(violation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def send_violation_notice(violation_id: int, force: bool = False, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Server-side notice delivery. The server generates, sends (via the
     configured email provider — Brevo API or SMTP), and archives the letter in
     one transaction, so the audit record is authoritative. The From shows the
@@ -1577,6 +1661,10 @@ def send_violation_notice(violation_id: int, current_user: User = Depends(get_cu
     if not resident or not resident.email:
         raise HTTPException(status_code=400, detail="Resident has no email address")
     hoa = db.query(HOA).filter(HOA.id == violation.hoa_id).first()
+    if not force:
+        gaps = hoa_contact_gaps(hoa)
+        if gaps:
+            raise HTTPException(status_code=409, detail={"code": "hoa_contact_incomplete", "missing": gaps})
     letter = build_letter_with_portal(violation, db)
     subject = f"{NOTICE_LEVELS[min(violation.notice_level or 0, len(NOTICE_LEVELS) - 1)] if violation.notice_level else 'Violation Notice'} — {violation.violation_type}"
     try:
@@ -1595,3 +1683,10 @@ def send_violation_notice(violation_id: int, current_user: User = Depends(get_cu
     db.commit()
     db.refresh(violation)
     return {"email_sent_at": violation.email_sent_at.isoformat(), "violation": serialize_violation(violation, resident, db=db)}
+
+
+if __name__ == "__main__":
+    # Local development entry point: `python main.py`
+    # (production uses a process manager that runs uvicorn directly)
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000)

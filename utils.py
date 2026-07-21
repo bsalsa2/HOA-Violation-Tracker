@@ -35,8 +35,8 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def send_email(to: str, subject: str, body: str, reply_to: str = None, from_name: str = None):
-    """Deliver a plain-text email through whichever provider is configured.
+def send_email(to: str, subject: str, body: str, reply_to: str = None, from_name: str = None, html_body: str = None):
+    """Deliver email through whichever provider is configured.
 
     Preference order:
       1. Brevo HTTP API (BREVO_API_KEY) — sends over HTTPS, so it works on hosts
@@ -47,16 +47,19 @@ def send_email(to: str, subject: str, body: str, reply_to: str = None, from_name
     read as coming from that HOA) and `reply_to` routes replies (the HOA's own
     address). The envelope From is always the one verified sender we control.
 
+    If `html_body` is provided, it's sent as the HTML alternative alongside the
+    plain-text version.
+
     Raises LookupError when no provider is configured, so callers can degrade
     gracefully (return 501 for notices, silently skip password-reset mail)."""
     if os.getenv("BREVO_API_KEY"):
-        return _send_email_brevo(to, subject, body, reply_to, from_name)
+        return _send_email_brevo(to, subject, body, reply_to, from_name, html_body)
     if os.getenv("SMTP_HOST"):
-        return send_email_smtp(to, subject, body, reply_to, from_name)
+        return send_email_smtp(to, subject, body, reply_to, from_name, html_body)
     raise LookupError("No email provider configured (set BREVO_API_KEY or SMTP_HOST)")
 
 
-def _send_email_brevo(to: str, subject: str, body: str, reply_to: str = None, from_name: str = None):
+def _send_email_brevo(to: str, subject: str, body: str, reply_to: str = None, from_name: str = None, html_body: str = None):
     """Send via Brevo's transactional email API over HTTPS. Requires a verified
     sender (BREVO_SENDER_EMAIL) — on Brevo's free tier that's just an email you
     confirm by clicking a link, no domain purchase needed."""
@@ -76,6 +79,8 @@ def _send_email_brevo(to: str, subject: str, body: str, reply_to: str = None, fr
         "subject": subject,
         "textContent": body,
     }
+    if html_body:
+        payload["htmlContent"] = html_body
     if reply_to:
         payload["replyTo"] = {"email": reply_to}
 
@@ -97,10 +102,10 @@ def _send_email_brevo(to: str, subject: str, body: str, reply_to: str = None, fr
         raise RuntimeError(f"Brevo API error {e.code}: {detail}") from e
 
 
-def send_email_smtp(to: str, subject: str, body: str, reply_to: str = None, from_name: str = None):
-    """Send plain-text mail through the SMTP server configured in the
-    environment. Raises LookupError when SMTP is not configured so callers
-    can fall back to client-side delivery."""
+def send_email_smtp(to: str, subject: str, body: str, reply_to: str = None, from_name: str = None, html_body: str = None):
+    """Send mail through the SMTP server configured in the environment.
+    If html_body is provided, sends both plain-text and HTML alternatives.
+    Raises LookupError when SMTP is not configured so callers can fall back to client-side delivery."""
     host = os.getenv("SMTP_HOST")
     if not host:
         raise LookupError("SMTP_HOST is not configured")
@@ -122,6 +127,8 @@ def send_email_smtp(to: str, subject: str, body: str, reply_to: str = None, from
     if reply_to:
         msg["Reply-To"] = reply_to
     msg.set_content(body)
+    if html_body:
+        msg.add_alternative(html_body, subtype="html")
 
     use_ssl = os.getenv("SMTP_SSL", "").lower() in ("1", "true", "yes")
     smtp_cls = smtplib.SMTP_SSL if use_ssl else smtplib.SMTP

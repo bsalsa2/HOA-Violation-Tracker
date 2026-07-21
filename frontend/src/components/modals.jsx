@@ -312,10 +312,10 @@ export function ImportViolationsCSVModal({ hoaId, onClose, onDone, addToast }) {
   )
 }
 
-export function EditHOAModal({ hoa, onClose, onUpdated, onDelete }) {
+export function EditHOAModal({ hoa, userEmail, onClose, onUpdated, onDelete }) {
   const [name, setName] = useState(hoa.name)
   const [address, setAddress] = useState(hoa.address)
-  const [email, setEmail] = useState(hoa.email || '')
+  const [email, setEmail] = useState(hoa.email || userEmail || '')
   const [phone, setPhone] = useState(hoa.phone || '')
   const [contactPersonName, setContactPersonName] = useState(hoa.contact_person_name || '')
   const [website, setWebsite] = useState(hoa.website || '')
@@ -325,8 +325,13 @@ export function EditHOAModal({ hoa, onClose, onUpdated, onDelete }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!email) {
-      setError('Email address is required to send violation letters.')
+    const missing = []
+    if (!name?.trim()) missing.push('HOA name')
+    if (!address?.trim()) missing.push('address')
+    if (!email?.trim()) missing.push('email')
+    if (!contactPersonName?.trim()) missing.push('contact person')
+    if (missing.length > 0) {
+      setError(`Required: ${missing.join(', ')}`)
       return
     }
     setLoading(true)
@@ -356,8 +361,8 @@ export function EditHOAModal({ hoa, onClose, onUpdated, onDelete }) {
           <input className={inputCls} value={address} onChange={(e) => setAddress(e.target.value)} required />
         </div>
         <div>
-          <label className={labelCls}>Email Address</label>
-          <input type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="board@yourhoa.com" />
+          <label className={labelCls}>Email Address *</label>
+          <input type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="board@yourhoa.com" required />
           <p className="text-xs text-slate-500 mt-1">Used as reply-to address on violation notices.</p>
         </div>
         <div>
@@ -365,8 +370,8 @@ export function EditHOAModal({ hoa, onClose, onUpdated, onDelete }) {
           <input type="tel" className={inputCls} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 123-4567" />
         </div>
         <div>
-          <label className={labelCls}>Contact Person</label>
-          <input className={inputCls} value={contactPersonName} onChange={(e) => setContactPersonName(e.target.value)} placeholder="Board President Name" />
+          <label className={labelCls}>Contact Person *</label>
+          <input className={inputCls} value={contactPersonName} onChange={(e) => setContactPersonName(e.target.value)} placeholder="Board President Name" required />
           <p className="text-xs text-slate-500 mt-1">Name to appear on violation notices (e.g., board president).</p>
         </div>
         <div>

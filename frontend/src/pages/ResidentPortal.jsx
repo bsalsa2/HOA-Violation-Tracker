@@ -30,8 +30,15 @@ export default function ResidentPortal() {
   useDocumentTitle(caseData ? `${caseData.hoa.name} · Violation Notice` : 'Violation Notice Portal')
 
   useEffect(() => {
-    portalAPI.getCase(token)
-      .then((res) => setCaseData(res.data))
+    // Portal is public access only — don't send auth token even if logged in
+    const publicAPI = {
+      getCase: (token) => {
+        return fetch(`${import.meta.env.VITE_API_BASE || 'https://hoa-violation-tracker-k4lq.vercel.app'}/portal/${token}`)
+          .then(r => r.ok ? r.json() : Promise.reject(r))
+      },
+    }
+    publicAPI.getCase(token)
+      .then((data) => setCaseData(data))
       .catch(() => setError('This link is invalid or has expired. Contact your association for a new one.'))
   }, [token])
 
@@ -79,72 +86,79 @@ export default function ResidentPortal() {
       <div className="vt-orb vt-orb-a -z-10 w-[30rem] h-[30rem] -top-32 left-1/2 -translate-x-1/2" style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.16), transparent 70%)' }} />
 
       <div className="max-w-2xl mx-auto space-y-5 anim-rise">
-        {/* Association header */}
-        <div className="text-center mb-2">
-          <p className="text-xs uppercase tracking-widest text-slate-500 mb-1">Violation Notice Portal</p>
-          <h1 className="text-2xl font-bold tracking-tight brand-gradient">{caseData.hoa.name}</h1>
+        {/* Header */}
+        <div className="text-center mb-4">
+          <p className="text-xs uppercase tracking-widest text-slate-500 mb-1">Violation Notice</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-100">{caseData.violation_type}</h1>
+          <p className="text-sm text-slate-400 mt-2">{caseData.hoa.name}</p>
         </div>
 
-        {/* Case card */}
+        {/* Summary card */}
         <div className="vt-card p-6">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="space-y-4">
+            {/* Violation details */}
             <div>
-              <h2 className="text-lg font-semibold text-slate-100">{caseData.violation_type}</h2>
-              <p className="text-xs text-slate-500 mt-0.5">{caseData.resident_name} · {caseData.property}</p>
-            </div>
-            <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${STATUS_STYLE[caseData.status] || STATUS_STYLE.open}`}>
-              {caseData.status === 'resolved' ? 'Resolved' : caseData.notice_label !== 'None' ? caseData.notice_label : 'Open'}
-            </span>
-          </div>
-
-          <p className="text-sm text-slate-400 leading-relaxed mt-4">{caseData.description}</p>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-5">
-            <div className="bg-white/[0.03] ring-1 ring-white/[0.06] rounded-xl p-3">
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">Recorded</p>
-              <p className="text-sm text-slate-200 mt-1">{formatDate(caseData.created_at)}</p>
-            </div>
-            <div className={`rounded-xl p-3 ring-1 ${overdue ? 'bg-red-500/[0.06] ring-red-500/25' : 'bg-white/[0.03] ring-white/[0.06]'}`}>
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">Correct By</p>
-              <p className={`text-sm mt-1 ${overdue ? 'text-red-400 font-medium' : 'text-slate-200'}`}>
-                {caseData.due_date ? formatDate(caseData.due_date) : '—'}
-                {caseData.status !== 'resolved' && days !== null && (
-                  <span className="block text-[11px] mt-0.5 opacity-80">{overdue ? `${Math.abs(days)} days past due` : days === 0 ? 'Due today' : `${days} days remaining`}</span>
-                )}
-              </p>
-            </div>
-            <div className={`rounded-xl p-3 ring-1 ${caseData.fine_balance > 0 ? 'bg-amber-500/[0.06] ring-amber-500/25' : 'bg-white/[0.03] ring-white/[0.06]'}`}>
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">Fine Balance</p>
-              <p className={`text-sm mt-1 font-medium ${caseData.fine_balance > 0 ? 'text-amber-400' : 'text-slate-200'}`}>
-                {currency(caseData.fine_balance)}
-                {caseData.fine_assessed > 0 && caseData.fine_balance === 0 && <span className="block text-[11px] text-emerald-400 mt-0.5">Paid in full</span>}
-              </p>
-            </div>
-          </div>
-
-          {caseData.photos.length > 0 && (
-            <div className="mt-5">
-              <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Evidence on file</p>
-              <div className="grid grid-cols-4 gap-2">
-                {caseData.photos.map((p, i) => (
-                  <button key={i} onClick={() => setLightbox(p.data)} aria-label={`View evidence photo ${i + 1}`} className="aspect-square rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-[#3b82f6]/60 transition-all">
-                    <img src={p.data} alt={`Evidence ${i + 1}`} className="w-full h-full object-cover" />
-                  </button>
-                ))}
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs uppercase tracking-wide text-slate-500">Property</p>
+                <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${STATUS_STYLE[caseData.status] || STATUS_STYLE.open}`}>
+                  {caseData.status === 'resolved' ? 'Resolved' : caseData.notice_label !== 'None' ? caseData.notice_label : 'Open'}
+                </span>
               </div>
+              <p className="text-sm text-slate-200">{caseData.property}</p>
             </div>
-          )}
+
+            {/* Description */}
+            <div>
+              <p className="text-xs uppercase tracking-wide text-slate-500 mb-1.5">Details</p>
+              <p className="text-sm text-slate-300 leading-relaxed">{caseData.description}</p>
+            </div>
+
+            {/* Timeline: Deadline and fine */}
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className={`rounded-lg p-3 ring-1 ${overdue ? 'bg-red-500/[0.06] ring-red-500/25' : 'bg-white/[0.03] ring-white/[0.06]'}`}>
+                <p className="text-[10px] uppercase tracking-wide text-slate-500">Correct By</p>
+                <p className={`text-sm font-medium mt-1 ${overdue ? 'text-red-400' : 'text-slate-200'}`}>
+                  {caseData.due_date ? formatDate(caseData.due_date) : '—'}
+                </p>
+                {caseData.status !== 'resolved' && days !== null && (
+                  <p className={`text-[11px] mt-1 ${overdue ? 'text-red-400/80' : 'text-slate-500'}`}>
+                    {overdue ? `${Math.abs(days)} days overdue` : days === 0 ? 'Due today' : `${days} days left`}
+                  </p>
+                )}
+              </div>
+              {caseData.fine_balance > 0 && (
+                <div className="rounded-lg p-3 ring-1 bg-amber-500/[0.06] ring-amber-500/25">
+                  <p className="text-[10px] uppercase tracking-wide text-slate-500">Amount Due</p>
+                  <p className="text-sm font-medium text-amber-400 mt-1">{currency(caseData.fine_balance)}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Photos */}
+            {caseData.photos.length > 0 && (
+              <div className="pt-2">
+                <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Evidence</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {caseData.photos.map((p, i) => (
+                    <button key={i} onClick={() => setLightbox(p.data)} className="aspect-square rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-[#3b82f6]/60 transition-all">
+                      <img src={p.data} alt={`Evidence ${i + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Respond */}
         {caseData.status !== 'resolved' ? (
           <div className="vt-card p-6">
-            <h3 className="text-sm font-semibold text-slate-200 mb-1">Respond to the association</h3>
-            <p className="text-xs text-slate-500 mb-4">Your response goes directly onto this case's official record.</p>
+            <h3 className="text-sm font-semibold text-slate-200 mb-0.5">Submit Your Response</h3>
+            <p className="text-xs text-slate-500 mb-4">Let the association know your status</p>
             {sent && (
               <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-sm rounded-lg p-3 mb-4 anim-fade">
                 <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                Response recorded — the association has been notified.
+                Response recorded
               </div>
             )}
             <form onSubmit={submit} className="space-y-3">
@@ -154,7 +168,7 @@ export default function ResidentPortal() {
                     key={k.key}
                     type="button"
                     onClick={() => setKind(k.key)}
-                    className={`text-left p-3 rounded-xl border transition-all ${kind === k.key ? 'border-[#3b82f6]/50 bg-[#3b82f6]/10' : 'border-white/10 hover:border-white/20'}`}
+                    className={`text-left p-3 rounded-lg border transition-all ${kind === k.key ? 'border-[#3b82f6]/50 bg-[#3b82f6]/10' : 'border-white/10 hover:border-white/20'}`}
                   >
                     <p className={`text-sm font-medium ${kind === k.key ? 'text-[#60a5fa]' : 'text-slate-300'}`}>{k.label}</p>
                     <p className="text-[11px] text-slate-500 mt-0.5">{k.hint}</p>
@@ -165,7 +179,7 @@ export default function ResidentPortal() {
                 className="vt-input px-3.5 py-3 resize-none"
                 rows={4}
                 maxLength={2000}
-                placeholder="Write your message to the association…"
+                placeholder="Write your message…"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 required
@@ -178,32 +192,34 @@ export default function ResidentPortal() {
           </div>
         ) : (
           <div className="vt-card p-6 text-center">
-            <p className="text-sm text-emerald-400 font-medium">This violation has been resolved.</p>
-            <p className="text-xs text-slate-500 mt-1">No further action is required.</p>
+            <p className="text-sm text-emerald-400 font-medium">Resolved</p>
+            <p className="text-xs text-slate-500 mt-1">No further action needed.</p>
           </div>
         )}
 
-        {/* Previous responses */}
+        {/* Previous responses — simplified */}
         {caseData.responses.length > 0 && (
           <div className="vt-card p-6">
-            <h3 className="text-sm font-semibold text-slate-200 mb-3">Your previous responses</h3>
-            <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-slate-200 mb-3">Your responses</h3>
+            <div className="space-y-2.5">
               {caseData.responses.map((r, i) => (
-                <div key={i} className="text-sm text-slate-400 border-l-2 border-[#3b82f6]/40 pl-3">
+                <div key={i} className="text-sm text-slate-400 pb-2.5 border-b border-white/5 last:border-0">
                   <p>{r.body}</p>
-                  <p className="text-[11px] text-slate-600 mt-0.5">{formatDate(r.created_at)}</p>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Association contact */}
-        <p className="text-center text-xs text-slate-600">
-          {caseData.hoa.name}
-          {caseData.hoa.email && <> · <a className="hover:text-slate-400" href={`mailto:${caseData.hoa.email}`}>{caseData.hoa.email}</a></>}
-          {caseData.hoa.phone && <> · {caseData.hoa.phone}</>}
-        </p>
+        {/* Contact footer */}
+        {(caseData.hoa.email || caseData.hoa.phone) && (
+          <p className="text-center text-xs text-slate-600">
+            Contact:
+            {caseData.hoa.email && <> <a className="text-slate-400 hover:text-slate-300" href={`mailto:${caseData.hoa.email}`}>{caseData.hoa.email}</a></>}
+            {caseData.hoa.email && caseData.hoa.phone && <> · </>}
+            {caseData.hoa.phone && <>{caseData.hoa.phone}</>}
+          </p>
+        )}
       </div>
 
       {lightbox && (
