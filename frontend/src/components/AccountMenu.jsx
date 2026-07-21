@@ -200,19 +200,17 @@ function InviteModal({ onClose, addToast }) {
                   </div>
                   <p className="text-[11px] text-slate-500 truncate mt-0.5 font-mono">{linkFor(inv.code)}</p>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {!inv.used && (
-                    <>
-                      <button onClick={() => copy(inv.code, inv.id)} className="px-2.5 py-1.5 text-xs text-slate-300 border border-white/10 hover:bg-white/[0.06] rounded-lg transition-colors">
-                        {copiedId === inv.id ? 'Copied!' : 'Copy'}
-                      </button>
-                      <button onClick={() => revoke(inv.id)} aria-label="Revoke invite" className="px-2 py-1.5 text-xs text-slate-500 hover:text-red-400 border border-white/10 hover:border-red-500/30 rounded-lg transition-colors">✕</button>
-                    </>
-                  )}
-                  {inv.used && (
-                    <button onClick={() => deleteHistory(inv.id)} aria-label="Delete history" className="px-2 py-1.5 text-xs text-slate-500 hover:text-red-400 border border-white/10 hover:border-red-500/30 rounded-lg transition-colors">Delete</button>
-                  )}
-                </div>
+                {!inv.used && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button onClick={() => copy(inv.code, inv.id)} className="px-2.5 py-1.5 text-xs text-slate-300 border border-white/10 hover:bg-white/[0.06] rounded-lg transition-colors">
+                      {copiedId === inv.id ? 'Copied!' : 'Copy'}
+                    </button>
+                    <button onClick={() => revoke(inv.id)} aria-label="Revoke invite" className="px-2 py-1.5 text-xs text-slate-500 hover:text-red-400 border border-white/10 hover:border-red-500/30 rounded-lg transition-colors">✕</button>
+                  </div>
+                )}
+                {inv.used && (
+                  <button onClick={() => deleteHistory(inv.id)} aria-label="Delete history" className="px-2 py-1.5 text-xs text-slate-500 hover:text-red-400 border border-white/10 hover:border-red-500/30 rounded-lg transition-colors">Delete</button>
+                )}
               </div>
             ))}
           </div>
