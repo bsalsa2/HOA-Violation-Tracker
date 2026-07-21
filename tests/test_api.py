@@ -442,6 +442,28 @@ def test_sent_letter_snapshot_is_immutable(client, alice, hoa, resident):
     client.delete(f"/violations/{v['id']}", headers=alice)
 
 
+def test_mark_sent_blocked_when_hoa_contact_incomplete(client, alice):
+    bare_hoa = client.post("/hoas", json={"name": "Bare Ridge", "address": "9 Bare Ln"}, headers=alice).json()
+    bare_resident = client.post("/residents", json={
+        "hoa_id": bare_hoa["id"], "name": "No Contact", "unit": "9A", "email": "nc@example.com",
+    }, headers=alice).json()
+    v = client.post("/violations", json={
+        "hoa_id": bare_hoa["id"], "resident_id": bare_resident["id"],
+        "violation_type": "Other", "description": "x",
+    }, headers=alice).json()
+
+    blocked = client.post(f"/violations/{v['id']}/mark-sent", json={"letter": "text"}, headers=alice)
+    assert blocked.status_code == 409
+    assert blocked.json()["detail"]["code"] == "hoa_contact_incomplete"
+    assert "contact person" in blocked.json()["detail"]["missing"]
+
+    forced = client.post(f"/violations/{v['id']}/mark-sent?force=true", json={"letter": "text"}, headers=alice)
+    assert forced.status_code == 200
+
+    client.delete(f"/violations/{v['id']}", headers=alice)
+    client.delete(f"/hoas/{bare_hoa['id']}", headers=alice)
+
+
 def test_sent_pdf_404_without_snapshot(client, alice, hoa, resident):
     v = client.post("/violations", json={
         "hoa_id": hoa["id"], "resident_id": resident["id"],
