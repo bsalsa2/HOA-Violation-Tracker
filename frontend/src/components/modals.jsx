@@ -312,10 +312,10 @@ export function ImportViolationsCSVModal({ hoaId, onClose, onDone, addToast }) {
   )
 }
 
-export function EditHOAModal({ hoa, onClose, onUpdated, onDelete }) {
+export function EditHOAModal({ hoa, userEmail, onClose, onUpdated, onDelete }) {
   const [name, setName] = useState(hoa.name)
   const [address, setAddress] = useState(hoa.address)
-  const [email, setEmail] = useState(hoa.email || '')
+  const [email, setEmail] = useState(hoa.email || userEmail || '')
   const [phone, setPhone] = useState(hoa.phone || '')
   const [contactPersonName, setContactPersonName] = useState(hoa.contact_person_name || '')
   const [website, setWebsite] = useState(hoa.website || '')

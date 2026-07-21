@@ -539,6 +539,7 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
         hoa = HOA(
             name=data.hoa_name.strip(),
             address=(data.hoa_address or "").strip(),
+            email=email,  # Auto-set to user's email during signup
             user_id=user.id
         )
         db.add(hoa)

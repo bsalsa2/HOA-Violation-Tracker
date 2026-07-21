@@ -171,6 +171,7 @@ function AuthedApp({ setToken }) {
       {editHoa && (
         <EditHOAModal
           hoa={editHoa}
+          userEmail={me?.email}
           onClose={() => setEditClientId(null)}
           onUpdated={handleClientUpdated}
           onDelete={() => setConfirmDeleteClient(true)}
