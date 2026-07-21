@@ -1148,17 +1148,19 @@ def get_violations(hoa_id: int, status: str = None, limit: Optional[int] = None,
 
 
 def hoa_contact_gaps(hoa: Optional[HOA]) -> List[str]:
-    """Fields a resident would need to actually reach the board. Missing all
-    of these means a violation notice goes out with no way to contact anyone."""
+    """Check required HOA contact fields. These are needed to send proper
+    violation notices that residents can respond to."""
     if not hoa:
-        return ["association name", "contact person", "email or phone"]
+        return ["association name", "address", "contact person", "email"]
     gaps = []
     if not (hoa.name or "").strip():
         gaps.append("association name")
+    if not (hoa.address or "").strip():
+        gaps.append("address")
     if not (hoa.contact_person_name or "").strip():
         gaps.append("contact person")
-    if not (hoa.email or "").strip() and not (hoa.phone or "").strip():
-        gaps.append("email or phone")
+    if not (hoa.email or "").strip():
+        gaps.append("email")
     return gaps
 
 

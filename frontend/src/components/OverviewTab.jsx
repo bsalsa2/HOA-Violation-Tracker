@@ -82,7 +82,7 @@ function GettingStarted({ hoa, residentCount, onAddResident, onImportResidents, 
     {
       title: 'Set your association details',
       hint: 'Your contact info appears on every violation notice as the reply-to.',
-      done: !!(hoa?.contact_person_name && (hoa?.email || hoa?.phone)),
+      done: !!(hoa?.name && hoa?.address && hoa?.contact_person_name && hoa?.email),
       actions: [{ label: 'Edit settings', onClick: onEditClient }],
     },
     {
@@ -196,7 +196,7 @@ export default function OverviewTab({ analytics, loading, violations = [], hoaId
   if (!analytics) return null
 
   const k = analytics.kpis
-  const hoaContactIncomplete = !(hoa?.contact_person_name && (hoa?.email || hoa?.phone))
+  const hoaContactIncomplete = !(hoa?.name && hoa?.address && hoa?.contact_person_name && hoa?.email)
 
   return (
     <div className="space-y-6">
