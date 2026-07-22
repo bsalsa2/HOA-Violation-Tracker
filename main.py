@@ -521,7 +521,7 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
         code = (data.invite_code or "").strip()
         if code:
             invite = db.query(InviteCode).filter(InviteCode.code == code).first()
-        if not invite or invite.used_at is not None:
+        if not invite:
             raise HTTPException(
                 status_code=403,
                 detail="Sign-up is invite-only. Use the link from your welcome email, "
@@ -531,9 +531,6 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
     user = User(email=email, hashed_password=utils.hash_password(data.password), is_admin=is_admin)
     db.add(user)
     db.flush()
-    if invite is not None:
-        invite.used_by = user.id
-        invite.used_at = datetime.utcnow()
     # If registering via invite with HOA info, create the HOA
     if data.hoa_name and invite is not None:
         hoa = HOA(
@@ -582,18 +579,11 @@ def create_invite(data: InviteCreate, admin: User = Depends(require_admin), db: 
 @app.get("/admin/invites")
 def list_invites(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     invites = db.query(InviteCode).order_by(InviteCode.created_at.desc()).all()
-    used_emails = {}
-    used_ids = [i.used_by for i in invites if i.used_by]
-    if used_ids:
-        used_emails = {u.id: u.email for u in db.query(User).filter(User.id.in_(used_ids)).all()}
     return [
         {
             "id": i.id,
             "code": i.code,
             "label": i.label,
-            "used": i.used_at is not None,
-            "used_by_email": used_emails.get(i.used_by),
-            "used_at": i.used_at.isoformat() if i.used_at else None,
             "created_at": i.created_at.isoformat(),
         }
         for i in invites
@@ -605,8 +595,6 @@ def revoke_invite(invite_id: int, admin: User = Depends(require_admin), db: Sess
     invite = db.query(InviteCode).filter(InviteCode.id == invite_id).first()
     if not invite:
         raise HTTPException(status_code=404, detail="Invite not found")
-    if invite.used_at is not None:
-        raise HTTPException(status_code=400, detail="That invite has already been used and can't be revoked")
     db.delete(invite)
     db.commit()
     return {"message": "Invite revoked"}

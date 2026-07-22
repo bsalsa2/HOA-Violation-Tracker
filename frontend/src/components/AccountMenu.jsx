@@ -154,7 +154,7 @@ export function InviteModal({ onClose, addToast }) {
   }
 
   return (
-    <Modal title="Invite links" subtitle="Generate a single-use sign-up link for a paying customer" onClose={onClose} wide>
+    <Modal title="Invite links" subtitle="Generate reusable sign-up links for customers — each link can be used unlimited times" onClose={onClose} wide>
       <div className="space-y-4">
         <div className="flex gap-2">
           <input
@@ -180,22 +180,16 @@ export function InviteModal({ onClose, addToast }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="text-sm text-slate-200 truncate">{inv.label || 'Invite'}</p>
-                    {inv.used ? (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-400 border border-slate-500/20 shrink-0">Used{inv.used_by_email ? ` · ${inv.used_by_email}` : ''}</span>
-                    ) : (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 shrink-0">Available</span>
-                    )}
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 shrink-0">Reusable</span>
                   </div>
                   <p className="text-[11px] text-slate-500 truncate mt-0.5 font-mono">{linkFor(inv.code)}</p>
                 </div>
-                {!inv.used && (
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button onClick={() => copy(inv.code, inv.id)} className="px-2.5 py-1.5 text-xs text-slate-300 border border-white/10 hover:bg-white/[0.06] rounded-lg transition-colors">
-                      {copiedId === inv.id ? 'Copied!' : 'Copy'}
-                    </button>
-                    <button onClick={() => revoke(inv.id)} aria-label="Revoke invite" className="px-2 py-1.5 text-xs text-slate-500 hover:text-red-400 border border-white/10 hover:border-red-500/30 rounded-lg transition-colors">✕</button>
-                  </div>
-                )}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button onClick={() => copy(inv.code, inv.id)} className="px-2.5 py-1.5 text-xs text-slate-300 border border-white/10 hover:bg-white/[0.06] rounded-lg transition-colors">
+                    {copiedId === inv.id ? 'Copied!' : 'Copy'}
+                  </button>
+                  <button onClick={() => revoke(inv.id)} aria-label="Revoke invite" className="px-2 py-1.5 text-xs text-slate-500 hover:text-red-400 border border-white/10 hover:border-red-500/30 rounded-lg transition-colors">✕</button>
+                </div>
               </div>
             ))}
           </div>
